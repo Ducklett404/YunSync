@@ -69,3 +69,15 @@ def test_nonproduction_environment_templates_load(template_name, environment):
 def test_staging_template_refuses_to_start_until_secret_is_replaced():
     with pytest.raises(ValidationError, match="SECRET_KEY"):
         Settings(_env_file=PROJECT_ROOT / ".env.staging.example")
+
+
+def test_production_refuses_demo_login():
+    with pytest.raises(ValidationError, match="ENABLE_DEMO_LOGIN"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            secret_key="a-production-secret-key-value",
+            database_url="postgresql+psycopg://user:pass@db/yunsync",
+            cors_origins="https://app.example.com",
+            enable_demo_login=True,
+        )

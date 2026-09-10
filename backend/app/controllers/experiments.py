@@ -3,9 +3,11 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.security import require_active_participant, require_safe_participant
 from app.db.session import get_db
 from app.models.action import ActionTemplate
 from app.models.experiment import Experiment
+from app.models.user import UserProfile
 from app.repositories.experiment_repository import experiment_repository
 from app.schemas.common import ApiMessage
 from app.schemas.experiment import ExperimentCreate, ExperimentOut, ExperimentResultOut, ObservationCreate
@@ -41,11 +43,13 @@ def _serialize_experiment(db: Session, experiment: Experiment) -> ExperimentOut:
 
 
 @router.post("", response_model=ExperimentOut)
-def create_experiment(payload: ExperimentCreate, db: Session = Depends(get_db)):
+def create_experiment(
+    payload: ExperimentCreate,
+    user: UserProfile = Depends(require_safe_participant),
+    db: Session = Depends(get_db),
+):
     try:
-        experiment = experiment_service.create(
-            db, payload.user_id, payload.action_id, payload.start_date
-        )
+        experiment = experiment_service.create(db, user.id, payload.action_id, payload.start_date)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
@@ -54,8 +58,11 @@ def create_experiment(payload: ExperimentCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/current", response_model=ExperimentOut)
-def current_experiment(user_id: str = "demo-user", db: Session = Depends(get_db)):
-    experiment = experiment_repository.latest_for_user(db, user_id)
+def current_experiment(
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    experiment = experiment_repository.latest_for_user(db, user.id)
     if experiment is None:
         raise HTTPException(status_code=404, detail="尚无实验计划")
     return _serialize_experiment(db, experiment)
@@ -65,8 +72,12 @@ def current_experiment(user_id: str = "demo-user", db: Session = Depends(get_db)
 def save_observation(
     experiment_id: str,
     payload: ObservationCreate,
+    user: UserProfile = Depends(require_active_participant),
     db: Session = Depends(get_db),
 ):
+    experiment = experiment_repository.get(db, experiment_id)
+    if experiment is None or experiment.user_id != user.id:
+        raise HTTPException(status_code=404, detail="实验不存在")
     try:
         experiment_service.save_observation(db, experiment_id, payload)
     except LookupError as exc:
@@ -77,7 +88,14 @@ def save_observation(
 
 
 @router.get("/{experiment_id}/result", response_model=ExperimentResultOut)
-def experiment_result(experiment_id: str, db: Session = Depends(get_db)):
+def experiment_result(
+    experiment_id: str,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    experiment = experiment_repository.get(db, experiment_id)
+    if experiment is None or experiment.user_id != user.id:
+        raise HTTPException(status_code=404, detail="实验不存在")
     try:
         return experiment_service.result(db, experiment_id)
     except LookupError as exc:

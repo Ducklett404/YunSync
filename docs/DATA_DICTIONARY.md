@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V0.1
+> 版本：V0.2
 >
-> 对应迁移：`6169c3448442_initial_schema`
+> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -11,6 +11,8 @@
 ```text
 user_profiles 1 ── N health_reports 1 ── N health_metrics
        │
+       ├─────── 1 ── N auth_sessions
+       ├─────── 1 ── N consent_records
        └─────── 1 ── N experiments N ── 1 action_templates
                            │
                            └──── 1 ── N observations
@@ -18,7 +20,7 @@ user_profiles 1 ── N health_reports 1 ── N health_metrics
 audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID 追踪操作。
 ```
 
-删除用户时，报告、指标、实验和观察记录通过外键级联删除；行动模板和审计日志不随用户级联删除。正式环境的删除与保留政策须在授权模块完成后再次评审。
+删除用户时，会话、授权、报告、指标、实验和观察记录通过外键级联删除；行动模板和审计日志不随用户级联删除。审计日志只保存最小事件元数据，不保存会话令牌、文件名、档案正文或初筛答案。
 
 ## 2. `user_profiles`
 
@@ -26,12 +28,44 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 |---|---|---|---|
 | `id` | varchar(36) | PK | 演示用户标识；当前固定为 `demo-user` |
 | `nickname` | varchar(80) | 默认“演示用户” | 展示昵称，不应存真实姓名 |
+| `role` | varchar(20) | 默认 `participant` | `participant` 或 `reviewer`，权限由服务端角色表决定 |
 | `age_range` | varchar(20) | 默认 `25-34` | 年龄段，不保存精确出生日期 |
 | `goal` | varchar(120) | 默认“改善日常活动习惯” | 健康行为目标 |
+| `sleep_schedule` | varchar(120) | 默认空字符串 | 合成作息概况 |
+| `activity_baseline` | varchar(160) | 默认空字符串 | 合成活动基础 |
+| `constraints` | text | 默认空字符串 | 行动限制，不应填写诊断详情 |
+| `preferences` | text | 默认空字符串 | 记录方式偏好 |
 | `high_risk` | boolean | 默认 false | 安全规则的硬拦截标记 |
+| `screening_status` | varchar(32) | 默认 `pending` | `pending` / `eligible` / `needs_professional_review` |
+| `screening_answers` | json | 默认 `{}` | 四项初筛布尔值，仅用于服务端安全判断 |
+| `screened_at` | timestamptz nullable | 无 | 最近完成初筛时间 |
 | `created_at` | timestamptz | UTC 当前时间 | 创建时间 |
 
-## 3. `health_reports`
+## 3. `auth_sessions`
+
+| 字段 | 类型 | 约束/默认值 | 含义 |
+|---|---|---|---|
+| `id` | varchar(36) | PK, UUID | 会话 ID |
+| `user_id` | varchar(36) | FK → `user_profiles.id`, index, cascade | 会话所属用户 |
+| `token_hash` | varchar(64) | unique, index | SHA-256 令牌摘要；原始令牌不入库 |
+| `expires_at` | timestamptz | index | 最长 72 小时内的过期时间 |
+| `revoked_at` | timestamptz nullable | 无 | 注销时间；非空即失效 |
+| `created_at` | timestamptz | UTC 当前时间 | 签发时间 |
+
+## 4. `consent_records`
+
+| 字段 | 类型 | 约束/默认值 | 含义 |
+|---|---|---|---|
+| `id` | varchar(36) | PK, UUID | 授权记录 ID |
+| `user_id` | varchar(36) | FK → `user_profiles.id`, index, cascade | 授权所属用户 |
+| `version` | varchar(32) | 非空 | 用户接受的知情说明版本 |
+| `status` | varchar(16) | check | `active` / `withdrawn` |
+| `accepted_at` | timestamptz | UTC 当前时间 | 接受时间 |
+| `withdrawn_at` | timestamptz nullable | 无 | 撤回时间 |
+
+部分唯一索引 `uq_consent_active_user` 保证每名用户最多只有一条 `active` 授权；服务端只认可当前版本 `2026-09-11.v1`。
+
+## 5. `health_reports`
 
 | 字段 | 类型 | 约束/默认值 | 含义 |
 |---|---|---|---|
@@ -42,7 +76,7 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `status` | varchar(32) | 默认 `needs_confirmation` | `needs_confirmation` / `confirmed` |
 | `created_at` | timestamptz | UTC 当前时间 | 创建时间 |
 
-## 4. `health_metrics`
+## 6. `health_metrics`
 
 | 字段 | 类型 | 约束/默认值 | 含义 |
 |---|---|---|---|
@@ -58,7 +92,7 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `confirmed` | boolean | 默认 false | 是否经用户核对 |
 | `measured_at` | timestamptz | UTC 当前时间 | 测量或导入时间 |
 
-## 5. `action_templates`
+## 7. `action_templates`
 
 | 字段 | 类型 | 约束/默认值 | 含义 |
 |---|---|---|---|
@@ -78,7 +112,7 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 
 模板审核状态与版本字段计划在第 5 周迁移中补充，现有表仅用于可行性验证。
 
-## 6. `experiments`
+## 8. `experiments`
 
 | 字段 | 类型 | 约束/默认值 | 含义 |
 |---|---|---|---|
@@ -94,7 +128,7 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 
 业务约束：日程必须为 14 天且恰好 7 个提醒日；前端不能修改 `treatment`。单用户单活动实验当前由服务层通过暂停旧实验实现，数据库级约束在第 6 周评审。
 
-## 7. `observations`
+## 9. `observations`
 
 | 字段 | 类型 | 约束/默认值 | 含义 |
 |---|---|---|---|
@@ -112,12 +146,12 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 
 唯一约束 `uq_experiment_day(experiment_id, observed_on)` 保证重复提交更新同一天记录，而不是创建重复数据。
 
-## 8. `audit_logs`
+## 10. `audit_logs`
 
 | 字段 | 类型 | 约束/默认值 | 含义 |
 |---|---|---|---|
 | `id` | varchar(36) | PK, UUID | 审计事件 ID |
-| `event_type` | varchar(80) | index | 如 `report.mock_analyzed`、`experiment.created`、`observation.saved` |
+| `event_type` | varchar(80) | index | 如 `auth.demo_login`、`consent.accepted`、`profile.updated` |
 | `actor_id` | varchar(36) | 默认 `system` | 操作者或系统标识 |
 | `payload` | json | 默认 `{}` | 最小化业务 ID 与事件元数据 |
 | `created_at` | timestamptz | UTC 当前时间, index | 事件时间 |

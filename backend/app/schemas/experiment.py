@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 
 
 class ExperimentCreate(BaseModel):
-    user_id: str = "demo-user"
     action_id: str
     start_date: date | None = None
 

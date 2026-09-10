@@ -54,7 +54,11 @@ class ReportService:
             AuditLog(
                 event_type="report.mock_analyzed" if settings.use_mock_ai else "report.analyzed",
                 actor_id=user_id,
-                payload={"report_id": report.id, "filename": report.filename, "metric_count": len(extracted)},
+                payload={
+                    "report_id": report.id,
+                    "source": report.source,
+                    "metric_count": len(extracted),
+                },
             )
         )
         db.commit()

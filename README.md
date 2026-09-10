@@ -17,6 +17,7 @@
 - [API 契约草案](docs/API_CONTRACT.md)
 - [环境与配置基线](docs/ENVIRONMENTS.md)
 - [M2A 工程基线验证记录](docs/M2A_VERIFICATION_REPORT.md)
+- [M3A 身份、授权与档案验证记录](docs/M3A_VERIFICATION_REPORT.md)
 - [华为云迁移说明](docs/HUAWEI_CLOUD_MIGRATION.md)
 
 ## 技术栈

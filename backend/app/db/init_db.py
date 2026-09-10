@@ -72,8 +72,24 @@ def seed_db() -> None:
                 UserProfile(
                     id="demo-user",
                     nickname="林同学（合成）",
+                    role="participant",
                     age_range="25-34",
                     goal="改善晚餐后的活动习惯",
+                    sleep_schedule="通常 23:30 入睡，07:00 起床",
+                    activity_baseline="工作日以久坐为主，晚餐后可安排轻量活动",
+                    constraints="仅使用合成资料；不调整药物或治疗安排",
+                    preferences="希望每天记录不超过 1 分钟",
+                )
+            )
+
+        if db.get(UserProfile, "demo-reviewer") is None:
+            db.add(
+                UserProfile(
+                    id="demo-reviewer",
+                    nickname="审核员（合成）",
+                    role="reviewer",
+                    age_range="not_applicable",
+                    goal="查看最小化安全审计事件",
                 )
             )
 

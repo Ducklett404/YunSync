@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.core.security import require_active_participant
 from app.models.action import ActionTemplate
 from app.models.user import UserProfile
 from app.repositories.experiment_repository import experiment_repository
@@ -14,10 +15,11 @@ router = APIRouter(tags=["dashboard"])
 
 
 @router.get("/dashboard")
-def get_dashboard(user_id: str = "demo-user", db: Session = Depends(get_db)):
-    user = db.get(UserProfile, user_id)
-    if user is None:
-        return {"user": None, "metrics": [], "experiment": None, "actions": []}
+def get_dashboard(
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    user_id = user.id
 
     report = health_repository.latest_report(db, user_id)
     metrics = health_repository.metrics_for_report(db, report.id) if report else []

@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     secret_key: str = "development-only"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    enable_demo_login: bool = True
+    session_ttl_hours: int = Field(default=12, ge=1, le=72)
 
     database_url: str = "sqlite:///./backend/data/yunsync.db"
     redis_url: str = "redis://localhost:6379/0"
@@ -48,6 +50,8 @@ class Settings(BaseSettings):
                 raise ValueError("Staging/Production 不允许使用 SQLite")
             if "*" in self.cors_origin_list:
                 raise ValueError("Staging/Production 不允许使用通配 CORS 来源")
+        if self.environment == "production" and self.enable_demo_login:
+            raise ValueError("Production 必须关闭 ENABLE_DEMO_LOGIN")
         return self
 
     @property

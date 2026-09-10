@@ -92,3 +92,46 @@ export interface ReportAnalysis {
   synthetic_notice: string
   metrics: HealthMetric[]
 }
+
+export interface UserProfile {
+  id: string
+  nickname: string
+  role: 'participant' | 'reviewer' | string
+  age_range: string
+  goal: string
+  sleep_schedule: string
+  activity_baseline: string
+  constraints: string
+  preferences: string
+  high_risk: boolean
+  screening_status: 'pending' | 'eligible' | 'needs_professional_review' | string
+  screening_answers: Record<string, boolean>
+  screened_at: string | null
+}
+
+export interface DemoSession {
+  access_token: string
+  token_type: string
+  expires_at: string
+  user: UserProfile
+}
+
+export interface ConsentRecord {
+  id: string
+  version: string
+  status: string
+  accepted_at: string
+  withdrawn_at: string | null
+}
+
+export interface ConsentNotice {
+  version: string
+  title: string
+  items: string[]
+}
+
+export interface AccountStatus {
+  user: UserProfile
+  consent: ConsentRecord | null
+  required_consent_version: string
+}

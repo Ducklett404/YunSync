@@ -17,6 +17,8 @@
 
 ```text
 UserProfile
+  ├── AuthSession
+  ├── ConsentRecord
   ├── HealthReport ── HealthMetric
   └── Experiment ── ActionTemplate
           └── Observation
@@ -37,6 +39,7 @@ AuditLog 独立保存报告解析、实验创建和每日记录事件。
 ```text
 Browser / API Client
   -> CORS 与请求 ID 中间件
+  -> Bearer 会话、角色权限、当前授权版本校验
   -> FastAPI Controller + Pydantic 校验
   -> Service 业务规则与安全边界
   -> Repository / Integration
@@ -52,9 +55,17 @@ Browser / API Client
 - 数据库结构只通过 Alembic 迁移演进；应用启动时执行幂等迁移和合成数据初始化。
 - Local、DevSpace 和 Staging 使用独立配置模板，Staging/Production 对默认密钥、SQLite 和通配 CORS 执行启动失败保护。
 
+## 身份与授权边界
+
+- 演示登录签发随机短期令牌，客户端只持有原始令牌，数据库只保存摘要；注销、过期或未知令牌返回 401。
+- `participant` 可管理自己的授权与健康流程，`reviewer` 只能读取最小化审计事件；权限判断全部在后端执行。
+- 健康接口从会话获取用户，不接受客户端指定 `user_id`，并对报告、实验执行对象归属校验。
+- 只认可当前版本的活动授权。撤回后健康接口立即返回 403，同时暂停进行中的个人实验。
+- 安全初筛任一项触发时，候选行动和新实验返回 409；答案正文不写入审计日志。
+
 ## 已知演进项
 
-1. 第 3 周增加账号、授权、撤回与角色实体，并把当前前端守卫升级为后端鉴权。
+1. 正式身份提供方、验证码发送与账号恢复在部署方案明确后接入；Production 已禁止演示登录。
 2. 第 5 周为行动模板增加审核状态、版本和停用机制。
 3. 第 6 周补齐实验状态机和数据库级单活动实验约束。
 4. 第 9 周在真实 RDS/DCS 环境执行迁移、备份和降级验证。

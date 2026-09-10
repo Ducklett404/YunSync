@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import {
   Activity,
   CalendarDays,
@@ -8,16 +9,23 @@ import {
   FlaskConical,
   LayoutDashboard,
   ShieldCheck,
+  UserRoundCog,
 } from 'lucide-vue-next'
+import { currentUser, isAuthenticated } from '@/state/auth'
 
-const navItems = [
-  { to: '/start', label: '开始使用', icon: CircleUserRound },
+const signedInNavItems = [
   { to: '/', label: '健康总览', icon: LayoutDashboard },
   { to: '/report', label: '报告确认', icon: FileScan },
   { to: '/actions', label: '候选行动', icon: ClipboardCheck },
   { to: '/experiment', label: '个人实验', icon: CalendarDays },
   { to: '/results', label: '结果评估', icon: Activity },
+  { to: '/profile', label: '账号与档案', icon: UserRoundCog },
 ]
+const navItems = computed(() =>
+  isAuthenticated.value
+    ? signedInNavItems
+    : [{ to: '/start', label: '开始使用', icon: CircleUserRound }],
+)
 </script>
 
 <template>
@@ -55,8 +63,8 @@ const navItems = [
           合成数据演示环境
         </div>
         <div class="profile-chip">
-          <span>林同学</span>
-          <span class="avatar">林</span>
+          <span>{{ currentUser?.nickname || '未登录' }}</span>
+          <span class="avatar">{{ currentUser?.nickname?.slice(0, 1) || '访' }}</span>
         </div>
       </header>
 

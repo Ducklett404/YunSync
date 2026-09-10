@@ -1,10 +1,79 @@
 import axios from 'axios'
-import type { ActionTemplate, DashboardData, Experiment, ExperimentResult, ReportAnalysis } from '@/types'
+import { clearAuthSession, getAccessToken } from '@/state/auth'
+import type {
+  AccountStatus,
+  ActionTemplate,
+  ConsentNotice,
+  ConsentRecord,
+  DashboardData,
+  DemoSession,
+  Experiment,
+  ExperimentResult,
+  ReportAnalysis,
+  UserProfile,
+} from '@/types'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 12000,
 })
+
+client.interceptors.request.use((config) => {
+  const token = getAccessToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) clearAuthSession()
+    return Promise.reject(error)
+  },
+)
+
+export async function loginDemo(accountId = 'demo-student'): Promise<DemoSession> {
+  const { data } = await client.post<DemoSession>('/auth/demo', { account_id: accountId })
+  return data
+}
+
+export async function logoutDemo(): Promise<void> {
+  await client.post('/auth/logout')
+}
+
+export async function fetchConsentNotice(): Promise<ConsentNotice> {
+  const { data } = await client.get<ConsentNotice>('/consents/notice')
+  return data
+}
+
+export async function fetchAccountStatus(): Promise<AccountStatus> {
+  const { data } = await client.get<AccountStatus>('/account/status')
+  return data
+}
+
+export async function acceptConsent(version: string): Promise<ConsentRecord> {
+  const { data } = await client.post<ConsentRecord>('/consents/accept', { version })
+  return data
+}
+
+export async function withdrawConsent(): Promise<void> {
+  await client.post('/consents/withdraw')
+}
+
+export async function fetchProfile(): Promise<UserProfile> {
+  const { data } = await client.get<UserProfile>('/profile')
+  return data
+}
+
+export async function updateProfile(payload: Partial<UserProfile>): Promise<UserProfile> {
+  const { data } = await client.patch<UserProfile>('/profile', payload)
+  return data
+}
+
+export async function saveSafetyScreening(payload: Record<string, boolean>): Promise<UserProfile> {
+  const { data } = await client.post<UserProfile>('/profile/screening', payload)
+  return data
+}
 
 export async function fetchDashboard(): Promise<DashboardData> {
   const { data } = await client.get<DashboardData>('/dashboard')
@@ -34,7 +103,6 @@ export async function fetchActions(): Promise<ActionTemplate[]> {
 
 export async function createExperiment(actionId: string): Promise<Experiment> {
   const { data } = await client.post<Experiment>('/experiments', {
-    user_id: 'demo-user',
     action_id: actionId,
   })
   return data

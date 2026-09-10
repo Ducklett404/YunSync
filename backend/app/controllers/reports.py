@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+from app.core.security import require_active_participant
 from app.db.session import get_db
 from app.models.health import HealthMetric, HealthReport
 from app.repositories.health_repository import health_repository
 from app.schemas.common import ApiMessage
 from app.schemas.health import ReportAnalysisOut
 from app.services.report_service import report_service
+from app.models.user import UserProfile
 
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -30,8 +32,11 @@ def _serialize_report(db: Session, report: HealthReport) -> ReportAnalysisOut:
 
 
 @router.get("/latest", response_model=ReportAnalysisOut)
-def latest_report(user_id: str = "demo-user", db: Session = Depends(get_db)):
-    report = health_repository.latest_report(db, user_id)
+def latest_report(
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    report = health_repository.latest_report(db, user.id)
     if report is None:
         raise HTTPException(status_code=404, detail="尚无体检报告")
     return _serialize_report(db, report)
@@ -39,12 +44,12 @@ def latest_report(user_id: str = "demo-user", db: Session = Depends(get_db)):
 
 @router.post("/analyze", response_model=ReportAnalysisOut)
 async def analyze_report(
-    user_id: str = "demo-user",
     file: UploadFile = File(...),
+    user: UserProfile = Depends(require_active_participant),
     db: Session = Depends(get_db),
 ):
     try:
-        report = await report_service.analyze(db, user_id, file)
+        report = await report_service.analyze(db, user.id, file)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -55,9 +60,13 @@ async def analyze_report(
 
 
 @router.post("/{report_id}/confirm", response_model=ApiMessage)
-def confirm_report(report_id: str, db: Session = Depends(get_db)):
+def confirm_report(
+    report_id: str,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
     report = db.get(HealthReport, report_id)
-    if report is None:
+    if report is None or report.user_id != user.id:
         raise HTTPException(status_code=404, detail="报告不存在")
     report.status = "confirmed"
     db.execute(

@@ -1,8 +1,43 @@
 from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 
+from app.db.session import SessionLocal
 from app.main import app
+from app.models.experiment import Experiment
+from app.models.identity import AuthSession, ConsentRecord
+from app.services.identity_service import CURRENT_CONSENT_VERSION, hash_session_token
+
+
+SAFE_SCREENING = {
+    "acute_symptoms": False,
+    "clinician_restriction": False,
+    "recent_discomfort": False,
+    "support_needed": False,
+}
+
+
+def login_demo(client: TestClient, account_id: str = "demo-student") -> dict[str, str]:
+    response = client.post("/api/v1/auth/demo", json={"account_id": account_id})
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def authorize_demo(client: TestClient) -> dict[str, str]:
+    headers = login_demo(client)
+    consent = client.post(
+        "/api/v1/consents/accept",
+        json={"version": CURRENT_CONSENT_VERSION},
+        headers=headers,
+    )
+    assert consent.status_code == 200
+    screening = client.post(
+        "/api/v1/profile/screening", json=SAFE_SCREENING, headers=headers
+    )
+    assert screening.status_code == 200
+    assert screening.json()["screening_status"] == "eligible"
+    return headers
 
 
 def test_health_and_readiness_endpoints():
@@ -31,7 +66,8 @@ def test_request_id_is_returned_and_invalid_value_is_replaced():
 
 def test_demo_dashboard_contains_complete_flow():
     with TestClient(app) as client:
-        response = client.get("/api/v1/dashboard")
+        headers = authorize_demo(client)
+        response = client.get("/api/v1/dashboard", headers=headers)
 
     assert response.status_code == 200
     payload = response.json()
@@ -43,9 +79,11 @@ def test_demo_dashboard_contains_complete_flow():
 
 def test_report_rejects_unsupported_file_type():
     with TestClient(app) as client:
+        headers = authorize_demo(client)
         response = client.post(
             "/api/v1/reports/analyze",
             files={"file": ("notes.txt", b"not a report", "text/plain")},
+            headers=headers,
         )
 
     assert response.status_code == 400
@@ -53,7 +91,8 @@ def test_report_rejects_unsupported_file_type():
 
 def test_observation_cannot_override_randomized_condition():
     with TestClient(app) as client:
-        experiment = client.get("/api/v1/experiments/current").json()
+        headers = authorize_demo(client)
+        experiment = client.get("/api/v1/experiments/current", headers=headers).json()
         day = next(item for item in experiment["schedule"] if item["date"] <= date.today().isoformat())
         response = client.post(
             f"/api/v1/experiments/{experiment['id']}/observations",
@@ -63,6 +102,7 @@ def test_observation_cannot_override_randomized_condition():
                 "completed": True,
                 "steps_30m": 1200,
             },
+            headers=headers,
         )
 
     assert response.status_code == 400
@@ -71,11 +111,13 @@ def test_observation_cannot_override_randomized_condition():
 
 def test_future_observation_is_rejected():
     with TestClient(app) as client:
-        experiment = client.get("/api/v1/experiments/current").json()
+        headers = authorize_demo(client)
+        experiment = client.get("/api/v1/experiments/current", headers=headers).json()
         day = next(item for item in experiment["schedule"] if item["date"] > date.today().isoformat())
         response = client.post(
             f"/api/v1/experiments/{experiment['id']}/observations",
             json={"observed_on": day["date"], "completed": True, "steps_30m": 1200},
+            headers=headers,
         )
 
     assert response.status_code == 400
@@ -84,13 +126,14 @@ def test_future_observation_is_rejected():
 
 def test_drink_experiment_uses_drink_count_as_result_metric():
     with TestClient(app) as client:
+        headers = authorize_demo(client)
         created = client.post(
             "/api/v1/experiments",
             json={
-                "user_id": "demo-user",
                 "action_id": "action-drink-swap",
                 "start_date": (date.today() - timedelta(days=13)).isoformat(),
             },
+            headers=headers,
         )
         assert created.status_code == 200
         experiment = created.json()
@@ -105,13 +148,204 @@ def test_drink_experiment_uses_drink_count_as_result_metric():
                     "completed": True,
                     "sugary_drinks": value,
                 },
+                headers=headers,
             )
             assert response.status_code == 200
 
-        result = client.get(f"/api/v1/experiments/{experiment['id']}/result")
+        result = client.get(
+            f"/api/v1/experiments/{experiment['id']}/result", headers=headers
+        )
 
     assert result.status_code == 200
     assert result.json()["metric_code"] == "sugary_drinks"
     assert result.json()["metric_unit"] == "次"
     assert result.json()["treatment_average"] == 0.5
     assert result.json()["control_average"] == 2.5
+
+
+def test_health_endpoints_require_login_and_current_consent():
+    with TestClient(app) as client:
+        anonymous = client.post(
+            "/api/v1/reports/analyze",
+            files={"file": ("synthetic.pdf", b"%PDF synthetic", "application/pdf")},
+        )
+        headers = login_demo(client)
+        client.post("/api/v1/consents/withdraw", headers=headers)
+        without_consent = client.post(
+            "/api/v1/reports/analyze",
+            files={"file": ("synthetic.pdf", b"%PDF synthetic", "application/pdf")},
+            headers=headers,
+        )
+
+    assert anonymous.status_code == 401
+    assert without_consent.status_code == 403
+    assert "知情说明" in without_consent.json()["detail"]
+
+
+def test_profile_roles_and_minimal_audit_events():
+    with TestClient(app) as client:
+        participant_headers = authorize_demo(client)
+        updated = client.patch(
+            "/api/v1/profile",
+            json={
+                "goal": "验证合成档案更新",
+                "sleep_schedule": "合成作息：23:00 至 07:00",
+                "preferences": "每日记录不超过一分钟",
+            },
+            headers=participant_headers,
+        )
+        participant_audit = client.get(
+            "/api/v1/admin/audit-events", headers=participant_headers
+        )
+
+        reviewer_headers = login_demo(client, "demo-reviewer")
+        reviewer_audit = client.get(
+            "/api/v1/admin/audit-events", headers=reviewer_headers
+        )
+        reviewer_health = client.get("/api/v1/dashboard", headers=reviewer_headers)
+
+    assert updated.status_code == 200
+    assert updated.json()["goal"] == "验证合成档案更新"
+    assert participant_audit.status_code == 403
+    assert reviewer_audit.status_code == 200
+    profile_event = next(
+        item for item in reviewer_audit.json() if item["event_type"] == "profile.updated"
+    )
+    assert profile_event["payload"] == {
+        "changed_fields": ["goal", "preferences", "sleep_schedule"]
+    }
+    assert reviewer_health.status_code == 403
+
+
+def test_raw_session_token_is_not_stored_and_consent_is_idempotent():
+    with TestClient(app) as client:
+        login = client.post(
+            "/api/v1/auth/demo", json={"account_id": "demo-student"}
+        )
+        token = login.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        stale = client.post(
+            "/api/v1/consents/accept",
+            json={"version": "obsolete-version"},
+            headers=headers,
+        )
+        first = client.post(
+            "/api/v1/consents/accept",
+            json={"version": CURRENT_CONSENT_VERSION},
+            headers=headers,
+        )
+        second = client.post(
+            "/api/v1/consents/accept",
+            json={"version": CURRENT_CONSENT_VERSION},
+            headers=headers,
+        )
+
+    with SessionLocal() as db:
+        stored_session = db.scalar(
+            select(AuthSession)
+            .where(AuthSession.user_id == "demo-user")
+            .order_by(AuthSession.created_at.desc())
+            .limit(1)
+        )
+        active_count = db.scalar(
+            select(func.count())
+            .select_from(ConsentRecord)
+            .where(
+                ConsentRecord.user_id == "demo-user",
+                ConsentRecord.status == "active",
+            )
+        )
+
+    assert stale.status_code == 409
+    assert first.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
+    assert stored_session is not None
+    assert stored_session.token_hash == hash_session_token(token)
+    assert stored_session.token_hash != token
+    assert active_count == 1
+
+
+def test_report_audit_does_not_store_uploaded_filename():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        analyzed = client.post(
+            "/api/v1/reports/analyze",
+            files={
+                "file": (
+                    "should-not-appear-in-audit.pdf",
+                    b"%PDF synthetic",
+                    "application/pdf",
+                )
+            },
+            headers=headers,
+        )
+        assert analyzed.status_code == 200
+        client.post(
+            f"/api/v1/reports/{analyzed.json()['report_id']}/confirm", headers=headers
+        )
+        reviewer_headers = login_demo(client, "demo-reviewer")
+        audit = client.get("/api/v1/admin/audit-events", headers=reviewer_headers)
+
+    assert audit.status_code == 200
+    assert "should-not-appear-in-audit.pdf" not in audit.text
+
+
+def test_high_risk_screening_blocks_self_service_experiment():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        high_risk = client.post(
+            "/api/v1/profile/screening",
+            json={**SAFE_SCREENING, "acute_symptoms": True},
+            headers=headers,
+        )
+        actions = client.get("/api/v1/actions", headers=headers)
+        experiment = client.post(
+            "/api/v1/experiments",
+            json={"action_id": "action-postmeal-walk"},
+            headers=headers,
+        )
+        client.post("/api/v1/profile/screening", json=SAFE_SCREENING, headers=headers)
+
+    assert high_risk.status_code == 200
+    assert high_risk.json()["screening_status"] == "needs_professional_review"
+    assert actions.status_code == 409
+    assert experiment.status_code == 409
+
+
+def test_withdrawal_stops_new_analysis_and_pauses_active_experiment():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        created = client.post(
+            "/api/v1/experiments",
+            json={"action_id": "action-postmeal-walk"},
+            headers=headers,
+        )
+        assert created.status_code == 200
+
+        withdrawn = client.post("/api/v1/consents/withdraw", headers=headers)
+        blocked = client.post(
+            "/api/v1/reports/analyze",
+            files={"file": ("synthetic.pdf", b"%PDF synthetic", "application/pdf")},
+            headers=headers,
+        )
+        status = client.get("/api/v1/account/status", headers=headers)
+
+    with SessionLocal() as db:
+        stored_experiment = db.get(Experiment, created.json()["id"])
+        experiment_status = stored_experiment.status if stored_experiment else None
+
+    assert withdrawn.status_code == 200
+    assert blocked.status_code == 403
+    assert status.status_code == 200
+    assert status.json()["consent"] is None
+    assert experiment_status == "paused"
+
+
+def test_logout_revokes_demo_session():
+    with TestClient(app) as client:
+        headers = login_demo(client)
+        logged_out = client.post("/api/v1/auth/logout", headers=headers)
+        rejected = client.get("/api/v1/auth/me", headers=headers)
+
+    assert logged_out.status_code == 200
+    assert rejected.status_code == 401

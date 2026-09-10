@@ -72,3 +72,30 @@ def test_week_two_engineering_documents_and_templates_exist():
     assert "23 项通过" in verification
     assert "没有安装 Docker" in verification
     assert "不以模拟结果替代" in verification
+
+
+def test_week_three_identity_consent_and_profile_are_documented():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    dictionary = (PROJECT_ROOT / "docs" / "DATA_DICTIONARY.md").read_text(encoding="utf-8")
+    contract = (PROJECT_ROOT / "docs" / "API_CONTRACT.md").read_text(encoding="utf-8")
+    verification = (PROJECT_ROOT / "docs" / "M3A_VERIFICATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+    router = (PROJECT_ROOT / "frontend" / "src" / "router" / "index.ts").read_text(
+        encoding="utf-8"
+    )
+
+    assert "里程碑 M3A" in plan
+    assert "当前不伪造完成" in plan
+    for table_name in ("auth_sessions", "consent_records", "screening_answers"):
+        assert table_name in dictionary
+    for route in (
+        "/api/v1/auth/demo",
+        "/api/v1/consents/withdraw",
+        "/api/v1/profile/screening",
+        "/api/v1/admin/audit-events",
+    ):
+        assert route in contract
+    assert "path: '/profile'" in router
+    assert "32 项通过" in verification
+    assert "不以合成记录替代" in verification
