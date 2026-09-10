@@ -36,3 +36,39 @@ def test_onboarding_prototype_is_registered():
     assert "hasSafetyFlag" in onboarding
     assert "unlockHealthFlow()" in onboarding
     assert "healthFlowUnlocked = false" in access_state
+
+
+def test_week_two_engineering_documents_and_templates_exist():
+    architecture = (PROJECT_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    dictionary = (PROJECT_ROOT / "docs" / "DATA_DICTIONARY.md").read_text(encoding="utf-8")
+    contract = (PROJECT_ROOT / "docs" / "API_CONTRACT.md").read_text(encoding="utf-8")
+    environments = (PROJECT_ROOT / "docs" / "ENVIRONMENTS.md").read_text(encoding="utf-8")
+    verification = (PROJECT_ROOT / "docs" / "M2A_VERIFICATION_REPORT.md").read_text(encoding="utf-8")
+
+    assert "X-Request-ID" in architecture
+    for table_name in (
+        "user_profiles",
+        "health_reports",
+        "health_metrics",
+        "action_templates",
+        "experiments",
+        "observations",
+        "audit_logs",
+    ):
+        assert table_name in dictionary
+    for route in (
+        "/healthz",
+        "/readyz",
+        "/api/v1/dashboard",
+        "/api/v1/reports/analyze",
+        "/api/v1/experiments",
+        "/observations",
+    ):
+        assert route in contract
+    assert "X-Request-ID" in contract
+    for template_name in (".env.local.example", ".env.devspace.example", ".env.staging.example"):
+        assert template_name in environments
+        assert (PROJECT_ROOT / template_name).is_file()
+    assert "23 项通过" in verification
+    assert "没有安装 Docker" in verification
+    assert "不以模拟结果替代" in verification

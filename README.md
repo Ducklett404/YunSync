@@ -13,6 +13,10 @@
 - [第 1 周可用性走查方案](docs/USABILITY_TEST_PLAN.md)
 - [第 1 周合成用户仿真报告](docs/USABILITY_SIMULATION_REPORT.md)
 - [系统架构](docs/ARCHITECTURE.md)
+- [数据字典](docs/DATA_DICTIONARY.md)
+- [API 契约草案](docs/API_CONTRACT.md)
+- [环境与配置基线](docs/ENVIRONMENTS.md)
+- [M2A 工程基线验证记录](docs/M2A_VERIFICATION_REPORT.md)
 - [华为云迁移说明](docs/HUAWEI_CLOUD_MIGRATION.md)
 
 ## 技术栈

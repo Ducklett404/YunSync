@@ -16,6 +16,19 @@ def test_health_and_readiness_endpoints():
     assert ready.json()["status"] == "ready"
 
 
+def test_request_id_is_returned_and_invalid_value_is_replaced():
+    with TestClient(app) as client:
+        accepted = client.get("/healthz", headers={"X-Request-ID": "test-request-123"})
+        replaced = client.get("/healthz", headers={"X-Request-ID": "invalid request id"})
+        missing = client.get("/api/v1/route-that-does-not-exist")
+
+    assert accepted.headers["X-Request-ID"] == "test-request-123"
+    assert replaced.headers["X-Request-ID"] != "invalid request id"
+    assert len(replaced.headers["X-Request-ID"]) == 32
+    assert missing.status_code == 404
+    assert len(missing.headers["X-Request-ID"]) == 32
+
+
 def test_demo_dashboard_contains_complete_flow():
     with TestClient(app) as client:
         response = client.get("/api/v1/dashboard")

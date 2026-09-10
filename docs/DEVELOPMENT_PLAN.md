@@ -680,6 +680,18 @@ docs/<name>          文档与材料
 - 空环境可完成安装、迁移、启动和健康检查；
 - `.env`、数据库和依赖目录不会进入 Git。
 
+**进展记录（2026-09-10）**
+
+- [x] 复核前后端分层、核心实体、索引、约束和初始 Alembic 迁移；
+- [x] 补齐数据字典、API 契约草案和 Local/DevSpace/Staging 配置模板；
+- [x] 增加统一 request ID、结构化请求日志和未处理异常收口；
+- [x] 增加 Staging/Production 默认密钥、SQLite 和通配 CORS 启动失败保护；
+- [x] 补齐 Windows/Linux 验证脚本、Docker 配置和健康检查基线；
+- [ ] 在全新 Linux/DevSpace 环境执行一次从零安装并保存验收记录；
+- [ ] 使用可用容器运行时完成一次干净 Docker/Compose 构建验收。
+
+里程碑 M2A“架构与工程基线”完成，本机结果见 [M2A_VERIFICATION_REPORT.md](M2A_VERIFICATION_REPORT.md)；第 2 周完整验收仍需全新环境与容器构建证据。
+
 ### 第 3 周：账号、授权与健康档案
 
 **任务**

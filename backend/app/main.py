@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from app.controllers.api import api_router
 from app.core.config import settings
+from app.core.observability import request_context_middleware
 from app.db.init_db import seed_db
 from app.db.migrations import run_migrations
 from app.db.session import SessionLocal
@@ -29,6 +30,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.middleware("http")(request_context_middleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -55,10 +57,13 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 if FRONTEND_DIST.exists():
     frontend_root = FRONTEND_DIST.resolve()
+    api_route_root = settings.api_v1_prefix.strip("/")
     app.mount("/assets", StaticFiles(directory=frontend_root / "assets"), name="assets")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def serve_frontend(full_path: str):
+        if full_path == api_route_root or full_path.startswith(f"{api_route_root}/"):
+            raise HTTPException(status_code=404, detail="API 路由不存在")
         candidate = (frontend_root / full_path).resolve()
         if full_path and candidate.is_relative_to(frontend_root) and candidate.is_file():
             return FileResponse(candidate)

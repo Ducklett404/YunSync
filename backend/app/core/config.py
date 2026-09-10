@@ -1,14 +1,19 @@
-from functools import lru_cache
+from __future__ import annotations
 
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "YunSync HealthLoop"
-    environment: str = "development"
+    environment: Literal["local", "development", "devspace", "staging", "production", "test"] = "development"
     api_v1_prefix: str = "/api/v1"
     secret_key: str = "development-only"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
     database_url: str = "sqlite:///./backend/data/yunsync.db"
     redis_url: str = "redis://localhost:6379/0"
@@ -29,6 +34,21 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_environment_safety(self) -> Settings:
+        if not self.api_v1_prefix.startswith("/"):
+            raise ValueError("API_V1_PREFIX 必须以 / 开头")
+
+        if self.environment in {"staging", "production"}:
+            unsafe_secrets = {"", "development-only", "replace-this-before-deployment"}
+            if self.secret_key in unsafe_secrets or len(self.secret_key) < 24:
+                raise ValueError("Staging/Production 必须配置至少 24 位的独立 SECRET_KEY")
+            if self.database_url.startswith("sqlite"):
+                raise ValueError("Staging/Production 不允许使用 SQLite")
+            if "*" in self.cors_origin_list:
+                raise ValueError("Staging/Production 不允许使用通配 CORS 来源")
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

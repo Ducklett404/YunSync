@@ -32,3 +32,29 @@ AuditLog 独立保存报告解析、实验创建和每日记录事件。
 4. 结果只输出观察性差异、有效观测次数和限制，不输出疾病疗效。
 5. SQLite 用于本地零配置运行，SQLAlchemy 和 Alembic 保证迁移到 PostgreSQL 时结构一致。
 
+## 请求处理链路
+
+```text
+Browser / API Client
+  -> CORS 与请求 ID 中间件
+  -> FastAPI Controller + Pydantic 校验
+  -> Service 业务规则与安全边界
+  -> Repository / Integration
+  -> SQLite/PostgreSQL、Redis、OCR、MaaS、OBS
+```
+
+每个响应携带 `X-Request-ID`。API 日志只记录方法、路径、状态码和耗时等最小元数据；未处理异常转换为通用 500 响应，不把堆栈或内部数据暴露给前端。详细规范见 [ENVIRONMENTS.md](ENVIRONMENTS.md)。
+
+## 契约与数据
+
+- 持久化实体、字段、外键、索引和业务约束见 [DATA_DICTIONARY.md](DATA_DICTIONARY.md)。
+- HTTP 输入输出、状态码和错误口径见 [API_CONTRACT.md](API_CONTRACT.md)。
+- 数据库结构只通过 Alembic 迁移演进；应用启动时执行幂等迁移和合成数据初始化。
+- Local、DevSpace 和 Staging 使用独立配置模板，Staging/Production 对默认密钥、SQLite 和通配 CORS 执行启动失败保护。
+
+## 已知演进项
+
+1. 第 3 周增加账号、授权、撤回与角色实体，并把当前前端守卫升级为后端鉴权。
+2. 第 5 周为行动模板增加审核状态、版本和停用机制。
+3. 第 6 周补齐实验状态机和数据库级单活动实验约束。
+4. 第 9 周在真实 RDS/DCS 环境执行迁移、备份和降级验证。

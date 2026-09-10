@@ -4,10 +4,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      ENVIRONMENT: production
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env before starting containers}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+psycopg://yunsync:yunsync@postgres:5432/yunsync
       REDIS_URL: redis://redis:6379/0
-      USE_MOCK_AI: "true"
+      USE_MOCK_AI: ${USE_MOCK_AI:-true}
     depends_on:
       postgres:
         condition: service_healthy
