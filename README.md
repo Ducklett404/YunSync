@@ -4,6 +4,12 @@
 
 > 本项目仅用于健康教育、自我监测和生活方式支持，不提供疾病诊断、治疗或药物调整意见。仓库中的人物与健康数据均为合成数据。
 
+## 项目文档
+
+- [从 0 开始的详细开发计划书](docs/DEVELOPMENT_PLAN.md)
+- [系统架构](docs/ARCHITECTURE.md)
+- [华为云迁移说明](docs/HUAWEI_CLOUD_MIGRATION.md)
+
 ## 技术栈
 
 - 前端：Vue 3、TypeScript、Vite、Pinia、Vue Router、ECharts、Lucide
