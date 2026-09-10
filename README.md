@@ -11,6 +11,7 @@
 - [主流程与交互规格](docs/UX_FLOW.md)
 - [界面文案基线](docs/CONTENT_COPY.md)
 - [第 1 周可用性走查方案](docs/USABILITY_TEST_PLAN.md)
+- [第 1 周合成用户仿真报告](docs/USABILITY_SIMULATION_REPORT.md)
 - [系统架构](docs/ARCHITECTURE.md)
 - [华为云迁移说明](docs/HUAWEI_CLOUD_MIGRATION.md)
 

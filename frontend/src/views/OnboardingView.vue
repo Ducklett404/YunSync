@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { ArrowRight, CheckCircle2, CircleAlert, FileLock2, ShieldCheck } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/PageHeader.vue'
+import { resetOnboardingAccess, unlockHealthFlow } from '@/state/onboarding'
 
 type Answer = 'yes' | 'no' | ''
 
@@ -12,6 +13,7 @@ interface SafetyQuestion {
 }
 
 const router = useRouter()
+resetOnboardingAccess()
 const acceptedBoundaries = ref(false)
 const acceptedSyntheticOnly = ref(false)
 const acceptedProcessing = ref(false)
@@ -42,6 +44,7 @@ const canContinue = computed(() => consentReady.value && allQuestionsAnswered.va
 
 async function continueToReport() {
   if (!canContinue.value) return
+  unlockHealthFlow()
   await router.push('/report')
 }
 </script>
