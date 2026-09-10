@@ -2,6 +2,7 @@
 import {
   Activity,
   CalendarDays,
+  CircleUserRound,
   ClipboardCheck,
   FileScan,
   FlaskConical,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-vue-next'
 
 const navItems = [
+  { to: '/start', label: '开始使用', icon: CircleUserRound },
   { to: '/', label: '健康总览', icon: LayoutDashboard },
   { to: '/report', label: '报告确认', icon: FileScan },
   { to: '/actions', label: '候选行动', icon: ClipboardCheck },
@@ -64,4 +66,3 @@ const navItems = [
     </div>
   </div>
 </template>
-
