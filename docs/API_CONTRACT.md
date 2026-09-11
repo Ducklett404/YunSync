@@ -1,6 +1,6 @@
 # YunSync API 契约草案
 
-> 版本：V0.3
+> 版本：V0.4
 >
 > 基础路径：`/api/v1`
 >
@@ -39,6 +39,9 @@
 | GET/PATCH | `/api/v1/profile` | 参与者、有效授权 | 读取或更新合成健康档案 |
 | POST | `/api/v1/profile/screening` | 参与者、有效授权 | 保存四项安全初筛；任一项触发即停止自助实验 |
 | GET | `/api/v1/admin/audit-events` | 审核角色 | 返回最近 100 条最小化审计事件 |
+| GET | `/api/v1/admin/action-templates` | 审核角色 | 读取全部模板版本及治理状态 |
+| POST | `/api/v1/admin/action-templates/{id}/versions` | 审核角色 | 从已有模板复制一个不活动的草稿版本 |
+| PATCH | `/api/v1/admin/action-templates/{id}/status` | 审核角色 | 设置草稿、原型规则通过或停用状态；切换活动版本 |
 
 ## 4. 健康业务接口
 
@@ -59,6 +62,8 @@
 | GET | `/api/v1/experiments/{id}/result` | path `id` | 200 `ExperimentResult` | 404 实验/模板 |
 
 所有路径参数对象均校验属于当前会话用户；其他用户的报告或实验统一返回 404。
+
+`GET /actions` 只返回当前环境可发布的活动低风险模板。Development/Test 可使用 `prototype_approved`，Production 只接受 `professionally_approved`。同一行动代码最多一个活动版本。
 
 ## 5. 核心输入
 
@@ -81,6 +86,16 @@
 - 非敏感存储元数据：`storage_provider`、`content_type`、`file_size`，不暴露内部对象键或磁盘路径；
 - 每个指标包含结构化值、原始文本、0–1 置信度、从 1 开始的页码、四项归一化坐标及 `pending` / `confirmed` / `corrected` 校对状态；
 - `ocr_status=failed` 时 `metrics` 必须为空。失败响应的 `detail` 包含 `message`、`report_id` 和稳定错误码，供页面恢复失败报告。
+
+### `Action`
+
+- `template_version`、`review_status`、`review_scope`、`review_label`：模板追溯信息；
+- `score_components`：依据、可观察性和易执行性的权重与得分贡献，`total` 等于 `score`；
+- `ranking_policy_version`：当前为 `rank-v1`；
+- `explanation`、`explanation_source`、`explanation_policy_version`：受控解释、来源和守卫版本；
+- `safety_checks`：报告确认、初筛、模板状态和低风险检查的用户可读记录。
+
+`action-explain-v1` 拒绝诊断断言、调药建议、极端方案和疗效保证。Mock、真实 MaaS 或固定回退的来源必须明确标记，回退不得伪装成模型输出。
 
 ### `ExperimentCreate`
 

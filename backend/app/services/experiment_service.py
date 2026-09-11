@@ -3,6 +3,8 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.core.action_policy import template_is_publishable
+from app.core.config import settings
 from app.models.action import ActionTemplate
 from app.models.audit import AuditLog
 from app.models.experiment import Experiment, Observation
@@ -41,13 +43,26 @@ class ExperimentService:
             raise LookupError("用户不存在")
         if action is None:
             raise LookupError("行动模板不存在")
-        if user.high_risk:
+        if user.high_risk or user.screening_status != "eligible":
             raise PermissionError("当前信息触发安全拦截，不能生成自助实验")
         report = health_repository.latest_report(db, user_id)
         if report is None or report.status != "confirmed":
             raise PermissionError("请先确认最新报告，再生成个人实验")
-        if action.risk_level != "low":
-            raise PermissionError("该行动未通过低风险模板审核，不能生成自助实验")
+        metrics = health_repository.metrics_for_report(db, report.id)
+        if len(metrics) < 3 or any(not metric.confirmed for metric in metrics):
+            raise PermissionError("已确认报告字段不足，不能生成个人实验")
+        if not template_is_publishable(action, settings.environment):
+            raise PermissionError("该行动模板未处于可发布的低风险状态")
+        metric_codes = {metric.code for metric in metrics}
+        if action.signal_metric_codes and not metric_codes.intersection(
+            action.signal_metric_codes
+        ):
+            raise PermissionError("当前已确认指标不支持该行动模板")
+        if any(
+            (user.screening_answers or {}).get(code, False)
+            for code in action.contraindication_codes
+        ):
+            raise PermissionError("当前信息与该行动的安全条件冲突")
 
         for active in experiment_repository.active_for_user(db, user_id):
             active.status = "paused"

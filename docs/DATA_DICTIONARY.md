@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V0.3
+> 版本：V0.4
 >
-> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`
+> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -120,7 +120,8 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | 字段 | 类型 | 约束/默认值 | 含义 |
 |---|---|---|---|
 | `id` | varchar(36) | PK | 模板 ID |
-| `code` | varchar(64) | unique, index | 稳定业务代码 |
+| `code` | varchar(64) | index | 稳定业务代码；允许保存多个历史版本 |
+| `version` | varchar(32) | 与代码联合唯一 | 模板版本，如 `1.0.0` |
 | `title` | varchar(120) | 非空 | 行动名称 |
 | `category` | varchar(40) | 非空 | `activity` / `nutrition` |
 | `description` | text | 非空 | 提醒日行为说明 |
@@ -132,8 +133,18 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `effort_score` | float | 默认 0.5 | 执行负担，期望范围 0–1 |
 | `observability_score` | float | 默认 0.8 | 短期可观测性，期望范围 0–1 |
 | `risk_level` | varchar(20) | 默认 `low` | 只有 `low` 可进入自助实验 |
+| `review_status` | varchar(32) | 默认 `draft` | `draft` / `prototype_approved` / `professionally_approved` / `retired` |
+| `review_scope` | varchar(32) | 默认 `prototype_rules` | 明确审核范围，防止把产品规则校验冒充专业审核 |
+| `reviewer_ref` | varchar(64) nullable | 无 | 审核角色或外部流程引用；合成种子使用 `synthetic-seed` |
+| `reviewed_at` | timestamptz nullable | 无 | 最近审核时间 |
+| `is_active` | boolean | 默认 false | 是否是该代码当前活动版本 |
+| `deactivated_at` | timestamptz nullable | 无 | 最近停用时间 |
+| `contraindication_codes` | json | 默认 `[]` | 与安全初筛布尔代码匹配的硬拦截条件 |
+| `signal_metric_codes` | json | 默认 `[]` | 生成候选项至少需出现一个的已确认指标代码 |
+| `ranking_policy_version` | varchar(32) | 默认 `rank-v1` | 排序公式版本 |
+| `explanation_policy_version` | varchar(32) | 默认 `action-explain-v1` | 解释提示词与输出守卫版本 |
 
-模板审核状态与版本字段计划在第 5 周迁移中补充，现有表仅用于可行性验证。
+唯一索引 `uq_action_templates_code_version(code, version)` 保留历史版本；部分唯一索引 `uq_action_templates_active_code(code) WHERE is_active` 保证每个行动代码最多一个活动版本。原型审核角色不能写入 `professionally_approved`，Production 也不会发布 `prototype_approved`。
 
 ## 8. `experiments`
 

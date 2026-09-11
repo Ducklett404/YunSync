@@ -20,6 +20,10 @@ export interface HealthMetric {
 export interface ActionTemplate {
   id: string
   code: string
+  template_version: string
+  review_status: string
+  review_scope: string
+  review_label: string
   title: string
   category: string
   description: string
@@ -29,7 +33,21 @@ export interface ActionTemplate {
   primary_metric: string
   risk_level: string
   score: number
+  score_components: {
+    evidence_weight: number
+    observability_weight: number
+    ease_weight: number
+    evidence_points: number
+    observability_points: number
+    ease_points: number
+    total: number
+  }
+  ranking_policy_version: string
   rank_reason: string
+  explanation: string
+  explanation_source: string
+  explanation_policy_version: string
+  safety_checks: string[]
 }
 
 export interface ScheduleDay {

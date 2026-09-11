@@ -1,10 +1,12 @@
 from datetime import date, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
 from app.main import app
+from app.models.action import ActionTemplate
 from app.models.experiment import Experiment
 from app.models.identity import AuthSession, ConsentRecord
 from app.services.identity_service import CURRENT_CONSENT_VERSION, hash_session_token
@@ -38,6 +40,29 @@ def authorize_demo(client: TestClient) -> dict[str, str]:
     assert screening.status_code == 200
     assert screening.json()["screening_status"] == "eligible"
     return headers
+
+
+def create_confirmed_report(
+    client: TestClient, headers: dict[str, str], filename: str
+) -> dict:
+    analyzed = client.post(
+        "/api/v1/reports/analyze",
+        files={"file": (filename, b"%PDF synthetic", "application/pdf")},
+        headers=headers,
+    )
+    assert analyzed.status_code == 200
+    payload = analyzed.json()
+    for metric in payload["metrics"]:
+        confirmed = client.post(
+            f"/api/v1/reports/{payload['report_id']}/metrics/{metric['id']}/confirm",
+            headers=headers,
+        )
+        assert confirmed.status_code == 200
+    finalized = client.post(
+        f"/api/v1/reports/{payload['report_id']}/confirm", headers=headers
+    )
+    assert finalized.status_code == 200
+    return payload
 
 
 def test_health_and_readiness_endpoints():
@@ -501,3 +526,148 @@ def test_ocr_timeout_uses_bounded_retries_without_metrics():
     assert timed_out.json()["detail"]["code"] == "timeout"
     assert latest.json()["ocr_attempts"] == 2
     assert latest.json()["metrics"] == []
+
+
+def test_ranked_actions_expose_template_governance_and_score_breakdown():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "ranking.pdf")
+        response = client.get("/api/v1/actions", headers=headers)
+
+    assert response.status_code == 200
+    actions = response.json()
+    assert len(actions) == 3
+    assert [action["score"] for action in actions] == sorted(
+        [action["score"] for action in actions], reverse=True
+    )
+    for action in actions:
+        assert action["template_version"] == "1.0.0"
+        assert action["review_status"] == "prototype_approved"
+        assert action["review_label"] == "产品规则校验（待专业复核）"
+        assert action["ranking_policy_version"] == "rank-v1"
+        assert action["explanation_policy_version"] == "action-explain-v1"
+        assert action["explanation_source"] == "mock_maas"
+        assert "不构成诊断或治疗建议" in action["explanation"]
+        assert action["score_components"]["total"] == action["score"]
+        assert sum(
+            action["score_components"][key]
+            for key in ("evidence_points", "observability_points", "ease_points")
+        ) == pytest.approx(action["score"])
+        assert len(action["safety_checks"]) == 4
+
+
+def test_unsafe_model_explanation_is_replaced_by_policy_fallback(monkeypatch):
+    class UnsafeClient:
+        provider = "unsafe_test_double"
+
+        async def explain_action(self, context):
+            return f"“{context.title}”证明你患有疾病，应自行调整药物并修改剂量。"
+
+    monkeypatch.setattr(
+        "app.services.action_service.get_maas_client", lambda: UnsafeClient()
+    )
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "unsafe-explanation.pdf")
+        response = client.get("/api/v1/actions", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()
+    for action in response.json():
+        assert action["explanation_source"] == "policy_fallback"
+        assert "患有疾病" not in action["explanation"]
+        assert "调整药物" not in action["explanation"]
+
+
+def test_reviewer_can_version_activate_and_retire_prototype_templates():
+    with TestClient(app) as client:
+        participant_headers = authorize_demo(client)
+        create_confirmed_report(client, participant_headers, "template-admin.pdf")
+        forbidden = client.get(
+            "/api/v1/admin/action-templates", headers=participant_headers
+        )
+
+        reviewer_headers = login_demo(client, "demo-reviewer")
+        listing = client.get(
+            "/api/v1/admin/action-templates", headers=reviewer_headers
+        )
+        source = next(
+            item for item in listing.json() if item["code"] == "postmeal_walk"
+        )
+        created = client.post(
+            f"/api/v1/admin/action-templates/{source['id']}/versions",
+            json={"version": "2.0.0-test"},
+            headers=reviewer_headers,
+        )
+        duplicate = client.post(
+            f"/api/v1/admin/action-templates/{source['id']}/versions",
+            json={"version": "2.0.0-test"},
+            headers=reviewer_headers,
+        )
+        draft_active = client.patch(
+            f"/api/v1/admin/action-templates/{created.json()['id']}/status",
+            json={"review_status": "draft", "is_active": True},
+            headers=reviewer_headers,
+        )
+        activated = client.patch(
+            f"/api/v1/admin/action-templates/{created.json()['id']}/status",
+            json={"review_status": "prototype_approved", "is_active": True},
+            headers=reviewer_headers,
+        )
+        candidates = client.get("/api/v1/actions", headers=participant_headers)
+        inactive_experiment = client.post(
+            "/api/v1/experiments",
+            json={"action_id": source["id"]},
+            headers=participant_headers,
+        )
+        with SessionLocal() as db:
+            active_template = db.get(ActionTemplate, created.json()["id"])
+            assert active_template is not None
+            active_template.signal_metric_codes = ["metric-not-in-report"]
+            db.commit()
+        unsupported_signal_experiment = client.post(
+            "/api/v1/experiments",
+            json={"action_id": created.json()["id"]},
+            headers=participant_headers,
+        )
+        with SessionLocal() as db:
+            active_template = db.get(ActionTemplate, created.json()["id"])
+            assert active_template is not None
+            active_template.signal_metric_codes = source["signal_metric_codes"]
+            db.commit()
+        active_experiment = client.post(
+            "/api/v1/experiments",
+            json={"action_id": created.json()["id"]},
+            headers=participant_headers,
+        )
+        retired = client.patch(
+            f"/api/v1/admin/action-templates/{created.json()['id']}/status",
+            json={"review_status": "retired", "is_active": False},
+            headers=reviewer_headers,
+        )
+        restored = client.patch(
+            f"/api/v1/admin/action-templates/{source['id']}/status",
+            json={"review_status": "prototype_approved", "is_active": True},
+            headers=reviewer_headers,
+        )
+
+    assert forbidden.status_code == 403
+    assert listing.status_code == 200
+    assert created.status_code == 200
+    assert created.json()["review_status"] == "draft"
+    assert created.json()["is_active"] is False
+    assert duplicate.status_code == 409
+    assert draft_active.status_code == 409
+    assert activated.status_code == 200
+    assert any(
+        item["id"] == created.json()["id"]
+        and item["template_version"] == "2.0.0-test"
+        for item in candidates.json()
+    )
+    assert inactive_experiment.status_code == 409
+    assert unsupported_signal_experiment.status_code == 409
+    assert "已确认指标不支持" in unsupported_signal_experiment.json()["detail"]
+    assert active_experiment.status_code == 200
+    assert retired.json()["review_status"] == "retired"
+    assert retired.json()["is_active"] is False
+    assert restored.json()["is_active"] is True

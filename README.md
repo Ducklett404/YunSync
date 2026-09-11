@@ -20,6 +20,8 @@
 - [M3A 身份、授权与档案验证记录](docs/M3A_VERIFICATION_REPORT.md)
 - [M4A 受控上传、OCR 契约与逐项校对验证记录](docs/M4A_VERIFICATION_REPORT.md)
 - [合成 OCR 契约评测记录](docs/OCR_EVALUATION_REPORT.md)
+- [行动模板登记表](docs/ACTION_TEMPLATE_REGISTER.md)
+- [M5A 行动模板治理、透明排序与解释安全守卫验证记录](docs/M5A_VERIFICATION_REPORT.md)
 - [华为云迁移说明](docs/HUAWEI_CLOUD_MIGRATION.md)
 
 ## 技术栈

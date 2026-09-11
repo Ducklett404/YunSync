@@ -31,6 +31,8 @@
 
 M4A 已实现 `local_private` 与 `huawei_obs` 的适配器边界；本地验证使用 `USE_LOCAL_STORAGE=true`。云端切换时必须先设置 `USE_LOCAL_STORAGE=false`，补齐 OBS 鉴权实现并验证私有访问后，才可记录为真实 OBS 接入。OCR 同理：`USE_MOCK_AI=false` 后，未配置的适配器会返回 503，不会回退到未标记的合成结果。
 
+M5A 已固定 `action-explain-v1` 提示词和服务端输出守卫。真实 MaaS 接入必须保留 `explanation_source`，对诊断、调药、极端方案和疗效保证继续执行同一守卫；模型不可用或输出不合规时只能返回标记为 `policy_fallback` 的固定解释。
+
 ## 建议保留的比赛证据
 
 - CodeArts 需求拆解、代码生成和修复对话截图。

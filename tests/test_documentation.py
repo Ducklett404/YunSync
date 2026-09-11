@@ -122,3 +122,38 @@ def test_week_four_report_workflow_is_documented_without_fake_cloud_claims():
         assert scenario in evaluation
     assert "45 项通过" in verification
     assert "不是 OBS 成功证据" in verification
+
+
+def test_week_five_action_governance_is_documented_without_fake_reviews():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    dictionary = (PROJECT_ROOT / "docs" / "DATA_DICTIONARY.md").read_text(encoding="utf-8")
+    contract = (PROJECT_ROOT / "docs" / "API_CONTRACT.md").read_text(encoding="utf-8")
+    register = (PROJECT_ROOT / "docs" / "ACTION_TEMPLATE_REGISTER.md").read_text(
+        encoding="utf-8"
+    )
+    verification = (PROJECT_ROOT / "docs" / "M5A_VERIFICATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+    prompt = (
+        PROJECT_ROOT / "backend" / "app" / "prompts" / "action_explanation_v1.md"
+    ).read_text(encoding="utf-8")
+
+    assert "里程碑 M5A" in plan
+    assert "专业审核和真实 MaaS 接入仍保持未完成" in plan
+    for field in ("review_status", "review_scope", "is_active", "ranking_policy_version"):
+        assert field in dictionary
+    for route in (
+        "/api/v1/admin/action-templates",
+        "/versions",
+        "/status",
+        "score_components",
+    ):
+        assert route in contract
+    for template_id in ("action-walk-10", "action-water-swap", "action-veg-first"):
+        assert template_id in register
+    assert "不是医学、营养或运动专业审核" in register
+    assert "action-explain-v1" in prompt
+    for forbidden_topic in ("确诊", "停药", "极端节食", "疗效承诺"):
+        assert forbidden_topic in prompt
+    assert "57 项通过" in verification
+    assert "不以合成结果替代" in verification

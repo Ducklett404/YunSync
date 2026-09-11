@@ -15,7 +15,7 @@ router = APIRouter(tags=["dashboard"])
 
 
 @router.get("/dashboard")
-def get_dashboard(
+async def get_dashboard(
     user: UserProfile = Depends(require_active_participant),
     db: Session = Depends(get_db),
 ):
@@ -84,6 +84,6 @@ def get_dashboard(
             for metric in metrics
         ],
         "experiment": experiment_payload,
-        "actions": action_service.ranked_actions(db, user_id)[:3],
+        "actions": (await action_service.ranked_actions(db, user_id))[:3],
         "notice": "当前页面使用合成数据，仅用于产品演示。",
     }

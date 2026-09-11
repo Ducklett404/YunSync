@@ -12,11 +12,11 @@ router = APIRouter(prefix="/actions", tags=["actions"])
 
 
 @router.get("", response_model=list[ActionOut])
-def list_actions(
+async def list_actions(
     user: UserProfile = Depends(require_safe_participant),
     db: Session = Depends(get_db),
 ):
     try:
-        return action_service.ranked_actions(db, user.id)
+        return await action_service.ranked_actions(db, user.id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
