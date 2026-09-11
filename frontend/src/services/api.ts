@@ -8,6 +8,7 @@ import type {
   DashboardData,
   DemoSession,
   Experiment,
+  NextStepCode,
   ExperimentTransition,
   ExperimentResult,
   ObservationImportResult,
@@ -205,6 +206,18 @@ export async function importObservations(
 
 export async function fetchExperimentResult(experimentId: string): Promise<ExperimentResult> {
   const { data } = await client.get<ExperimentResult>(`/experiments/${experimentId}/result`)
+  return data
+}
+
+export async function saveNextStep(
+  experimentId: string,
+  code: NextStepCode,
+): Promise<{ experiment_id: string; code: NextStepCode; selected_at: string }> {
+  const { data } = await client.post<{
+    experiment_id: string
+    code: NextStepCode
+    selected_at: string
+  }>(`/experiments/${experimentId}/next-step`, { code })
   return data
 }
 

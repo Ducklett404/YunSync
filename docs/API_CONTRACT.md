@@ -1,6 +1,6 @@
 # YunSync API 契约草案
 
-> 版本：V0.5
+> 版本：V0.6
 >
 > 基础路径：`/api/v1`
 >
@@ -66,6 +66,7 @@
 | GET | `/api/v1/experiments/{id}/observations/template?format=csv|json` | Bearer 会话 | CSV/JSON 附件 | 404 实验；409 日程损坏 |
 | POST | `/api/v1/experiments/{id}/observations/import` | `ObservationImport` | 200 `ObservationImportResult` | 400 文件、日期、指标或状态错误 |
 | GET | `/api/v1/experiments/{id}/result` | path `id` | 200 `ExperimentResult` | 404 实验/模板 |
+| POST | `/api/v1/experiments/{id}/next-step` | `{ "code": "keep|adjust|extend|stop" }` | 200 `NextStepChoice` | 404 实验；422 代码无效 |
 
 所有路径参数对象均校验属于当前会话用户；其他用户的报告或实验统一返回 404。
 
@@ -121,6 +122,7 @@
 - `recorded_days` 与 `completed_days`：分别表示已提交记录和实际完成行动的天数，`progress` 与已记录天数一致；
 - `allowed_transitions`：当前状态和完成条件下服务端允许的操作；
 - `started_at`、`paused_at`、`terminated_at`、`completed_at`：状态时间戳；
+- `next_step`、`next_step_selected_at`：最近一次复盘选择及时间；未选择时为 `null`；
 - `schedule[].recorded` 表示该日期已有记录，`schedule[].completed` 表示当日行动完成；`schedule[].observation` 返回所属用户已有记录详情，便于安全回填修改。
 
 完成实验要求当前日期不早于 `end_date`，且 14 个日程日期均已有记录。`terminated` 和 `completed` 均不可恢复。日程字段、7:7 分组或摘要不一致时返回 409 并停止读取、记录或状态转换。
@@ -167,11 +169,17 @@
 `ExperimentResult` 必须包含：
 
 - `metric_code`、`metric_label`、`metric_unit`、`improvement_direction`；
-- 提醒日与常规日有效天数及均值；
-- `observed_difference`、`completion_rate`；
-- `status`、中性 `message` 和 `caveats`。
+- 提醒日与常规日有效天数、均值与中位数；
+- `observed_difference`、`completion_rate`、`effective_rate`、`valid_days`、`missing_days` 和按原因汇总的 `missing_reason_counts`；
+- `bootstrap_ci_lower`、`bootstrap_ci_upper` 和固定为 2,000 的 `bootstrap_iterations`；
+- `outlier_count`、`outlier_days`、保留原值的每日 `analysis_points` 与可选 `sensitivity_difference`；
+- `status`、中性 `message`、`caveats`、`analysis_version`；
+- `explanation`、`explanation_source`、`explanation_policy_version`；
+- `recommended_next_step` 和四项 `next_step_options`，每项包含建议与当前选中状态。
 
-提醒日或常规日任一组少于 2 个有效观测时，均值与差异为 `null`，不得返回方向性健康结论。
+主要分析使用所有非空主要指标值，独立于行动是否完成；完成率与有效率分别统计。提醒日或常规日任一组少于 2 个有效观测时，均值、中位数、差异和区间均为 `null`，不得返回方向性健康结论。AI 或 Mock 解释超时、报错或未通过 `result-explain-v1` 守卫时，`explanation_source` 为 `policy_fallback`。
+
+`NextStepChoice` 返回 `experiment_id`、`code` 和 `selected_at`。重复提交覆盖最近选择并新增最小化审计事件，不自动新建、停止或改变实验状态。
 
 ## 7. 错误状态码
 

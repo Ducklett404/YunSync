@@ -187,6 +187,53 @@ def test_drink_experiment_uses_drink_count_as_result_metric():
     assert result.json()["metric_unit"] == "次"
     assert result.json()["treatment_average"] == 0.5
     assert result.json()["control_average"] == 2.5
+    assert result.json()["treatment_median"] == 0.5
+    assert result.json()["control_median"] == 2.5
+    assert result.json()["valid_days"] == 4
+    assert result.json()["explanation_source"] in {"mock_maas", "policy_fallback"}
+    assert "不构成诊断或治疗建议" in result.json()["explanation"]
+
+
+def test_result_next_step_choice_is_persisted_and_audited():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        experiment = client.get("/api/v1/experiments/current", headers=headers).json()
+        selected = client.post(
+            f"/api/v1/experiments/{experiment['id']}/next-step",
+            json={"code": "extend"},
+            headers=headers,
+        )
+        refreshed = client.get("/api/v1/experiments/current", headers=headers)
+        result = client.get(
+            f"/api/v1/experiments/{experiment['id']}/result", headers=headers
+        )
+
+    with SessionLocal() as db:
+        event = db.scalar(
+            select(AuditLog)
+            .where(
+                AuditLog.actor_id == "demo-user",
+                AuditLog.event_type == "experiment.next_step_selected",
+            )
+            .order_by(AuditLog.created_at.desc())
+        )
+
+    assert selected.status_code == 200
+    assert selected.json()["code"] == "extend"
+    assert selected.json()["selected_at"] is not None
+    assert refreshed.json()["next_step"] == "extend"
+    assert result.json()["recommended_next_step"] in {
+        "keep",
+        "adjust",
+        "extend",
+        "stop",
+    }
+    selected_option = next(
+        item for item in result.json()["next_step_options"] if item["code"] == "extend"
+    )
+    assert selected_option["selected"] is True
+    assert event is not None
+    assert event.payload == {"experiment_id": experiment["id"], "code": "extend"}
 
 
 def test_health_endpoints_require_login_and_current_consent():

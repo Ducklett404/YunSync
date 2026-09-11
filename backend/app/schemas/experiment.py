@@ -66,6 +66,8 @@ class ExperimentOut(BaseModel):
     paused_at: datetime | None
     terminated_at: datetime | None
     completed_at: datetime | None
+    next_step: str | None
+    next_step_selected_at: datetime | None
     progress: int
     recorded_days: int
     completed_days: int
@@ -105,8 +107,37 @@ class ObservationImportOut(BaseModel):
     updated_days: int
 
 
+NextStepCode = Literal["keep", "adjust", "extend", "stop"]
+
+
+class NextStepChoiceIn(BaseModel):
+    code: NextStepCode
+
+
+class NextStepChoiceOut(BaseModel):
+    experiment_id: str
+    code: NextStepCode
+    selected_at: datetime
+
+
+class NextStepOptionOut(BaseModel):
+    code: NextStepCode
+    title: str
+    description: str
+    recommended: bool
+    selected: bool
+
+
+class AnalysisPointOut(BaseModel):
+    observed_on: date
+    group: Literal["reminder", "routine"]
+    value: float
+    outlier: bool
+
+
 class ExperimentResultOut(BaseModel):
     experiment_id: str
+    analysis_version: str
     status: str
     message: str
     metric_code: str
@@ -117,6 +148,24 @@ class ExperimentResultOut(BaseModel):
     control_days: int
     treatment_average: float | None
     control_average: float | None
+    treatment_median: float | None
+    control_median: float | None
     observed_difference: float | None
     completion_rate: float
+    effective_rate: float
+    valid_days: int
+    missing_days: int
+    missing_reason_counts: dict[str, int]
+    bootstrap_ci_lower: float | None
+    bootstrap_ci_upper: float | None
+    bootstrap_iterations: int
+    outlier_count: int
+    outlier_days: list[date]
+    sensitivity_difference: float | None
+    analysis_points: list[AnalysisPointOut]
+    explanation: str
+    explanation_source: str
+    explanation_policy_version: str
+    recommended_next_step: NextStepCode
+    next_step_options: list[NextStepOptionOut]
     caveats: list[str]

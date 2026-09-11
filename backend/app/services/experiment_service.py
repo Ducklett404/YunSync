@@ -26,9 +26,11 @@ from app.repositories.experiment_repository import experiment_repository
 from app.repositories.health_repository import health_repository
 from app.schemas.experiment import (
     ExperimentTransition,
+    NextStepCode,
     ObservationCreate,
     ObservationImportIn,
 )
+from app.services.result_analysis import analyze_observations
 
 
 RESULT_METRICS = {
@@ -189,6 +191,8 @@ class ExperimentService:
             "paused_at": experiment.paused_at,
             "terminated_at": experiment.terminated_at,
             "completed_at": experiment.completed_at,
+            "next_step": experiment.next_step,
+            "next_step_selected_at": experiment.next_step_selected_at,
             "progress": recorded_days,
             "recorded_days": recorded_days,
             "completed_days": completed_days,
@@ -422,61 +426,46 @@ class ExperimentService:
             ("steps_30m", action.primary_metric, "", "higher"),
         )
         observations = experiment_repository.observations(db, experiment_id)
-        completed = [item for item in observations if item.completed]
-        treatment = [
-            value
-            for item in completed
-            if item.treatment and (value := getattr(item, metric_code)) is not None
-        ]
-        control = [
-            value
-            for item in completed
-            if not item.treatment and (value := getattr(item, metric_code)) is not None
-        ]
-        completion_rate = round(len(completed) / 14 * 100, 1)
+        return analyze_observations(
+            observations,
+            experiment_id=experiment.id,
+            metric_code=metric_code,
+            metric_label=metric_label,
+            metric_unit=metric_unit,
+            direction=direction,
+            randomization_seed=experiment.randomization_seed,
+            selected_next_step=experiment.next_step,
+        )
 
-        if len(treatment) < 2 or len(control) < 2:
-            return {
-                "experiment_id": experiment_id,
-                "status": "data_insufficient",
-                "message": f"{metric_label}的有效观测仍不足，继续记录后再比较。",
-                "metric_code": metric_code,
-                "metric_label": metric_label,
-                "metric_unit": metric_unit,
-                "improvement_direction": direction,
-                "treatment_days": len(treatment),
-                "control_days": len(control),
-                "treatment_average": None,
-                "control_average": None,
-                "observed_difference": None,
-                "completion_rate": completion_rate,
-                "caveats": [
-                    "这是探索性个人数据比较，不代表治疗效果。",
-                    "睡眠、餐食和既往活动可能影响结果。",
-                ],
-            }
-
-        treatment_average = sum(treatment) / len(treatment)
-        control_average = sum(control) / len(control)
-        difference = treatment_average - control_average
+    def select_next_step(
+        self,
+        db: Session,
+        experiment_id: str,
+        code: NextStepCode,
+        actor_id: str,
+    ) -> dict:
+        experiment = experiment_repository.get(db, experiment_id)
+        if experiment is None:
+            raise LookupError("实验不存在")
+        self.ensure_schedule_integrity(experiment)
+        if code not in {"keep", "adjust", "extend", "stop"}:
+            raise ExperimentStateError("未知的下一步选择")
+        selected_at = datetime.now(timezone.utc)
+        experiment.next_step = code
+        experiment.next_step_selected_at = selected_at
+        experiment.updated_at = selected_at
+        db.add(
+            AuditLog(
+                event_type="experiment.next_step_selected",
+                actor_id=actor_id,
+                payload={"experiment_id": experiment.id, "code": code},
+            )
+        )
+        db.commit()
         return {
-            "experiment_id": experiment_id,
-            "status": "observed_difference",
-            "message": f"当前记录中，提醒日与常规日的{metric_label}存在观察性差异。",
-            "metric_code": metric_code,
-            "metric_label": metric_label,
-            "metric_unit": metric_unit,
-            "improvement_direction": direction,
-            "treatment_days": len(treatment),
-            "control_days": len(control),
-            "treatment_average": round(treatment_average, 1),
-            "control_average": round(control_average, 1),
-            "observed_difference": round(difference, 1),
-            "completion_rate": completion_rate,
-            "caveats": [
-                "结果仅适用于当前个人和观察周期。",
-                "相关性不能证明因果或疾病改善。",
-            ],
+            "experiment_id": experiment.id,
+            "code": code,
+            "selected_at": selected_at,
         }
 
     def _validate_observation(

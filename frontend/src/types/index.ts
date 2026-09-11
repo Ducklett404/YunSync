@@ -94,8 +94,26 @@ export interface ObservationImportResult {
 
 export type ExperimentTransition = 'pause' | 'resume' | 'terminate' | 'complete'
 
+export type NextStepCode = 'keep' | 'adjust' | 'extend' | 'stop'
+
+export interface NextStepOption {
+  code: NextStepCode
+  title: string
+  description: string
+  recommended: boolean
+  selected: boolean
+}
+
+export interface AnalysisPoint {
+  observed_on: string
+  group: 'reminder' | 'routine'
+  value: number
+  outlier: boolean
+}
+
 export interface ExperimentResult {
   experiment_id: string
+  analysis_version: string
   status: string
   message: string
   metric_code: string
@@ -106,8 +124,26 @@ export interface ExperimentResult {
   control_days: number
   treatment_average: number | null
   control_average: number | null
+  treatment_median: number | null
+  control_median: number | null
   observed_difference: number | null
   completion_rate: number
+  effective_rate: number
+  valid_days: number
+  missing_days: number
+  missing_reason_counts: Record<string, number>
+  bootstrap_ci_lower: number | null
+  bootstrap_ci_upper: number | null
+  bootstrap_iterations: number
+  outlier_count: number
+  outlier_days: string[]
+  sensitivity_difference: number | null
+  analysis_points: AnalysisPoint[]
+  explanation: string
+  explanation_source: string
+  explanation_policy_version: string
+  recommended_next_step: NextStepCode
+  next_step_options: NextStepOption[]
   caveats: string[]
 }
 
@@ -129,6 +165,8 @@ export interface Experiment {
   paused_at: string | null
   terminated_at: string | null
   completed_at: string | null
+  next_step: NextStepCode | null
+  next_step_selected_at: string | null
   progress: number
   recorded_days: number
   completed_days: number

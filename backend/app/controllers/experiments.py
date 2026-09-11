@@ -15,6 +15,8 @@ from app.schemas.experiment import (
     ExperimentOut,
     ExperimentResultOut,
     ExperimentTransition,
+    NextStepChoiceIn,
+    NextStepChoiceOut,
     ObservationCreate,
     ObservationImportIn,
     ObservationImportOut,
@@ -24,6 +26,7 @@ from app.services.experiment_service import (
     ExperimentStateError,
     experiment_service,
 )
+from app.services.result_review_service import result_review_service
 
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
@@ -195,15 +198,36 @@ def import_observations(
 
 
 @router.get("/{experiment_id}/result", response_model=ExperimentResultOut)
-def experiment_result(
+async def experiment_result(
     experiment_id: str,
     user: UserProfile = Depends(require_active_participant),
     db: Session = Depends(get_db),
 ):
     _owned_experiment(db, experiment_id, user.id)
     try:
-        return experiment_service.result(db, experiment_id)
+        analysis = experiment_service.result(db, experiment_id)
+        return await result_review_service.explain(analysis)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ScheduleIntegrityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/{experiment_id}/next-step", response_model=NextStepChoiceOut)
+def select_next_step(
+    experiment_id: str,
+    payload: NextStepChoiceIn,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    _owned_experiment(db, experiment_id, user.id)
+    try:
+        return experiment_service.select_next_step(
+            db, experiment_id, payload.code, user.id
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ExperimentStateError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ScheduleIntegrityError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

@@ -220,3 +220,33 @@ def test_week_seven_daily_records_reminders_and_import_are_documented():
         assert route in contract
     assert "68 项通过" in verification
     assert "未伪造移动端浏览器走查记录" in verification
+
+
+def test_week_eight_analysis_review_and_next_step_are_documented():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    requirements = (PROJECT_ROOT / "docs" / "PRODUCT_REQUIREMENTS.md").read_text(
+        encoding="utf-8"
+    )
+    dictionary = (PROJECT_ROOT / "docs" / "DATA_DICTIONARY.md").read_text(
+        encoding="utf-8"
+    )
+    contract = (PROJECT_ROOT / "docs" / "API_CONTRACT.md").read_text(
+        encoding="utf-8"
+    )
+    verification = (PROJECT_ROOT / "docs" / "M8A_VERIFICATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+    prompt = (
+        PROJECT_ROOT / "backend" / "app" / "prompts" / "result_explanation_v1.md"
+    ).read_text(encoding="utf-8")
+
+    assert "里程碑 M8A" in plan
+    for acceptance_id in ("AC-07.4", "AC-07.5", "AC-07.6", "AC-07.7"):
+        assert acceptance_id in requirements
+    for field in ("next_step", "next_step_selected_at"):
+        assert field in dictionary
+    for contract_item in ("/next-step", "bootstrap_iterations", "policy_fallback"):
+        assert contract_item in contract
+    assert "result-explain-v1" in prompt
+    assert "75 项通过" in verification
+    assert "不是华为云 MaaS 成功调用证据" in verification

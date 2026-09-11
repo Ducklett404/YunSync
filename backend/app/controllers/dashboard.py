@@ -9,6 +9,7 @@ from app.repositories.experiment_repository import experiment_repository
 from app.repositories.health_repository import health_repository
 from app.services.action_service import action_service
 from app.services.experiment_service import experiment_service
+from app.services.result_review_service import result_review_service
 
 
 router = APIRouter(tags=["dashboard"])
@@ -27,9 +28,12 @@ async def get_dashboard(
     experiment_payload = None
     if experiment:
         try:
+            result = await result_review_service.explain(
+                experiment_service.result(db, experiment.id)
+            )
             experiment_payload = {
                 **experiment_service.snapshot(db, experiment),
-                "result": experiment_service.result(db, experiment.id),
+                "result": result,
             }
         except ScheduleIntegrityError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc

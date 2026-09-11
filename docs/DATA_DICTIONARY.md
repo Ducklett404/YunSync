@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V0.5
+> 版本：V0.6
 >
-> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`、`c6d7e8f9a0b1_experiment_state_machine`
+> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`、`c6d7e8f9a0b1_experiment_state_machine`、`d7e8f9a0b1c2_daily_record_support`、`e8f9a0b1c2d3_result_review_choice`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -167,6 +167,8 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `paused_at` | timestamptz nullable | 无 | 最近暂停时间；恢复时清空，历史见审计事件 |
 | `terminated_at` | timestamptz nullable | 无 | 终止时间；终止不可恢复 |
 | `completed_at` | timestamptz nullable | 无 | 完成时间；完成不可恢复 |
+| `next_step` | varchar(24) nullable | 无 | 最近选择的 `keep` / `adjust` / `extend` / `stop`；不自动改变实验状态 |
+| `next_step_selected_at` | timestamptz nullable | 无 | 最近选择或改选时间 |
 | `updated_at` | timestamptz | 非空 | 最近状态或记录变化时间 |
 | `created_at` | timestamptz | UTC 当前时间 | 创建时间 |
 
@@ -203,4 +205,4 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `payload` | json | 默认 `{}` | 最小化业务 ID 与事件元数据 |
 | `created_at` | timestamptz | UTC 当前时间, index | 事件时间 |
 
-审计 payload 不得写入报告全文、密钥、请求头、联系方式或自由文本健康备注。
+审计 payload 不得写入报告全文、密钥、请求头、联系方式或自由文本健康备注。`experiment.next_step_selected` 只保存 `experiment_id` 和选择代码。
