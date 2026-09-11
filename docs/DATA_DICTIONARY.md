@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V0.4
+> 版本：V0.5
 >
-> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`
+> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`、`c6d7e8f9a0b1_experiment_state_machine`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -153,14 +153,22 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `id` | varchar(36) | PK, UUID | 实验 ID |
 | `user_id` | varchar(36) | FK → `user_profiles.id`, index, cascade | 所属用户 |
 | `action_id` | varchar(36) | FK → `action_templates.id`, index | 选定行动模板 |
-| `status` | varchar(24) | 默认 `active` | `active` / `paused`，后续增加完整状态机 |
+| `status` | varchar(24) | 默认 `active`, check | `active` / `paused` / `terminated` / `completed` |
 | `start_date` | date | 非空 | 第 1 天日期 |
 | `end_date` | date | 非空 | 第 14 天日期，等于开始日期 + 13 天 |
 | `randomization_seed` | integer | 非空 | 可复现实验日程的随机种子 |
 | `schedule` | json | 非空 | 14 个 `{day,date,treatment,label}` 项 |
+| `schedule_version` | varchar(32) | 默认 `balanced-14-v1` | 日程生成与校验规则版本 |
+| `schedule_hash` | varchar(64) | 非空 | 版本、日期、种子和日程的 SHA-256 完整性摘要；API 不返回 |
+| `schedule_locked_at` | timestamptz | 非空 | 日程锁定时间 |
+| `started_at` | timestamptz | 非空 | 实验开始时间 |
+| `paused_at` | timestamptz nullable | 无 | 最近暂停时间；恢复时清空，历史见审计事件 |
+| `terminated_at` | timestamptz nullable | 无 | 终止时间；终止不可恢复 |
+| `completed_at` | timestamptz nullable | 无 | 完成时间；完成不可恢复 |
+| `updated_at` | timestamptz | 非空 | 最近状态或记录变化时间 |
 | `created_at` | timestamptz | UTC 当前时间 | 创建时间 |
 
-业务约束：日程必须为 14 天且恰好 7 个提醒日；前端不能修改 `treatment`。单用户单活动实验当前由服务层通过暂停旧实验实现，数据库级约束在第 6 周评审。
+业务约束：日程必须为连续 14 天且恰好 7 个提醒日；前端不能修改 `treatment`。检查约束 `ck_experiments_status` 限制状态集合；部分唯一索引 `uq_experiments_active_user(user_id) WHERE status='active'` 保证每名用户最多一个活动实验。创建新实验前服务层先暂停旧实验，唯一索引处理并发兜底。
 
 ## 9. `observations`
 

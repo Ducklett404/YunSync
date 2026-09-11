@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,7 @@ class ScheduleDay(BaseModel):
     date: date
     treatment: bool
     label: str
+    recorded: bool = False
     completed: bool = False
 
 
@@ -24,10 +26,24 @@ class ExperimentOut(BaseModel):
     action_title: str
     primary_metric: str
     status: str
+    status_label: str
     start_date: date
     end_date: date
+    randomization_seed: int
+    schedule_version: str
+    schedule_locked_at: datetime
+    started_at: datetime
+    paused_at: datetime | None
+    terminated_at: datetime | None
+    completed_at: datetime | None
     progress: int
+    recorded_days: int
+    completed_days: int
+    allowed_transitions: list[str]
     schedule: list[ScheduleDay]
+
+
+ExperimentTransition = Literal["pause", "resume", "terminate", "complete"]
 
 
 class ObservationCreate(BaseModel):

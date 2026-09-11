@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.experiment_policy import ScheduleIntegrityError
 from app.db.session import get_db
 from app.core.security import require_active_participant
-from app.models.action import ActionTemplate
 from app.models.user import UserProfile
 from app.repositories.experiment_repository import experiment_repository
 from app.repositories.health_repository import health_repository
@@ -26,27 +26,13 @@ async def get_dashboard(
     experiment = experiment_repository.latest_for_user(db, user_id)
     experiment_payload = None
     if experiment:
-        action = db.get(ActionTemplate, experiment.action_id)
-        observations = experiment_repository.observations(db, experiment.id)
-        completed_dates = {
-            item.observed_on.isoformat() for item in observations if item.completed
-        }
-        experiment_payload = {
-            "id": experiment.id,
-            "action_id": experiment.action_id,
-            "action_code": action.code if action else "unknown",
-            "action_title": action.title if action else "未知行动",
-            "primary_metric": action.primary_metric if action else "未知指标",
-            "status": experiment.status,
-            "start_date": experiment.start_date,
-            "end_date": experiment.end_date,
-            "progress": len([item for item in observations if item.completed]),
-            "schedule": [
-                {**day, "completed": day["date"] in completed_dates}
-                for day in experiment.schedule
-            ],
-            "result": experiment_service.result(db, experiment.id),
-        }
+        try:
+            experiment_payload = {
+                **experiment_service.snapshot(db, experiment),
+                "result": experiment_service.result(db, experiment.id),
+            }
+        except ScheduleIntegrityError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     return {
         "user": {

@@ -1,6 +1,6 @@
 # YunSync API 契约草案
 
-> 版本：V0.4
+> 版本：V0.5
 >
 > 基础路径：`/api/v1`
 >
@@ -58,6 +58,10 @@
 | GET | `/api/v1/actions` | Bearer 会话 | 200 `Action[]` | 409 初筛未通过；未确认报告返回空数组 |
 | POST | `/api/v1/experiments` | `ExperimentCreate` | 200 `Experiment` | 404 用户/模板；409 安全或确认条件未满足 |
 | GET | `/api/v1/experiments/current` | Bearer 会话 | 200 `Experiment` | 403 未授权；404 无实验 |
+| POST | `/api/v1/experiments/{id}/pause` | 无 | 200 `Experiment` | 404 实验；409 状态/日程冲突 |
+| POST | `/api/v1/experiments/{id}/resume` | 无 | 200 `Experiment` | 404 实验；409 状态/单活动冲突 |
+| POST | `/api/v1/experiments/{id}/terminate` | 无 | 200 `Experiment` | 404 实验；409 已进入终态 |
+| POST | `/api/v1/experiments/{id}/complete` | 无 | 200 `Experiment` | 404 实验；409 周期或记录未完成 |
 | POST | `/api/v1/experiments/{id}/observations` | `ObservationCreate` | 200 `ApiMessage` | 400 日期/分组/状态；404 实验 |
 | GET | `/api/v1/experiments/{id}/result` | path `id` | 200 `ExperimentResult` | 404 实验/模板 |
 
@@ -106,7 +110,18 @@
 }
 ```
 
-`start_date` 可省略，默认当天；日程与随机分组只由后端生成。
+`start_date` 可省略，默认当天；创建即开始实验。日程与随机分组只由后端生成，新建时既有活动实验转为暂停。
+
+### `Experiment`
+
+- `status` / `status_label`：`active`（进行中）、`paused`（已暂停）、`terminated`（已终止）、`completed`（已完成）；
+- `randomization_seed`、`schedule_version`、`schedule_locked_at`：日程审计信息；服务端另存不对外暴露的完整性摘要；
+- `recorded_days` 与 `completed_days`：分别表示已提交记录和实际完成行动的天数，`progress` 与已记录天数一致；
+- `allowed_transitions`：当前状态和完成条件下服务端允许的操作；
+- `started_at`、`paused_at`、`terminated_at`、`completed_at`：状态时间戳；
+- `schedule[].recorded` 表示该日期已有记录，`schedule[].completed` 表示当日行动完成。
+
+完成实验要求当前日期不早于 `end_date`，且 14 个日程日期均已有记录。`terminated` 和 `completed` 均不可恢复。日程字段、7:7 分组或摘要不一致时返回 409 并停止读取、记录或状态转换。
 
 ### `ObservationCreate`
 

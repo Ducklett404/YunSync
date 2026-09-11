@@ -157,3 +157,35 @@ def test_week_five_action_governance_is_documented_without_fake_reviews():
         assert forbidden_topic in prompt
     assert "57 项通过" in verification
     assert "不以合成结果替代" in verification
+
+
+def test_week_six_experiment_state_machine_and_schedule_lock_are_documented():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    requirements = (PROJECT_ROOT / "docs" / "PRODUCT_REQUIREMENTS.md").read_text(
+        encoding="utf-8"
+    )
+    dictionary = (PROJECT_ROOT / "docs" / "DATA_DICTIONARY.md").read_text(
+        encoding="utf-8"
+    )
+    contract = (PROJECT_ROOT / "docs" / "API_CONTRACT.md").read_text(
+        encoding="utf-8"
+    )
+    verification = (PROJECT_ROOT / "docs" / "M6A_VERIFICATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "里程碑 M6A" in plan
+    for acceptance_id in ("AC-05.4", "AC-05.5", "AC-05.6", "AC-06.2"):
+        assert acceptance_id in requirements
+    for field in (
+        "schedule_version",
+        "schedule_hash",
+        "schedule_locked_at",
+        "completed_at",
+        "uq_experiments_active_user",
+    ):
+        assert field in dictionary
+    for route in ("/pause", "/resume", "/terminate", "/complete"):
+        assert route in contract
+    assert "63 项通过" in verification
+    assert "没有用仿真记录替代外部验收" in verification

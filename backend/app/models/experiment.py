@@ -1,7 +1,21 @@
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -9,6 +23,19 @@ from app.db.session import Base
 
 class Experiment(Base):
     __tablename__ = "experiments"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active','paused','terminated','completed')",
+            name="ck_experiments_status",
+        ),
+        Index(
+            "uq_experiments_active_user",
+            "user_id",
+            unique=True,
+            sqlite_where=text("status = 'active'"),
+            postgresql_where=text("status = 'active'"),
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[str] = mapped_column(ForeignKey("user_profiles.id", ondelete="CASCADE"), index=True)
@@ -18,6 +45,24 @@ class Experiment(Base):
     end_date: Mapped[date] = mapped_column(Date)
     randomization_seed: Mapped[int] = mapped_column(Integer)
     schedule: Mapped[list] = mapped_column(JSON)
+    schedule_version: Mapped[str] = mapped_column(
+        String(32), default="balanced-14-v1"
+    )
+    schedule_hash: Mapped[str] = mapped_column(String(64))
+    schedule_locked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    paused_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    terminated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -38,4 +83,3 @@ class Observation(Base):
     subjective_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     missing_reason: Mapped[str | None] = mapped_column(String(160), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-

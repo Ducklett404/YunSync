@@ -22,6 +22,7 @@
 - [合成 OCR 契约评测记录](docs/OCR_EVALUATION_REPORT.md)
 - [行动模板登记表](docs/ACTION_TEMPLATE_REGISTER.md)
 - [M5A 行动模板治理、透明排序与解释安全守卫验证记录](docs/M5A_VERIFICATION_REPORT.md)
+- [M6A 14 天实验状态机与锁定日程验证记录](docs/M6A_VERIFICATION_REPORT.md)
 - [华为云迁移说明](docs/HUAWEI_CLOUD_MIGRATION.md)
 
 ## 技术栈

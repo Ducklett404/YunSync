@@ -7,7 +7,8 @@ from sqlalchemy import func, select
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.action import ActionTemplate
-from app.models.experiment import Experiment
+from app.models.audit import AuditLog
+from app.models.experiment import Experiment, Observation
 from app.models.identity import AuthSession, ConsentRecord
 from app.services.identity_service import CURRENT_CONSENT_VERSION, hash_session_token
 
@@ -671,3 +672,248 @@ def test_reviewer_can_version_activate_and_retire_prototype_templates():
     assert retired.json()["review_status"] == "retired"
     assert retired.json()["is_active"] is False
     assert restored.json()["is_active"] is True
+
+
+def test_experiment_state_machine_pauses_resumes_and_blocks_terminal_updates():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "state-machine.pdf")
+        action = client.get("/api/v1/actions", headers=headers).json()[0]
+        created = client.post(
+            "/api/v1/experiments",
+            json={"action_id": action["id"], "start_date": date.today().isoformat()},
+            headers=headers,
+        )
+        experiment = created.json()
+        day = experiment["schedule"][0]
+        paused = client.post(
+            f"/api/v1/experiments/{experiment['id']}/pause", headers=headers
+        )
+        blocked_while_paused = client.post(
+            f"/api/v1/experiments/{experiment['id']}/observations",
+            json={"observed_on": day["date"], "completed": True},
+            headers=headers,
+        )
+        resumed = client.post(
+            f"/api/v1/experiments/{experiment['id']}/resume", headers=headers
+        )
+        terminated = client.post(
+            f"/api/v1/experiments/{experiment['id']}/terminate", headers=headers
+        )
+        terminal_resume = client.post(
+            f"/api/v1/experiments/{experiment['id']}/resume", headers=headers
+        )
+        terminal_save = client.post(
+            f"/api/v1/experiments/{experiment['id']}/observations",
+            json={"observed_on": day["date"], "completed": True},
+            headers=headers,
+        )
+
+    assert created.status_code == 200
+    assert experiment["status"] == "active"
+    assert experiment["schedule_version"] == "balanced-14-v1"
+    assert len(experiment["randomization_seed"].__str__()) == 6
+    assert paused.status_code == 200
+    assert paused.json()["status"] == "paused"
+    assert paused.json()["paused_at"] is not None
+    assert blocked_while_paused.status_code == 400
+    assert resumed.status_code == 200
+    assert resumed.json()["status"] == "active"
+    assert resumed.json()["paused_at"] is None
+    assert terminated.status_code == 200
+    assert terminated.json()["status"] == "terminated"
+    assert terminated.json()["terminated_at"] is not None
+    assert terminated.json()["allowed_transitions"] == []
+    assert terminal_resume.status_code == 409
+    assert terminal_save.status_code == 400
+
+
+def test_new_experiment_pauses_previous_and_duplicate_day_updates_in_place():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "single-active.pdf")
+        actions = client.get("/api/v1/actions", headers=headers).json()
+        first = client.post(
+            "/api/v1/experiments",
+            json={"action_id": actions[0]["id"], "start_date": date.today().isoformat()},
+            headers=headers,
+        ).json()
+        second_response = client.post(
+            "/api/v1/experiments",
+            json={"action_id": actions[1]["id"], "start_date": date.today().isoformat()},
+            headers=headers,
+        )
+        second = second_response.json()
+        conflicting_resume = client.post(
+            f"/api/v1/experiments/{first['id']}/resume", headers=headers
+        )
+        day = second["schedule"][0]
+        first_save = client.post(
+            f"/api/v1/experiments/{second['id']}/observations",
+            json={
+                "observed_on": day["date"],
+                "completed": False,
+                "sugary_drinks": 2,
+            },
+            headers=headers,
+        )
+        second_save = client.post(
+            f"/api/v1/experiments/{second['id']}/observations",
+            json={
+                "observed_on": day["date"],
+                "completed": True,
+                "sugary_drinks": 1,
+            },
+            headers=headers,
+        )
+        refreshed = client.get("/api/v1/experiments/current", headers=headers)
+
+        with SessionLocal() as db:
+            stored_first = db.get(Experiment, first["id"])
+            active_count = db.scalar(
+                select(func.count())
+                .select_from(Experiment)
+                .where(Experiment.user_id == "demo-user", Experiment.status == "active")
+            )
+            saved = list(
+                db.scalars(
+                    select(Observation).where(Observation.experiment_id == second["id"])
+                )
+            )
+
+        terminated_second = client.post(
+            f"/api/v1/experiments/{second['id']}/terminate", headers=headers
+        )
+        resumed_first = client.post(
+            f"/api/v1/experiments/{first['id']}/resume", headers=headers
+        )
+        client.post(f"/api/v1/experiments/{first['id']}/terminate", headers=headers)
+
+    assert second_response.status_code == 200
+    assert stored_first is not None and stored_first.status == "paused"
+    assert stored_first.paused_at is not None
+    assert active_count == 1
+    assert conflicting_resume.status_code == 409
+    assert first_save.status_code == 200
+    assert second_save.status_code == 200
+    assert len(saved) == 1
+    assert saved[0].completed is True
+    assert saved[0].sugary_drinks == 1
+    assert refreshed.json()["recorded_days"] == 1
+    assert refreshed.json()["completed_days"] == 1
+    assert refreshed.json()["schedule"][0]["recorded"] is True
+    assert terminated_second.status_code == 200
+    assert resumed_first.status_code == 200
+
+
+def test_experiment_completion_requires_period_end_and_all_fourteen_records():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "complete-experiment.pdf")
+        action = client.get("/api/v1/actions", headers=headers).json()[0]
+        created = client.post(
+            "/api/v1/experiments",
+            json={
+                "action_id": action["id"],
+                "start_date": (date.today() - timedelta(days=13)).isoformat(),
+            },
+            headers=headers,
+        ).json()
+        premature = client.post(
+            f"/api/v1/experiments/{created['id']}/complete", headers=headers
+        )
+        for index, day in enumerate(created["schedule"]):
+            saved = client.post(
+                f"/api/v1/experiments/{created['id']}/observations",
+                json={
+                    "observed_on": day["date"],
+                    "completed": index % 2 == 0,
+                    "steps_30m": 900 + index,
+                },
+                headers=headers,
+            )
+            assert saved.status_code == 200
+        ready = client.get("/api/v1/experiments/current", headers=headers)
+        completed = client.post(
+            f"/api/v1/experiments/{created['id']}/complete", headers=headers
+        )
+        completed_again = client.post(
+            f"/api/v1/experiments/{created['id']}/complete", headers=headers
+        )
+        with SessionLocal() as db:
+            lifecycle_events = list(
+                db.scalars(
+                    select(AuditLog.event_type).where(
+                        AuditLog.actor_id == "demo-user",
+                        AuditLog.event_type.in_(
+                            {
+                                "experiment.started",
+                                "experiment.paused",
+                                "experiment.resumed",
+                                "experiment.terminated",
+                                "experiment.completed",
+                            }
+                        ),
+                    )
+                )
+            )
+
+    assert premature.status_code == 409
+    assert "14 天记录" in premature.json()["detail"]
+    assert ready.status_code == 200
+    assert ready.json()["recorded_days"] == 14
+    assert "complete" in ready.json()["allowed_transitions"]
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+    assert completed.json()["completed_at"] is not None
+    assert completed.json()["allowed_transitions"] == []
+    assert completed_again.status_code == 409
+    assert "experiment.completed" in lifecycle_events
+
+
+def test_out_of_period_and_tampered_schedule_are_rejected():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "locked-schedule.pdf")
+        action = client.get("/api/v1/actions", headers=headers).json()[0]
+        created = client.post(
+            "/api/v1/experiments",
+            json={
+                "action_id": action["id"],
+                "start_date": (date.today() - timedelta(days=2)).isoformat(),
+            },
+            headers=headers,
+        ).json()
+        out_of_period = client.post(
+            f"/api/v1/experiments/{created['id']}/observations",
+            json={
+                "observed_on": (date.today() - timedelta(days=3)).isoformat(),
+                "completed": True,
+            },
+            headers=headers,
+        )
+
+        with SessionLocal() as db:
+            stored = db.get(Experiment, created["id"])
+            assert stored is not None
+            original_schedule = [dict(day) for day in stored.schedule]
+            tampered_schedule = [dict(day) for day in stored.schedule]
+            tampered_schedule[0]["label"] = "被篡改"
+            stored.schedule = tampered_schedule
+            db.commit()
+        tampered_current = client.get("/api/v1/experiments/current", headers=headers)
+        with SessionLocal() as db:
+            stored = db.get(Experiment, created["id"])
+            assert stored is not None
+            stored.schedule = original_schedule
+            db.commit()
+        restored_current = client.get("/api/v1/experiments/current", headers=headers)
+        client.post(
+            f"/api/v1/experiments/{created['id']}/terminate", headers=headers
+        )
+
+    assert out_of_period.status_code == 400
+    assert "不在实验周期" in out_of_period.json()["detail"]
+    assert tampered_current.status_code == 409
+    assert "完整性校验失败" in tampered_current.json()["detail"]
+    assert restored_current.status_code == 200

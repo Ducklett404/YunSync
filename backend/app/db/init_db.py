@@ -1,7 +1,8 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 
+from app.core.experiment_policy import SCHEDULE_VERSION, schedule_digest
 from app.db.session import SessionLocal
 from app.models import ActionTemplate, Experiment, HealthMetric, HealthReport, Observation, UserProfile
 
@@ -192,26 +193,39 @@ def seed_db() -> None:
         )
         if existing_experiment is None:
             start = date.today() - timedelta(days=5)
+            end = start + timedelta(days=13)
+            seed = 240917
+            schedule = _demo_schedule(start)
+            now = datetime.now(timezone.utc)
             experiment = Experiment(
                 id="demo-experiment",
                 user_id="demo-user",
                 action_id="action-postmeal-walk",
                 status="active",
                 start_date=start,
-                end_date=start + timedelta(days=13),
-                randomization_seed=240917,
-                schedule=_demo_schedule(start),
+                end_date=end,
+                randomization_seed=seed,
+                schedule=schedule,
+                schedule_version=SCHEDULE_VERSION,
+                schedule_hash=schedule_digest(
+                    schedule=schedule,
+                    start_date=start,
+                    end_date=end,
+                    seed=seed,
+                ),
+                schedule_locked_at=now,
+                started_at=now,
+                updated_at=now,
             )
             db.add(experiment)
             db.flush()
             demo_steps = [1680, 720, 1540, 1810, 840]
-            treatment_days = {0, 2, 3}
             for index, steps in enumerate(demo_steps):
                 db.add(
                     Observation(
                         experiment_id=experiment.id,
                         observed_on=start + timedelta(days=index),
-                        treatment=index in treatment_days,
+                        treatment=schedule[index]["treatment"],
                         completed=True,
                         steps_30m=steps,
                         sleep_hours=[7.2, 6.4, 7.6, 6.9, 7.1][index],

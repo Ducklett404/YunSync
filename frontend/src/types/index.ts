@@ -55,8 +55,11 @@ export interface ScheduleDay {
   date: string
   treatment: boolean
   label: string
+  recorded: boolean
   completed: boolean
 }
+
+export type ExperimentTransition = 'pause' | 'resume' | 'terminate' | 'complete'
 
 export interface ExperimentResult {
   experiment_id: string
@@ -83,9 +86,20 @@ export interface Experiment {
   action_title: string
   primary_metric: string
   status: string
+  status_label: string
   start_date: string
   end_date: string
+  randomization_seed: number
+  schedule_version: string
+  schedule_locked_at: string
+  started_at: string
+  paused_at: string | null
+  terminated_at: string | null
+  completed_at: string | null
   progress: number
+  recorded_days: number
+  completed_days: number
+  allowed_transitions: ExperimentTransition[]
   schedule: ScheduleDay[]
   result?: ExperimentResult
 }

@@ -96,16 +96,17 @@ class IdentityService:
             return False
         active.status = "withdrawn"
         active.withdrawn_at = datetime.now(timezone.utc)
-        db.execute(
-            update(Experiment)
-            .where(Experiment.user_id == user_id, Experiment.status == "active")
-            .values(status="paused")
+        paused_count = self._pause_active_experiments(
+            db, user_id, reason="consent_withdrawn"
         )
         db.add(
             AuditLog(
                 event_type="consent.withdrawn",
                 actor_id=user_id,
-                payload={"version": active.version, "active_experiments_paused": True},
+                payload={
+                    "version": active.version,
+                    "active_experiments_paused": paused_count,
+                },
             )
         )
         db.commit()
@@ -140,10 +141,8 @@ class IdentityService:
         )
         user.screened_at = datetime.now(timezone.utc)
         if user.high_risk:
-            db.execute(
-                update(Experiment)
-                .where(Experiment.user_id == user.id, Experiment.status == "active")
-                .values(status="paused")
+            self._pause_active_experiments(
+                db, user.id, reason="safety_screening_triggered"
             )
         db.add(
             AuditLog(
@@ -155,6 +154,35 @@ class IdentityService:
         db.commit()
         db.refresh(user)
         return user
+
+    @staticmethod
+    def _pause_active_experiments(db: Session, user_id: str, reason: str) -> int:
+        experiments = list(
+            db.scalars(
+                select(Experiment).where(
+                    Experiment.user_id == user_id,
+                    Experiment.status == "active",
+                )
+            )
+        )
+        now = datetime.now(timezone.utc)
+        for experiment in experiments:
+            experiment.status = "paused"
+            experiment.paused_at = now
+            experiment.updated_at = now
+            db.add(
+                AuditLog(
+                    event_type="experiment.paused",
+                    actor_id=user_id,
+                    payload={
+                        "experiment_id": experiment.id,
+                        "from_status": "active",
+                        "to_status": "paused",
+                        "reason": reason,
+                    },
+                )
+            )
+        return len(experiments)
 
 
 identity_service = IdentityService()

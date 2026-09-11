@@ -8,6 +8,7 @@ import type {
   DashboardData,
   DemoSession,
   Experiment,
+  ExperimentTransition,
   ExperimentResult,
   ReportAnalysis,
   UserProfile,
@@ -144,6 +145,14 @@ export async function createExperiment(actionId: string): Promise<Experiment> {
 
 export async function fetchCurrentExperiment(): Promise<Experiment> {
   const { data } = await client.get<Experiment>('/experiments/current')
+  return data
+}
+
+export async function transitionExperiment(
+  experimentId: string,
+  transition: ExperimentTransition,
+): Promise<Experiment> {
+  const { data } = await client.post<Experiment>(`/experiments/${experimentId}/${transition}`)
   return data
 }
 

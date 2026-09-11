@@ -277,6 +277,20 @@ a { color: inherit; text-decoration: none; }
 .sticky-action-bar strong { font-size: 14px; }
 .sticky-action-bar span { margin-top: 3px; color: var(--muted); font-size: 12px; }
 
+.experiment-state-panel { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 18px; background: white; border: 1px solid var(--line); border-left: 4px solid var(--teal); border-radius: 7px; }
+.experiment-state-panel.status-paused { border-left-color: var(--amber); }
+.experiment-state-panel.status-terminated { border-left-color: var(--red); }
+.experiment-state-panel.status-completed { border-left-color: var(--green); }
+.experiment-state-copy { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.experiment-state-copy .status-badge { flex: 0 0 auto; min-height: 28px; padding-inline: 10px; color: var(--teal-dark); background: var(--teal-soft); font-size: 13px; }
+.status-paused .experiment-state-copy .status-badge { color: #76500e; background: var(--amber-soft); }
+.status-terminated .experiment-state-copy .status-badge { color: var(--red); background: var(--red-soft); }
+.status-completed .experiment-state-copy .status-badge { color: var(--green); background: var(--green-soft); }
+.experiment-state-copy strong, .experiment-state-copy span { display: block; }
+.experiment-state-copy strong { font-size: 14px; }
+.experiment-state-copy div > span { display: flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.experiment-state-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.recording-lock-notice { padding: 12px 15px; color: #69501d; background: var(--amber-soft); border-left: 3px solid var(--amber); border-radius: 5px; font-size: 14px; line-height: 1.55; }
 .experiment-overview { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 22px; align-items: center; }
 .experiment-summary { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .experiment-summary span, .experiment-summary strong { display: block; }
@@ -292,6 +306,7 @@ a { color: inherit; text-decoration: none; }
 .calendar-day { position: relative; min-width: 0; aspect-ratio: 1 / .86; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 9px; color: #46555b; background: #f1f4f4; border: 1px solid #dbe1e2; border-radius: 5px; cursor: pointer; }
 .calendar-day.treatment { color: #165f5b; background: var(--teal-soft); border-color: #b7d9d5; }
 .calendar-day.selected { outline: 2px solid var(--teal); outline-offset: 1px; }
+.calendar-day.recorded { box-shadow: inset 0 -3px 0 var(--green); }
 .calendar-day:disabled { opacity: .46; cursor: not-allowed; }
 .calendar-day span { font-size: 11px; font-weight: 700; }
 .calendar-day strong { font-size: 12px; }
@@ -302,6 +317,7 @@ a { color: inherit; text-decoration: none; }
 .record-form input[type="number"], .record-form select, .record-form textarea { width: 100%; min-height: 42px; padding: 9px 11px; color: var(--ink); background: #fbfcfc; border: 1px solid #cfd8da; border-radius: 5px; outline: none; }
 .record-form textarea { resize: vertical; }
 .record-form input:focus, .record-form select:focus, .record-form textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 2px #dcefed; }
+.record-form input:disabled, .record-form select:disabled, .record-form textarea:disabled { color: #68767b; background: #edf1f1; cursor: not-allowed; }
 .toggle-row { display: flex; align-items: center; gap: 9px; padding: 11px; background: var(--teal-soft); border-radius: 5px; font-size: 13px; font-weight: 700; }
 .toggle-row input { width: 17px; height: 17px; accent-color: var(--teal); }
 .input-suffix { position: relative; }
@@ -343,6 +359,7 @@ a { color: inherit; text-decoration: none; }
   .account-panel { position: static; }
   .action-facts { grid-template-columns: 1fr; }
   .score-breakdown { grid-template-columns: 1fr; }
+  .experiment-state-panel { align-items: flex-start; }
 }
 
 @media (max-width: 680px) {
@@ -360,6 +377,10 @@ a { color: inherit; text-decoration: none; }
   .main-content { padding: 24px 16px 92px; }
   .page-header h1 { font-size: 24px; }
   .summary-grid { grid-template-columns: 1fr; }
+  .experiment-state-panel { display: grid; }
+  .experiment-state-copy { display: grid; }
+  .experiment-state-actions { justify-content: stretch; }
+  .experiment-state-actions .button { flex: 1 1 120px; }
   .journey-steps { grid-template-columns: repeat(5, minmax(48px, 1fr)); overflow-x: auto; }
   .journey-steps li { min-width: 56px; flex-direction: column; gap: 4px; text-align: center; }
   .journey-steps li::after { position: absolute; top: 12px; left: calc(50% + 18px); width: calc(100% - 36px); margin: 0; }
