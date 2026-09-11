@@ -1,6 +1,6 @@
 # YunSync API 契约草案
 
-> 版本：V0.2
+> 版本：V0.3
 >
 > 基础路径：`/api/v1`
 >
@@ -46,8 +46,12 @@
 |---|---|---|---|---|
 | GET | `/api/v1/dashboard` | Bearer 会话 | 200 总览对象 | 401 未登录；403 未授权 |
 | GET | `/api/v1/reports/latest` | Bearer 会话 | 200 `ReportAnalysis` | 403 未授权；404 无报告 |
-| POST | `/api/v1/reports/analyze` | form `file` | 200 `ReportAnalysis` | 401 未登录；403 未授权；400 文件；503 OCR |
-| POST | `/api/v1/reports/{report_id}/confirm` | path `report_id` | 200 `ApiMessage` | 404 报告不存在 |
+| POST | `/api/v1/reports/analyze` | form `file` | 200 `ReportAnalysis` | 401 未登录；403 未授权；400 文件；503 存储/OCR |
+| POST | `/api/v1/reports/{report_id}/retry` | path `report_id` | 200 `ReportAnalysis` | 409 状态不允许；503 存储/OCR |
+| GET | `/api/v1/reports/{report_id}/source` | path `report_id` | 200 私有文件 | 404 不属于当前用户；503 文件不可用 |
+| POST | `/api/v1/reports/{report_id}/metrics/{metric_id}/confirm` | path IDs | 200 `HealthMetric` | 404 对象不存在；409 OCR 未完成 |
+| PATCH | `/api/v1/reports/{report_id}/metrics/{metric_id}` | `MetricCorrection` | 200 `HealthMetric` | 404 对象不存在；409 状态不允许；422 字段无效 |
+| POST | `/api/v1/reports/{report_id}/confirm` | path `report_id` | 200 `ApiMessage` | 404 报告不存在；409 仍有字段未确认 |
 | GET | `/api/v1/actions` | Bearer 会话 | 200 `Action[]` | 409 初筛未通过；未确认报告返回空数组 |
 | POST | `/api/v1/experiments` | `ExperimentCreate` | 200 `Experiment` | 404 用户/模板；409 安全或确认条件未满足 |
 | GET | `/api/v1/experiments/current` | Bearer 会话 | 200 `Experiment` | 403 未授权；404 无实验 |
@@ -57,6 +61,26 @@
 所有路径参数对象均校验属于当前会话用户；其他用户的报告或实验统一返回 404。
 
 ## 5. 核心输入
+
+### `MetricCorrection`
+
+```json
+{
+  "name": "空腹血糖",
+  "value": 6.3,
+  "unit": "mmol/L",
+  "reference_range": "3.9-6.1"
+}
+```
+
+修正请求必须同时提交四个可编辑字段。成功后 `review_status` 为 `corrected`；原始 `raw_text`、`extracted_value`、`extracted_unit` 和 `extracted_reference_range` 保持不变。没有实际变化时按普通确认处理。
+
+### `ReportAnalysis`
+
+- 报告级状态：`status`、`ocr_status`、`ocr_attempts`、`ocr_error_code`、`ocr_provider`、`processed_at`；
+- 非敏感存储元数据：`storage_provider`、`content_type`、`file_size`，不暴露内部对象键或磁盘路径；
+- 每个指标包含结构化值、原始文本、0–1 置信度、从 1 开始的页码、四项归一化坐标及 `pending` / `confirmed` / `corrected` 校对状态；
+- `ocr_status=failed` 时 `metrics` 必须为空。失败响应的 `detail` 包含 `message`、`report_id` 和稳定错误码，供页面恢复失败报告。
 
 ### `ExperimentCreate`
 

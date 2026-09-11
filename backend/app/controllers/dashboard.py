@@ -72,6 +72,14 @@ def get_dashboard(
                 "reference_range": metric.reference_range,
                 "flag": metric.flag,
                 "confirmed": metric.confirmed,
+                "review_status": metric.review_status,
+                "raw_text": metric.raw_text,
+                "extracted_value": metric.extracted_value,
+                "extracted_unit": metric.extracted_unit,
+                "extracted_reference_range": metric.extracted_reference_range,
+                "confidence": metric.confidence,
+                "source_page": metric.source_page,
+                "source_bbox": metric.source_bbox,
             }
             for metric in metrics
         ],

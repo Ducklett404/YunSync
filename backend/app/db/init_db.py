@@ -106,6 +106,12 @@ def seed_db() -> None:
                 filename="合成体检报告_001.pdf",
                 source="synthetic",
                 status="confirmed",
+                storage_provider="synthetic_seed",
+                content_type="application/pdf",
+                ocr_provider="synthetic_seed",
+                ocr_status="completed",
+                ocr_attempts=1,
+                ocr_page_count=1,
             )
             db.add(report)
             db.flush()
@@ -128,6 +134,14 @@ def seed_db() -> None:
                         reference_range=reference,
                         flag=flag,
                         confirmed=True,
+                        review_status="confirmed",
+                        raw_text=f"{name} {value:g} {unit} 参考 {reference}",
+                        extracted_value=value,
+                        extracted_unit=unit,
+                        extracted_reference_range=reference,
+                        confidence=0.99,
+                        source_page=1,
+                        source_bbox=[0.1, 0.1, 0.3, 0.05],
                     )
                 )
 

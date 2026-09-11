@@ -15,6 +15,9 @@ class ActionService:
         report = health_repository.latest_report(db, user_id)
         if report is None or report.status != "confirmed":
             return []
+        metrics = health_repository.metrics_for_report(db, report.id)
+        if not metrics or any(not metric.confirmed for metric in metrics):
+            return []
 
         ranked: list[dict] = []
         for action in action_repository.list_all(db):

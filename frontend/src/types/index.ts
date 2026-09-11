@@ -7,6 +7,14 @@ export interface HealthMetric {
   reference_range: string
   flag: 'normal' | 'attention' | string
   confirmed: boolean
+  review_status: 'pending' | 'confirmed' | 'corrected' | string
+  raw_text: string
+  extracted_value: number | null
+  extracted_unit: string
+  extracted_reference_range: string
+  confidence: number
+  source_page: number
+  source_bbox: number[]
 }
 
 export interface ActionTemplate {
@@ -89,6 +97,15 @@ export interface ReportAnalysis {
   filename: string
   source: string
   status: string
+  storage_provider: string
+  content_type: string
+  file_size: number
+  ocr_provider: string
+  ocr_status: 'processing' | 'completed' | 'failed' | string
+  ocr_attempts: number
+  ocr_error_code: string | null
+  ocr_page_count: number
+  processed_at: string | null
   synthetic_notice: string
   metrics: HealthMetric[]
 }

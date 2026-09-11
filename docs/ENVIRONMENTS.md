@@ -1,6 +1,6 @@
 # YunSync 环境与配置基线
 
-> 版本：V0.1
+> 版本：V0.2
 >
 > 原则：模板只包含占位值，真实密钥永不进入 Git
 
@@ -26,6 +26,8 @@
 - `ENVIRONMENT` 必须是已声明的环境名；
 - `API_V1_PREFIX` 必须以 `/` 开头。
 - Production 必须设置 `ENABLE_DEMO_LOGIN=false`；演示登录不得进入正式环境。
+- Production 必须设置 `USE_LOCAL_STORAGE=false`；本地私有目录不能充当正式对象存储。
+- Production 必须设置 `USE_MOCK_AI=false`；合成 OCR 不能充当正式处理结果。
 
 任一条件不满足时应用直接拒绝启动，避免错误配置进入演示或生产环境。
 
@@ -43,7 +45,14 @@
 - `SESSION_TTL_HOURS` 范围为 1–72 小时，默认 12 小时。
 - 演示账号不采集手机号、邮箱或真实身份；令牌存于浏览器会话存储，关闭会话后不会长期保留。
 
-## 5. 启动与验证
+## 5. 报告处理配置
+
+- `USE_LOCAL_STORAGE=true` 仅用于 Local、Development 与 DevSpace 的合成文件验证；目录由 `UPLOAD_STORAGE_DIR` 指定且不进入 Git。
+- `OCR_TIMEOUT_SECONDS` 范围为 0.1–60 秒，默认 8 秒；`OCR_MAX_ATTEMPTS` 范围为 1–4，默认 2 次。
+- `USE_MOCK_AI=true` 时只运行确定性的合成 OCR 契约模拟；关闭后若真实适配器未配置，接口明确返回 503。
+- Staging 模板关闭本地存储，但真实 OBS 和 OCR 在提供资源与凭据前仍不可用。
+
+## 6. 启动与验证
 
 Windows：
 

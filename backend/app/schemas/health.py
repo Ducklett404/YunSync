@@ -1,6 +1,26 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class MetricCorrectionIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    value: float = Field(ge=-100000, le=100000, allow_inf_nan=False)
+    unit: str = Field(min_length=1, max_length=32)
+    reference_range: str = Field(max_length=64)
+
+    @field_validator("name", "unit")
+    @classmethod
+    def require_nonblank_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("字段不能为空")
+        return stripped
+
+    @field_validator("reference_range")
+    @classmethod
+    def strip_optional_text(cls, value: str) -> str:
+        return value.strip()
 
 
 class HealthMetricOut(BaseModel):
@@ -14,6 +34,14 @@ class HealthMetricOut(BaseModel):
     reference_range: str
     flag: str
     confirmed: bool
+    review_status: str
+    raw_text: str
+    extracted_value: float | None
+    extracted_unit: str
+    extracted_reference_range: str
+    confidence: float
+    source_page: int
+    source_bbox: list[float]
     measured_at: datetime
 
 
@@ -22,6 +50,14 @@ class ReportAnalysisOut(BaseModel):
     filename: str
     source: str
     status: str
+    storage_provider: str
+    content_type: str
+    file_size: int
+    ocr_provider: str
+    ocr_status: str
+    ocr_attempts: int
+    ocr_error_code: str | None
+    ocr_page_count: int
+    processed_at: datetime | None
     synthetic_notice: str
     metrics: list[HealthMetricOut]
-

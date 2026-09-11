@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     use_mock_ai: bool = True
+    use_local_storage: bool = True
+    upload_storage_dir: str = "backend/data/uploads"
+    ocr_timeout_seconds: float = Field(default=8.0, ge=0.1, le=60.0)
+    ocr_max_attempts: int = Field(default=2, ge=1, le=4)
     huawei_region: str = "cn-north-4"
     huawei_project_id: str = ""
     huawei_access_key: str = ""
@@ -52,6 +56,10 @@ class Settings(BaseSettings):
                 raise ValueError("Staging/Production 不允许使用通配 CORS 来源")
         if self.environment == "production" and self.enable_demo_login:
             raise ValueError("Production 必须关闭 ENABLE_DEMO_LOGIN")
+        if self.environment == "production" and self.use_local_storage:
+            raise ValueError("Production 必须关闭 USE_LOCAL_STORAGE 并配置受控对象存储")
+        if self.environment == "production" and self.use_mock_ai:
+            raise ValueError("Production 必须关闭 USE_MOCK_AI 并配置真实 AI/OCR 服务")
         return self
 
     @property

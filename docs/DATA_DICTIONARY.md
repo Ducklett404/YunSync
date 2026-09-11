@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V0.2
+> 版本：V0.3
 >
-> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`
+> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -73,8 +73,21 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `user_id` | varchar(36) | FK → `user_profiles.id`, index, cascade | 所属用户 |
 | `filename` | varchar(255) | 非空 | 原文件名；正式日志不得记录文件内容 |
 | `source` | varchar(32) | 默认 `synthetic` | `synthetic` 或未来的 `uploaded` |
-| `status` | varchar(32) | 默认 `needs_confirmation` | `needs_confirmation` / `confirmed` |
+| `status` | varchar(32) | 默认 `needs_confirmation` | `processing` / `needs_confirmation` / `confirmed` / `ocr_failed` |
+| `storage_provider` | varchar(32) | 非空 | `local_private`、未来的 `huawei_obs` 或种子/迁移来源 |
+| `storage_key` | varchar(255) nullable | 无 | 私有随机对象键；API 不返回该字段 |
+| `content_type` | varchar(64) | 非空 | 经签名校验的 PDF/PNG/JPEG MIME |
+| `file_size` | integer | 默认 0 | 上传字节数，最大 5 MB |
+| `content_sha256` | varchar(64) | 默认空字符串 | 文件内容摘要，不是公开下载标识 |
+| `ocr_provider` | varchar(32) | 非空 | `mock_ocr`、未来的 `huawei_ocr` 或历史来源 |
+| `ocr_status` | varchar(24) | 非空 | `processing` / `completed` / `failed` |
+| `ocr_attempts` | integer | 默认 0 | 最近一次处理实际尝试次数 |
+| `ocr_error_code` | varchar(64) nullable | 无 | 稳定失败类别，不保存外部服务响应正文 |
+| `ocr_page_count` | integer | 默认 0 | OCR 返回页数 |
+| `processed_at` | timestamptz nullable | 无 | 最近一次处理完成或失败时间 |
 | `created_at` | timestamptz | UTC 当前时间 | 创建时间 |
+
+组合索引 `idx_health_reports_user_created(user_id, created_at)` 支持“读取当前用户最近报告”的实际查询。
 
 ## 6. `health_metrics`
 
@@ -90,7 +103,17 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `reference_range` | varchar(64) | 默认空字符串 | 报告原参考范围 |
 | `flag` | varchar(16) | 默认 `normal` | `normal` / `attention`，不是疾病诊断 |
 | `confirmed` | boolean | 默认 false | 是否经用户核对 |
+| `review_status` | varchar(24) | 默认 `pending` | `pending` / `confirmed` / `corrected` |
+| `raw_text` | text | 默认空字符串 | OCR 原文片段，用于用户核对 |
+| `extracted_value` | float nullable | 无 | 首次标准化值，修正时保持不变 |
+| `extracted_unit` | varchar(32) | 默认空字符串 | 首次标准化单位 |
+| `extracted_reference_range` | varchar(64) | 默认空字符串 | 首次提取参考范围 |
+| `confidence` | float | 默认 0 | OCR 候选置信度，应用层约束 0–1 |
+| `source_page` | integer | 默认 1 | 原文页码，从 1 开始 |
+| `source_bbox` | json | 默认 `[0,0,1,1]` | `[x,y,width,height]` 归一化位置，单项 0–1 |
 | `measured_at` | timestamptz | UTC 当前时间 | 测量或导入时间 |
+
+报告只有在全部指标 `confirmed=true` 后才能转为 `confirmed`。排序服务会再次检查每条指标，避免仅修改报告状态绕过校对。
 
 ## 7. `action_templates`
 

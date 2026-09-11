@@ -81,3 +81,31 @@ def test_production_refuses_demo_login():
             cors_origins="https://app.example.com",
             enable_demo_login=True,
         )
+
+
+def test_production_refuses_local_upload_storage():
+    with pytest.raises(ValidationError, match="USE_LOCAL_STORAGE"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            secret_key="a-production-secret-key-value",
+            database_url="postgresql+psycopg://user:pass@db/yunsync",
+            cors_origins="https://app.example.com",
+            enable_demo_login=False,
+            use_local_storage=True,
+            use_mock_ai=False,
+        )
+
+
+def test_production_refuses_mock_ocr():
+    with pytest.raises(ValidationError, match="USE_MOCK_AI"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            secret_key="a-production-secret-key-value",
+            database_url="postgresql+psycopg://user:pass@db/yunsync",
+            cors_origins="https://app.example.com",
+            enable_demo_login=False,
+            use_local_storage=False,
+            use_mock_ai=True,
+        )

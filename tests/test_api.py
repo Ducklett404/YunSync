@@ -280,9 +280,17 @@ def test_report_audit_does_not_store_uploaded_filename():
             headers=headers,
         )
         assert analyzed.status_code == 200
-        client.post(
-            f"/api/v1/reports/{analyzed.json()['report_id']}/confirm", headers=headers
+        report_payload = analyzed.json()
+        for metric in report_payload["metrics"]:
+            confirmed = client.post(
+                f"/api/v1/reports/{report_payload['report_id']}/metrics/{metric['id']}/confirm",
+                headers=headers,
+            )
+            assert confirmed.status_code == 200
+        finalized = client.post(
+            f"/api/v1/reports/{report_payload['report_id']}/confirm", headers=headers
         )
+        assert finalized.status_code == 200
         reviewer_headers = login_demo(client, "demo-reviewer")
         audit = client.get("/api/v1/admin/audit-events", headers=reviewer_headers)
 
@@ -349,3 +357,147 @@ def test_logout_revokes_demo_session():
 
     assert logged_out.status_code == 200
     assert rejected.status_code == 401
+
+
+def test_report_requires_magic_signature_and_sanitizes_filename():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        mismatched = client.post(
+            "/api/v1/reports/analyze",
+            files={"file": ("fake.pdf", b"not-a-pdf", "application/pdf")},
+            headers=headers,
+        )
+        accepted = client.post(
+            "/api/v1/reports/analyze",
+            files={"file": ("../synthetic.pdf", b"%PDF synthetic", "application/pdf")},
+            headers=headers,
+        )
+
+    assert mismatched.status_code == 400
+    assert "文件内容" in mismatched.json()["detail"]
+    assert accepted.status_code == 200
+    assert accepted.json()["filename"] == "synthetic.pdf"
+    assert accepted.json()["storage_provider"] == "local_private"
+    assert accepted.json()["file_size"] == len(b"%PDF synthetic")
+
+
+def test_report_fields_must_be_reviewed_before_ranking():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        analyzed = client.post(
+            "/api/v1/reports/analyze",
+            files={"file": ("review.pdf", b"%PDF synthetic", "application/pdf")},
+            headers=headers,
+        )
+        assert analyzed.status_code == 200
+        payload = analyzed.json()
+        assert payload["ocr_status"] == "completed"
+        assert payload["ocr_provider"] == "mock_ocr"
+        assert all(metric["raw_text"] for metric in payload["metrics"])
+        assert all(len(metric["source_bbox"]) == 4 for metric in payload["metrics"])
+
+        premature = client.post(
+            f"/api/v1/reports/{payload['report_id']}/confirm", headers=headers
+        )
+        blocked_actions = client.get("/api/v1/actions", headers=headers)
+        assert premature.status_code == 409
+        assert "未逐项确认" in premature.json()["detail"]
+        assert blocked_actions.status_code == 200
+        assert blocked_actions.json() == []
+
+        first, second, *remaining = payload["metrics"]
+        confirmed = client.post(
+            f"/api/v1/reports/{payload['report_id']}/metrics/{first['id']}/confirm",
+            headers=headers,
+        )
+        corrected = client.patch(
+            f"/api/v1/reports/{payload['report_id']}/metrics/{second['id']}",
+            json={
+                "name": second["name"],
+                "value": second["value"] + 0.1,
+                "unit": second["unit"],
+                "reference_range": second["reference_range"],
+            },
+            headers=headers,
+        )
+        assert confirmed.json()["review_status"] == "confirmed"
+        assert corrected.json()["review_status"] == "corrected"
+        assert corrected.json()["extracted_value"] == second["value"]
+
+        for metric in remaining:
+            response = client.post(
+                f"/api/v1/reports/{payload['report_id']}/metrics/{metric['id']}/confirm",
+                headers=headers,
+            )
+            assert response.status_code == 200
+
+        finalized = client.post(
+            f"/api/v1/reports/{payload['report_id']}/confirm", headers=headers
+        )
+        ranked_actions = client.get("/api/v1/actions", headers=headers)
+        source = client.get(
+            f"/api/v1/reports/{payload['report_id']}/source", headers=headers
+        )
+        reviewer_headers = login_demo(client, "demo-reviewer")
+        reviewer_source = client.get(
+            f"/api/v1/reports/{payload['report_id']}/source",
+            headers=reviewer_headers,
+        )
+
+    assert finalized.status_code == 200
+    assert len(ranked_actions.json()) == 3
+    assert source.status_code == 200
+    assert source.content == b"%PDF synthetic"
+    assert source.headers["cache-control"] == "private, no-store"
+    assert reviewer_source.status_code == 403
+
+
+def test_ocr_failure_persists_retryable_state_without_metrics():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        failed = client.post(
+            "/api/v1/reports/analyze",
+            files={
+                "file": (
+                    "failure.pdf",
+                    b"%PDF YUNSYNC_SCENARIO:failure",
+                    "application/pdf",
+                )
+            },
+            headers=headers,
+        )
+        assert failed.status_code == 503
+        report_id = failed.json()["detail"]["report_id"]
+        latest = client.get("/api/v1/reports/latest", headers=headers)
+        actions = client.get("/api/v1/actions", headers=headers)
+        retried = client.post(f"/api/v1/reports/{report_id}/retry", headers=headers)
+
+    assert latest.status_code == 200
+    assert latest.json()["report_id"] == report_id
+    assert latest.json()["ocr_status"] == "failed"
+    assert latest.json()["metrics"] == []
+    assert actions.json() == []
+    assert retried.status_code == 503
+    assert retried.json()["detail"]["report_id"] == report_id
+
+
+def test_ocr_timeout_uses_bounded_retries_without_metrics():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        timed_out = client.post(
+            "/api/v1/reports/analyze",
+            files={
+                "file": (
+                    "timeout.pdf",
+                    b"%PDF YUNSYNC_SCENARIO:timeout",
+                    "application/pdf",
+                )
+            },
+            headers=headers,
+        )
+        latest = client.get("/api/v1/reports/latest", headers=headers)
+
+    assert timed_out.status_code == 503
+    assert timed_out.json()["detail"]["code"] == "timeout"
+    assert latest.json()["ocr_attempts"] == 2
+    assert latest.json()["metrics"] == []

@@ -92,6 +92,40 @@ export async function analyzeReport(file: File): Promise<ReportAnalysis> {
   return data
 }
 
+export async function retryReport(reportId: string): Promise<ReportAnalysis> {
+  const { data } = await client.post<ReportAnalysis>(`/reports/${reportId}/retry`)
+  return data
+}
+
+export async function confirmReportMetric(
+  reportId: string,
+  metricId: string,
+): Promise<ReportAnalysis['metrics'][number]> {
+  const { data } = await client.post<ReportAnalysis['metrics'][number]>(
+    `/reports/${reportId}/metrics/${metricId}/confirm`,
+  )
+  return data
+}
+
+export async function correctReportMetric(
+  reportId: string,
+  metricId: string,
+  payload: { name: string; value: number; unit: string; reference_range: string },
+): Promise<ReportAnalysis['metrics'][number]> {
+  const { data } = await client.patch<ReportAnalysis['metrics'][number]>(
+    `/reports/${reportId}/metrics/${metricId}`,
+    payload,
+  )
+  return data
+}
+
+export async function downloadReportSource(reportId: string): Promise<Blob> {
+  const { data } = await client.get<Blob>(`/reports/${reportId}/source`, {
+    responseType: 'blob',
+  })
+  return data
+}
+
 export async function confirmReport(reportId: string): Promise<void> {
   await client.post(`/reports/${reportId}/confirm`)
 }
@@ -135,7 +169,10 @@ export async function fetchExperimentResult(experimentId: string): Promise<Exper
 
 export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    return error.response?.data?.detail || error.message || '请求失败'
+    const detail = error.response?.data?.detail
+    if (typeof detail === 'string') return detail
+    if (detail && typeof detail.message === 'string') return detail.message
+    return error.message || '请求失败'
   }
   return error instanceof Error ? error.message : '发生未知错误'
 }

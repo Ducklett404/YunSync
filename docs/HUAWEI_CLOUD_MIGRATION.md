@@ -6,7 +6,7 @@
 2. 将仓库克隆到 `/root/workspace/YunSync`。
 3. 在开发者空间执行 `./start.sh`，检查 Linux 路径、编码、依赖和端口。
 4. 保持 `USE_MOCK_AI=true` 完成基础闭环。
-5. 依次接入 OCR、MaaS、RDS、DCS Redis 和 OBS，每次只替换一个适配器。
+5. 先接入 OBS 私有对象读写，再依次接入 OCR、MaaS、RDS 和 DCS Redis，每次只替换一个适配器。
 6. 构建 Docker 镜像并部署到长期运行的 ECS 或容器服务。
 
 ## 上云前检查
@@ -28,6 +28,8 @@
 | 本地合成报告 | OBS | `HUAWEI_OBS_BUCKET` |
 | Mock OCR | OCR 智能文档解析 | `HUAWEI_OCR_ENDPOINT` |
 | Mock 文案生成 | MaaS | `HUAWEI_MAAS_ENDPOINT`、`HUAWEI_MAAS_API_KEY` |
+
+M4A 已实现 `local_private` 与 `huawei_obs` 的适配器边界；本地验证使用 `USE_LOCAL_STORAGE=true`。云端切换时必须先设置 `USE_LOCAL_STORAGE=false`，补齐 OBS 鉴权实现并验证私有访问后，才可记录为真实 OBS 接入。OCR 同理：`USE_MOCK_AI=false` 后，未配置的适配器会返回 503，不会回退到未标记的合成结果。
 
 ## 建议保留的比赛证据
 

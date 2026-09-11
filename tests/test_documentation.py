@@ -99,3 +99,26 @@ def test_week_three_identity_consent_and_profile_are_documented():
     assert "path: '/profile'" in router
     assert "32 项通过" in verification
     assert "不以合成记录替代" in verification
+
+
+def test_week_four_report_workflow_is_documented_without_fake_cloud_claims():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    dictionary = (PROJECT_ROOT / "docs" / "DATA_DICTIONARY.md").read_text(encoding="utf-8")
+    contract = (PROJECT_ROOT / "docs" / "API_CONTRACT.md").read_text(encoding="utf-8")
+    evaluation = (PROJECT_ROOT / "docs" / "OCR_EVALUATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+    verification = (PROJECT_ROOT / "docs" / "M4A_VERIFICATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "里程碑 M4A" in plan
+    assert "真实 OBS 与真实 OCR 接入仍保持未完成" in plan
+    for field in ("ocr_status", "confidence", "source_bbox", "review_status"):
+        assert field in dictionary
+    for route in ("/retry", "/source", "/metrics/{metric_id}/confirm"):
+        assert route in contract
+    for scenario in ("standard", "blurred", "rotated", "low_resolution", "timeout", "failure"):
+        assert scenario in evaluation
+    assert "45 项通过" in verification
+    assert "不是 OBS 成功证据" in verification
