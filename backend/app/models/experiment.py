@@ -82,4 +82,7 @@ class Observation(Base):
     sugary_drinks: Mapped[int | None] = mapped_column(Integer, nullable=True)
     subjective_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     missing_reason: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    discomfort_level: Mapped[str] = mapped_column(String(16), default="none")
+    discomfort_details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    unplanned_event: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

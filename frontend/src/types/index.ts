@@ -57,6 +57,39 @@ export interface ScheduleDay {
   label: string
   recorded: boolean
   completed: boolean
+  observation: Observation | null
+}
+
+export type MissingReason =
+  | 'forgot'
+  | 'device_unavailable'
+  | 'physical_discomfort'
+  | 'unplanned_event'
+  | 'other'
+
+export type DiscomfortLevel = 'none' | 'mild' | 'significant'
+
+export interface Observation {
+  id: string
+  observed_on: string
+  treatment: boolean
+  completed: boolean
+  steps_30m: number | null
+  sleep_hours: number | null
+  sugary_drinks: number | null
+  subjective_score: number | null
+  missing_reason: MissingReason | null
+  discomfort_level: DiscomfortLevel
+  discomfort_details: string | null
+  unplanned_event: string | null
+  notes: string | null
+}
+
+export interface ObservationImportResult {
+  message: string
+  imported_days: number
+  created_days: number
+  updated_days: number
 }
 
 export type ExperimentTransition = 'pause' | 'resume' | 'terminate' | 'complete'
@@ -152,6 +185,8 @@ export interface UserProfile {
   activity_baseline: string
   constraints: string
   preferences: string
+  reminder_enabled: boolean
+  reminder_time: string
   high_risk: boolean
   screening_status: 'pending' | 'eligible' | 'needs_professional_review' | string
   screening_answers: Record<string, boolean>

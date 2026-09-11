@@ -917,3 +917,200 @@ def test_out_of_period_and_tampered_schedule_are_rejected():
     assert tampered_current.status_code == 409
     assert "完整性校验失败" in tampered_current.json()["detail"]
     assert restored_current.status_code == 200
+
+
+def test_three_action_types_accept_only_their_primary_metric():
+    cases = {
+        "postmeal_walk": ({"steps_30m": 900}, {"sugary_drinks": 1}, "steps_30m"),
+        "drink_swap": ({"sugary_drinks": 0}, {"steps_30m": 900}, "sugary_drinks"),
+        "meal_order": ({"subjective_score": 4}, {"steps_30m": 900}, "subjective_score"),
+    }
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "three-action-records.pdf")
+        actions = {
+            item["code"]: item for item in client.get("/api/v1/actions", headers=headers).json()
+        }
+        for code, (valid_metric, invalid_metric, metric_name) in cases.items():
+            experiment = client.post(
+                "/api/v1/experiments",
+                json={"action_id": actions[code]["id"], "start_date": date.today().isoformat()},
+                headers=headers,
+            ).json()
+            observed_on = experiment["schedule"][0]["date"]
+            rejected = client.post(
+                f"/api/v1/experiments/{experiment['id']}/observations",
+                json={"observed_on": observed_on, "completed": True, **invalid_metric},
+                headers=headers,
+            )
+            saved = client.post(
+                f"/api/v1/experiments/{experiment['id']}/observations",
+                json={"observed_on": observed_on, "completed": True, **valid_metric},
+                headers=headers,
+            )
+            refreshed = client.get("/api/v1/experiments/current", headers=headers).json()
+            observation = refreshed["schedule"][0]["observation"]
+
+            assert rejected.status_code == 400
+            assert "主要指标" in rejected.json()["detail"]
+            assert saved.status_code == 200
+            assert observation[metric_name] == next(iter(valid_metric.values()))
+        client.post(
+            f"/api/v1/experiments/{experiment['id']}/terminate", headers=headers
+        )
+
+
+def test_missing_context_and_significant_discomfort_pause_experiment():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "missing-context.pdf")
+        action = next(
+            item
+            for item in client.get("/api/v1/actions", headers=headers).json()
+            if item["code"] == "postmeal_walk"
+        )
+        experiment = client.post(
+            "/api/v1/experiments",
+            json={"action_id": action["id"], "start_date": date.today().isoformat()},
+            headers=headers,
+        ).json()
+        observed_on = experiment["schedule"][0]["date"]
+        without_reason = client.post(
+            f"/api/v1/experiments/{experiment['id']}/observations",
+            json={"observed_on": observed_on, "completed": False},
+            headers=headers,
+        )
+        saved = client.post(
+            f"/api/v1/experiments/{experiment['id']}/observations",
+            json={
+                "observed_on": observed_on,
+                "completed": False,
+                "missing_reason": "physical_discomfort",
+                "discomfort_level": "significant",
+                "discomfort_details": "合成记录：出现明显不适",
+                "unplanned_event": "合成记录：临时出行",
+            },
+            headers=headers,
+        )
+        refreshed = client.get("/api/v1/experiments/current", headers=headers).json()
+        observation = refreshed["schedule"][0]["observation"]
+
+        with SessionLocal() as db:
+            pause_event = db.scalar(
+                select(AuditLog)
+                .where(
+                    AuditLog.actor_id == "demo-user",
+                    AuditLog.event_type == "experiment.paused",
+                )
+                .order_by(AuditLog.created_at.desc())
+            )
+
+    assert without_reason.status_code == 400
+    assert "缺失原因" in without_reason.json()["detail"]
+    assert saved.status_code == 200
+    assert "自动暂停" in saved.json()["message"]
+    assert refreshed["status"] == "paused"
+    assert observation["missing_reason"] == "physical_discomfort"
+    assert observation["discomfort_level"] == "significant"
+    assert observation["unplanned_event"] == "合成记录：临时出行"
+    assert pause_event is not None
+    assert pause_event.payload["reason"] == "significant_discomfort_reported"
+
+
+def test_reminder_settings_are_validated_and_persisted():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        invalid = client.patch(
+            "/api/v1/profile",
+            json={"reminder_enabled": True, "reminder_time": "25:80"},
+            headers=headers,
+        )
+        saved = client.patch(
+            "/api/v1/profile",
+            json={"reminder_enabled": True, "reminder_time": "19:35"},
+            headers=headers,
+        )
+        fetched = client.get("/api/v1/profile", headers=headers)
+
+    assert invalid.status_code == 422
+    assert saved.status_code == 200
+    assert saved.json()["reminder_time"] == "19:35"
+    assert fetched.json()["reminder_enabled"] is True
+    assert fetched.json()["reminder_time"] == "19:35"
+
+
+def test_csv_and_json_import_templates_are_action_specific_and_idempotent():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        create_confirmed_report(client, headers, "record-import.pdf")
+        action = next(
+            item
+            for item in client.get("/api/v1/actions", headers=headers).json()
+            if item["code"] == "drink_swap"
+        )
+        experiment = client.post(
+            "/api/v1/experiments",
+            json={
+                "action_id": action["id"],
+                "start_date": (date.today() - timedelta(days=2)).isoformat(),
+            },
+            headers=headers,
+        ).json()
+        eligible_days = experiment["schedule"][:3]
+        csv_template = client.get(
+            f"/api/v1/experiments/{experiment['id']}/observations/template?format=csv",
+            headers=headers,
+        )
+        json_template = client.get(
+            f"/api/v1/experiments/{experiment['id']}/observations/template?format=json",
+            headers=headers,
+        )
+        csv_content = (
+            "observed_on,completed,sugary_drinks,sleep_hours,discomfort_level,unplanned_event\n"
+            f"{eligible_days[0]['date']},true,0,7.2,none,\n"
+            f"{eligible_days[1]['date']},false,2,6.5,none,合成聚餐\n"
+        )
+        first_import = client.post(
+            f"/api/v1/experiments/{experiment['id']}/observations/import",
+            json={"format": "csv", "content": csv_content},
+            headers=headers,
+        )
+        repeated_import = client.post(
+            f"/api/v1/experiments/{experiment['id']}/observations/import",
+            json={"format": "csv", "content": csv_content},
+            headers=headers,
+        )
+        json_import = client.post(
+            f"/api/v1/experiments/{experiment['id']}/observations/import",
+            json={
+                "format": "json",
+                "content": (
+                    '{"records":[{"observed_on":"'
+                    + eligible_days[2]["date"]
+                    + '","completed":true,"sugary_drinks":1,"discomfort_level":"none"}]}'
+                ),
+            },
+            headers=headers,
+        )
+        with SessionLocal() as db:
+            rows = list(
+                db.scalars(
+                    select(Observation).where(Observation.experiment_id == experiment["id"])
+                )
+            )
+        client.post(
+            f"/api/v1/experiments/{experiment['id']}/terminate", headers=headers
+        )
+
+    assert csv_template.status_code == 200
+    assert "sugary_drinks" in csv_template.text
+    assert "steps_30m" not in csv_template.text
+    assert json_template.status_code == 200
+    assert json_template.json()["records"][0]["sugary_drinks"] == 0
+    assert first_import.status_code == 200
+    assert first_import.json()["created_days"] == 2
+    assert repeated_import.status_code == 200
+    assert repeated_import.json()["created_days"] == 0
+    assert repeated_import.json()["updated_days"] == 2
+    assert json_import.status_code == 200
+    assert len(rows) == 3

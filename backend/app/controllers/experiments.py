@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.experiment_policy import ScheduleIntegrityError
@@ -14,6 +16,8 @@ from app.schemas.experiment import (
     ExperimentResultOut,
     ExperimentTransition,
     ObservationCreate,
+    ObservationImportIn,
+    ObservationImportOut,
 )
 from app.services.experiment_service import (
     ExperimentConflictError,
@@ -137,7 +141,57 @@ def save_observation(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ScheduleIntegrityError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return ApiMessage(message="今日记录已保存")
+    message = (
+        "记录已保存；因记录了明显身体不适，实验已自动暂停，请先评估是否需要专业帮助"
+        if payload.discomfort_level == "significant"
+        else "今日记录已保存"
+    )
+    return ApiMessage(message=message)
+
+
+@router.get("/{experiment_id}/observations/template")
+def observation_import_template(
+    experiment_id: str,
+    format_name: Literal["csv", "json"] = Query(default="csv", alias="format"),
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    experiment = _owned_experiment(db, experiment_id, user.id)
+    try:
+        filename, media_type, content = experiment_service.import_template(
+            db, experiment, format_name
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ScheduleIntegrityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    prefix = "\ufeff" if format_name == "csv" else ""
+    return Response(
+        content=prefix + content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post(
+    "/{experiment_id}/observations/import",
+    response_model=ObservationImportOut,
+)
+def import_observations(
+    experiment_id: str,
+    payload: ObservationImportIn,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    _owned_experiment(db, experiment_id, user.id)
+    try:
+        return experiment_service.import_observations(db, experiment_id, payload)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ExperimentStateError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ScheduleIntegrityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/{experiment_id}/result", response_model=ExperimentResultOut)

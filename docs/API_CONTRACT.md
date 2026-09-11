@@ -63,6 +63,8 @@
 | POST | `/api/v1/experiments/{id}/terminate` | 无 | 200 `Experiment` | 404 实验；409 已进入终态 |
 | POST | `/api/v1/experiments/{id}/complete` | 无 | 200 `Experiment` | 404 实验；409 周期或记录未完成 |
 | POST | `/api/v1/experiments/{id}/observations` | `ObservationCreate` | 200 `ApiMessage` | 400 日期/分组/状态；404 实验 |
+| GET | `/api/v1/experiments/{id}/observations/template?format=csv|json` | Bearer 会话 | CSV/JSON 附件 | 404 实验；409 日程损坏 |
+| POST | `/api/v1/experiments/{id}/observations/import` | `ObservationImport` | 200 `ObservationImportResult` | 400 文件、日期、指标或状态错误 |
 | GET | `/api/v1/experiments/{id}/result` | path `id` | 200 `ExperimentResult` | 404 实验/模板 |
 
 所有路径参数对象均校验属于当前会话用户；其他用户的报告或实验统一返回 404。
@@ -119,7 +121,7 @@
 - `recorded_days` 与 `completed_days`：分别表示已提交记录和实际完成行动的天数，`progress` 与已记录天数一致；
 - `allowed_transitions`：当前状态和完成条件下服务端允许的操作；
 - `started_at`、`paused_at`、`terminated_at`、`completed_at`：状态时间戳；
-- `schedule[].recorded` 表示该日期已有记录，`schedule[].completed` 表示当日行动完成。
+- `schedule[].recorded` 表示该日期已有记录，`schedule[].completed` 表示当日行动完成；`schedule[].observation` 返回所属用户已有记录详情，便于安全回填修改。
 
 完成实验要求当前日期不早于 `end_date`，且 14 个日程日期均已有记录。`terminated` 和 `completed` 均不可恢复。日程字段、7:7 分组或摘要不一致时返回 409 并停止读取、记录或状态转换。
 
@@ -133,13 +135,32 @@
   "sleep_hours": 7.2,
   "subjective_score": 4,
   "missing_reason": null,
+  "discomfort_level": "none",
+  "discomfort_details": null,
+  "unplanned_event": null,
   "notes": "合成演示记录"
 }
 ```
 
 - `treatment` 仅用于检测前端篡改；省略时以后端日程为准，冲突时拒绝。
 - `steps_30m`：0–20000；`sleep_hours`：0–24；`sugary_drinks`：0–20；`subjective_score`：1–5。
+- 行动主要指标固定为：饭后活动 `steps_30m`、饮料替换 `sugary_drinks`、进食顺序 `subjective_score`；提交不属于当前行动的主要指标字段时拒绝。
+- `missing_reason` 仅允许 `forgot`、`device_unavailable`、`physical_discomfort`、`unplanned_event`、`other`；主要指标为空时必填。
+- `discomfort_level` 为 `none`、`mild` 或 `significant`；后两者需要简要说明，`significant` 会在保存后自动暂停实验。
 - 同一实验同一日期重复提交执行更新。
+
+### `ObservationImport`
+
+```json
+{
+  "format": "csv",
+  "content": "observed_on,completed,steps_30m,discomfort_level\\n2026-09-10,true,1200,none\\n"
+}
+```
+
+- `content` 最大 200,000 字符，单次 1–14 条；JSON 可使用数组或 `{ "records": [...] }`。
+- 当前文件中的全部记录先完成格式、周期、未来日期、行动指标与日程校验，再在一个事务中按日期新增或更新。
+- 响应返回 `imported_days`、`created_days` 和 `updated_days`；重复上传同一文件不会产生重复日期记录。
 
 ## 6. 结果契约
 

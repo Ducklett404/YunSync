@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import csv
+import io
+import json
 import random
 from datetime import date, datetime, timedelta, timezone
 
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -20,7 +24,11 @@ from app.models.experiment import Experiment, Observation
 from app.models.user import UserProfile
 from app.repositories.experiment_repository import experiment_repository
 from app.repositories.health_repository import health_repository
-from app.schemas.experiment import ExperimentTransition, ObservationCreate
+from app.schemas.experiment import (
+    ExperimentTransition,
+    ObservationCreate,
+    ObservationImportIn,
+)
 
 
 RESULT_METRICS = {
@@ -28,6 +36,8 @@ RESULT_METRICS = {
     "drink_swap": ("sugary_drinks", "含糖饮料次数", "次", "lower"),
     "meal_order": ("subjective_score", "餐后状态评分", "分", "higher"),
 }
+
+ACTION_SPECIFIC_METRICS = {"steps_30m", "sugary_drinks"}
 
 STATUS_LABELS = {
     "active": "进行中",
@@ -153,6 +163,9 @@ class ExperimentService:
                 "completed": bool(by_date[day["date"]].completed)
                 if day["date"] in by_date
                 else False,
+                "observation": self._observation_payload(by_date[day["date"]])
+                if day["date"] in by_date
+                else None,
             }
             for day in experiment.schedule
         ]
@@ -270,44 +283,10 @@ class ExperimentService:
         experiment = experiment_repository.get(db, experiment_id)
         if experiment is None:
             raise LookupError("实验不存在")
-        self.ensure_schedule_integrity(experiment)
-        if experiment.status != "active":
-            raise ExperimentStateError("只能为进行中的实验保存记录")
-        if not experiment.start_date <= payload.observed_on <= experiment.end_date:
-            raise ExperimentStateError("记录日期不在实验周期内")
-        if payload.observed_on > date.today():
-            raise ExperimentStateError("不能提前填写未来日期的记录")
-
-        schedule_day = next(
-            (
-                item
-                for item in experiment.schedule
-                if item.get("date") == payload.observed_on.isoformat()
-            ),
-            None,
+        expected_treatment = self._validate_observation(db, experiment, payload)
+        observation, event_action = self._upsert_observation(
+            db, experiment, payload, expected_treatment
         )
-        if schedule_day is None:
-            raise ExperimentStateError("记录日期不在随机日程中")
-        expected_treatment = bool(schedule_day["treatment"])
-        if payload.treatment is not None and payload.treatment != expected_treatment:
-            raise ExperimentStateError("记录分组与随机日程不一致")
-
-        observation = experiment_repository.observation_on(
-            db, experiment_id, payload.observed_on
-        )
-        event_action = "updated" if observation is not None else "created"
-        values = payload.model_dump(exclude={"treatment"})
-        if observation is None:
-            observation = Observation(
-                experiment_id=experiment_id,
-                treatment=expected_treatment,
-                **values,
-            )
-            db.add(observation)
-        else:
-            observation.treatment = expected_treatment
-            for field, value in values.items():
-                setattr(observation, field, value)
 
         experiment.updated_at = datetime.now(timezone.utc)
         db.add(
@@ -321,9 +300,114 @@ class ExperimentService:
                 },
             )
         )
+        if payload.discomfort_level == "significant":
+            self._pause_for_discomfort(db, experiment, payload.observed_on)
         db.commit()
         db.refresh(observation)
         return observation
+
+    def import_observations(
+        self,
+        db: Session,
+        experiment_id: str,
+        payload: ObservationImportIn,
+    ) -> dict:
+        experiment = experiment_repository.get(db, experiment_id)
+        if experiment is None:
+            raise LookupError("实验不存在")
+        self.ensure_schedule_integrity(experiment)
+        if experiment.status != "active":
+            raise ExperimentStateError("只能为进行中的实验导入记录")
+
+        records = self._parse_import(payload)
+        seen_dates: set[date] = set()
+        validated: list[tuple[ObservationCreate, bool]] = []
+        for record in records:
+            if record.observed_on in seen_dates:
+                raise ExperimentStateError(
+                    f"导入文件包含重复日期：{record.observed_on.isoformat()}"
+                )
+            seen_dates.add(record.observed_on)
+            expected_treatment = self._validate_observation(
+                db, experiment, record, require_active=False
+            )
+            validated.append((record, expected_treatment))
+
+        created_days = 0
+        updated_days = 0
+        significant_dates: list[date] = []
+        for record, expected_treatment in validated:
+            _, event_action = self._upsert_observation(
+                db, experiment, record, expected_treatment
+            )
+            if event_action == "created":
+                created_days += 1
+            else:
+                updated_days += 1
+            if record.discomfort_level == "significant":
+                significant_dates.append(record.observed_on)
+
+        experiment.updated_at = datetime.now(timezone.utc)
+        db.add(
+            AuditLog(
+                event_type="observation.imported",
+                actor_id=experiment.user_id,
+                payload={
+                    "experiment_id": experiment.id,
+                    "format": payload.format,
+                    "imported_days": len(validated),
+                    "created_days": created_days,
+                    "updated_days": updated_days,
+                },
+            )
+        )
+        if significant_dates:
+            self._pause_for_discomfort(db, experiment, significant_dates[0])
+        db.commit()
+        return {
+            "message": "记录导入完成",
+            "imported_days": len(validated),
+            "created_days": created_days,
+            "updated_days": updated_days,
+        }
+
+    def import_template(
+        self, db: Session, experiment: Experiment, format_name: str
+    ) -> tuple[str, str, str]:
+        self.ensure_schedule_integrity(experiment)
+        action = db.get(ActionTemplate, experiment.action_id)
+        if action is None:
+            raise LookupError("行动模板不存在")
+        metric_code = RESULT_METRICS.get(action.code, ("steps_30m", "", "", ""))[0]
+        sample: dict[str, object] = {
+            "observed_on": experiment.schedule[0]["date"],
+            "completed": True,
+            metric_code: 3 if metric_code == "subjective_score" else 1200,
+            "sleep_hours": 7.0,
+        }
+        if metric_code != "subjective_score":
+            sample["subjective_score"] = 3
+        sample.update(
+            {
+                "missing_reason": None,
+                "discomfort_level": "none",
+                "discomfort_details": None,
+                "unplanned_event": None,
+                "notes": "仅填写合成或已脱敏记录",
+            }
+        )
+        if metric_code == "sugary_drinks":
+            sample[metric_code] = 0
+
+        if format_name == "json":
+            content = json.dumps({"records": [sample]}, ensure_ascii=False, indent=2)
+            return "yunsync-observations.json", "application/json", content
+
+        buffer = io.StringIO(newline="")
+        writer = csv.DictWriter(buffer, fieldnames=list(sample))
+        writer.writeheader()
+        writer.writerow({key: "" if value is None else value for key, value in sample.items()})
+        return "yunsync-observations.csv", "text/csv; charset=utf-8", buffer.getvalue()
 
     def result(self, db: Session, experiment_id: str) -> dict:
         experiment = experiment_repository.get(db, experiment_id)
@@ -393,6 +477,169 @@ class ExperimentService:
                 "结果仅适用于当前个人和观察周期。",
                 "相关性不能证明因果或疾病改善。",
             ],
+        }
+
+    def _validate_observation(
+        self,
+        db: Session,
+        experiment: Experiment,
+        payload: ObservationCreate,
+        *,
+        require_active: bool = True,
+    ) -> bool:
+        self.ensure_schedule_integrity(experiment)
+        if require_active and experiment.status != "active":
+            raise ExperimentStateError("只能为进行中的实验保存记录")
+        if not experiment.start_date <= payload.observed_on <= experiment.end_date:
+            raise ExperimentStateError("记录日期不在实验周期内")
+        if payload.observed_on > date.today():
+            raise ExperimentStateError("不能提前填写未来日期的记录")
+
+        schedule_day = next(
+            (
+                item
+                for item in experiment.schedule
+                if item.get("date") == payload.observed_on.isoformat()
+            ),
+            None,
+        )
+        if schedule_day is None:
+            raise ExperimentStateError("记录日期不在随机日程中")
+        expected_treatment = bool(schedule_day["treatment"])
+        if payload.treatment is not None and payload.treatment != expected_treatment:
+            raise ExperimentStateError("记录分组与随机日程不一致")
+
+        action = db.get(ActionTemplate, experiment.action_id)
+        if action is None:
+            raise LookupError("行动模板不存在")
+        metric_code = RESULT_METRICS.get(action.code, ("steps_30m", "", "", ""))[0]
+        for field in ACTION_SPECIFIC_METRICS - {metric_code}:
+            if getattr(payload, field) is not None:
+                raise ExperimentStateError("提交的主要指标与当前行动类型不一致")
+        metric_value = getattr(payload, metric_code)
+        if metric_value is None and payload.missing_reason is None:
+            raise ExperimentStateError("主要指标缺失时必须选择缺失原因")
+        if metric_value is not None and payload.missing_reason is not None:
+            raise ExperimentStateError("已填写主要指标时不能同时标记缺失原因")
+        if (
+            payload.discomfort_level != "none"
+            and not (payload.discomfort_details or "").strip()
+        ):
+            raise ExperimentStateError("记录身体不适时请补充简要说明")
+        return expected_treatment
+
+    @staticmethod
+    def _upsert_observation(
+        db: Session,
+        experiment: Experiment,
+        payload: ObservationCreate,
+        expected_treatment: bool,
+    ) -> tuple[Observation, str]:
+        observation = experiment_repository.observation_on(
+            db, experiment.id, payload.observed_on
+        )
+        event_action = "updated" if observation is not None else "created"
+        values = payload.model_dump(exclude={"treatment"})
+        for field in ("discomfort_details", "unplanned_event", "notes"):
+            value = values.get(field)
+            if isinstance(value, str):
+                values[field] = value.strip() or None
+        if observation is None:
+            observation = Observation(
+                experiment_id=experiment.id,
+                treatment=expected_treatment,
+                **values,
+            )
+            db.add(observation)
+        else:
+            observation.treatment = expected_treatment
+            for field, value in values.items():
+                setattr(observation, field, value)
+        return observation, event_action
+
+    @staticmethod
+    def _pause_for_discomfort(
+        db: Session, experiment: Experiment, observed_on: date
+    ) -> None:
+        if experiment.status != "active":
+            return
+        now = datetime.now(timezone.utc)
+        experiment.status = "paused"
+        experiment.paused_at = now
+        experiment.updated_at = now
+        db.add(
+            AuditLog(
+                event_type="experiment.paused",
+                actor_id=experiment.user_id,
+                payload={
+                    "experiment_id": experiment.id,
+                    "from_status": "active",
+                    "to_status": "paused",
+                    "reason": "significant_discomfort_reported",
+                    "observed_on": observed_on.isoformat(),
+                },
+            )
+        )
+
+    @staticmethod
+    def _parse_import(payload: ObservationImportIn) -> list[ObservationCreate]:
+        raw_rows: object
+        if payload.format == "json":
+            try:
+                parsed = json.loads(payload.content)
+            except json.JSONDecodeError as exc:
+                raise ExperimentStateError("JSON 文件格式无效") from exc
+            raw_rows = parsed.get("records") if isinstance(parsed, dict) else parsed
+        else:
+            reader = csv.DictReader(io.StringIO(payload.content.lstrip("\ufeff")))
+            if not reader.fieldnames or "observed_on" not in reader.fieldnames:
+                raise ExperimentStateError("CSV 必须包含 observed_on 列")
+            unknown = set(reader.fieldnames) - set(ObservationCreate.model_fields)
+            if unknown:
+                raise ExperimentStateError(
+                    f"CSV 包含不支持的列：{', '.join(sorted(unknown))}"
+                )
+            raw_rows = list(reader)
+
+        if not isinstance(raw_rows, list) or not raw_rows:
+            raise ExperimentStateError("导入文件至少需要一条记录")
+        if len(raw_rows) > 14:
+            raise ExperimentStateError("单次最多导入 14 天记录")
+
+        records: list[ObservationCreate] = []
+        for index, raw in enumerate(raw_rows, start=1):
+            if not isinstance(raw, dict):
+                raise ExperimentStateError(f"第 {index} 条记录必须是对象")
+            cleaned = {
+                key: value
+                for key, value in raw.items()
+                if value is not None and value != ""
+            }
+            try:
+                records.append(ObservationCreate.model_validate(cleaned))
+            except ValidationError as exc:
+                first_error = exc.errors()[0].get("msg", "字段无效")
+                raise ExperimentStateError(
+                    f"第 {index} 条记录无效：{first_error}"
+                ) from exc
+        return records
+
+    @staticmethod
+    def _observation_payload(observation: Observation) -> dict:
+        return {
+            "id": observation.id,
+            "observed_on": observation.observed_on,
+            "treatment": observation.treatment,
+            "completed": observation.completed,
+            "steps_30m": observation.steps_30m,
+            "sleep_hours": observation.sleep_hours,
+            "sugary_drinks": observation.sugary_drinks,
+            "subjective_score": observation.subjective_score,
+            "missing_reason": observation.missing_reason,
+            "discomfort_level": observation.discomfort_level,
+            "discomfort_details": observation.discomfort_details,
+            "unplanned_event": observation.unplanned_event,
+            "notes": observation.notes,
         }
 
     @staticmethod

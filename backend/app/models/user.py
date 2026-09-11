@@ -18,6 +18,8 @@ class UserProfile(Base):
     activity_baseline: Mapped[str] = mapped_column(String(160), default="")
     constraints: Mapped[str] = mapped_column(Text, default="")
     preferences: Mapped[str] = mapped_column(Text, default="")
+    reminder_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    reminder_time: Mapped[str] = mapped_column(String(5), default="20:00")
     high_risk: Mapped[bool] = mapped_column(Boolean, default=False)
     screening_status: Mapped[str] = mapped_column(String(32), default="pending")
     screening_answers: Mapped[dict] = mapped_column(JSON, default=dict)

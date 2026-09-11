@@ -1,12 +1,41 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExperimentCreate(BaseModel):
     action_id: str
     start_date: date | None = None
+
+
+MissingReason = Literal[
+    "forgot",
+    "device_unavailable",
+    "physical_discomfort",
+    "unplanned_event",
+    "other",
+]
+
+DiscomfortLevel = Literal["none", "mild", "significant"]
+
+
+class ObservationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    observed_on: date
+    treatment: bool
+    completed: bool
+    steps_30m: int | None
+    sleep_hours: float | None
+    sugary_drinks: int | None
+    subjective_score: int | None
+    missing_reason: MissingReason | None
+    discomfort_level: DiscomfortLevel
+    discomfort_details: str | None
+    unplanned_event: str | None
+    notes: str | None
 
 
 class ScheduleDay(BaseModel):
@@ -16,6 +45,7 @@ class ScheduleDay(BaseModel):
     label: str
     recorded: bool = False
     completed: bool = False
+    observation: ObservationOut | None = None
 
 
 class ExperimentOut(BaseModel):
@@ -47,6 +77,8 @@ ExperimentTransition = Literal["pause", "resume", "terminate", "complete"]
 
 
 class ObservationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     observed_on: date
     treatment: bool | None = None
     completed: bool = False
@@ -54,8 +86,23 @@ class ObservationCreate(BaseModel):
     sleep_hours: float | None = Field(default=None, ge=0, le=24)
     sugary_drinks: int | None = Field(default=None, ge=0, le=20)
     subjective_score: int | None = Field(default=None, ge=1, le=5)
-    missing_reason: str | None = Field(default=None, max_length=160)
+    missing_reason: MissingReason | None = None
+    discomfort_level: DiscomfortLevel = "none"
+    discomfort_details: str | None = Field(default=None, max_length=300)
+    unplanned_event: str | None = Field(default=None, max_length=300)
     notes: str | None = Field(default=None, max_length=500)
+
+
+class ObservationImportIn(BaseModel):
+    format: Literal["csv", "json"]
+    content: str = Field(min_length=2, max_length=200_000)
+
+
+class ObservationImportOut(BaseModel):
+    message: str
+    imported_days: int
+    created_days: int
+    updated_days: int
 
 
 class ExperimentResultOut(BaseModel):

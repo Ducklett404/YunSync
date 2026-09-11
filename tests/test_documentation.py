@@ -189,3 +189,34 @@ def test_week_six_experiment_state_machine_and_schedule_lock_are_documented():
         assert route in contract
     assert "63 项通过" in verification
     assert "没有用仿真记录替代外部验收" in verification
+
+
+def test_week_seven_daily_records_reminders_and_import_are_documented():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    requirements = (PROJECT_ROOT / "docs" / "PRODUCT_REQUIREMENTS.md").read_text(
+        encoding="utf-8"
+    )
+    dictionary = (PROJECT_ROOT / "docs" / "DATA_DICTIONARY.md").read_text(
+        encoding="utf-8"
+    )
+    contract = (PROJECT_ROOT / "docs" / "API_CONTRACT.md").read_text(
+        encoding="utf-8"
+    )
+    verification = (PROJECT_ROOT / "docs" / "M7A_VERIFICATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "里程碑 M7A" in plan
+    for acceptance_id in ("AC-06.5", "AC-06.6", "AC-06.7", "AC-06.8"):
+        assert acceptance_id in requirements
+    for field in (
+        "reminder_enabled",
+        "reminder_time",
+        "discomfort_level",
+        "unplanned_event",
+    ):
+        assert field in dictionary
+    for route in ("/observations/template", "/observations/import"):
+        assert route in contract
+    assert "68 项通过" in verification
+    assert "未伪造移动端浏览器走查记录" in verification

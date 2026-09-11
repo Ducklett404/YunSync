@@ -10,6 +10,7 @@ import type {
   Experiment,
   ExperimentTransition,
   ExperimentResult,
+  ObservationImportResult,
   ReportAnalysis,
   UserProfile,
 } from '@/types'
@@ -165,10 +166,41 @@ export async function saveObservation(
     sleep_hours?: number
     sugary_drinks?: number
     subjective_score?: number
+    missing_reason?: string
+    discomfort_level?: string
+    discomfort_details?: string
+    unplanned_event?: string
     notes?: string
   },
-): Promise<void> {
-  await client.post(`/experiments/${experimentId}/observations`, payload)
+): Promise<{ message: string }> {
+  const { data } = await client.post<{ message: string }>(
+    `/experiments/${experimentId}/observations`,
+    payload,
+  )
+  return data
+}
+
+export async function downloadObservationTemplate(
+  experimentId: string,
+  format: 'csv' | 'json',
+): Promise<Blob> {
+  const { data } = await client.get<Blob>(
+    `/experiments/${experimentId}/observations/template`,
+    { params: { format }, responseType: 'blob' },
+  )
+  return data
+}
+
+export async function importObservations(
+  experimentId: string,
+  format: 'csv' | 'json',
+  content: string,
+): Promise<ObservationImportResult> {
+  const { data } = await client.post<ObservationImportResult>(
+    `/experiments/${experimentId}/observations/import`,
+    { format, content },
+  )
+  return data
 }
 
 export async function fetchExperimentResult(experimentId: string): Promise<ExperimentResult> {

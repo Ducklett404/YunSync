@@ -35,6 +35,8 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `activity_baseline` | varchar(160) | 默认空字符串 | 合成活动基础 |
 | `constraints` | text | 默认空字符串 | 行动限制，不应填写诊断详情 |
 | `preferences` | text | 默认空字符串 | 记录方式偏好 |
+| `reminder_enabled` | boolean | 默认 true | 是否启用页面内每日记录提醒 |
+| `reminder_time` | varchar(5) | 默认 `20:00` | 设备本地时间，格式 `HH:MM` |
 | `high_risk` | boolean | 默认 false | 安全规则的硬拦截标记 |
 | `screening_status` | varchar(32) | 默认 `pending` | `pending` / `eligible` / `needs_professional_review` |
 | `screening_answers` | json | 默认 `{}` | 四项初筛布尔值，仅用于服务端安全判断 |
@@ -183,10 +185,13 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `sleep_hours` | float nullable | API 范围 0–24 | 昨晚睡眠时长 |
 | `sugary_drinks` | integer nullable | API 范围 0–20 | 含糖饮料次数 |
 | `subjective_score` | integer nullable | API 范围 1–5 | 主观状态或餐后状态 |
-| `missing_reason` | varchar(160) nullable | 最大 160 字符 | 缺失原因 |
+| `missing_reason` | varchar(160) nullable | 固定枚举 | 忘记、设备不可用、身体不适、计划外事件或其他 |
+| `discomfort_level` | varchar(16) | 默认 `none` | `none` / `mild` / `significant`；明显不适触发暂停 |
+| `discomfort_details` | text nullable | API 最大 300 字符 | 身体不适的最小必要说明 |
+| `unplanned_event` | text nullable | API 最大 300 字符 | 聚餐、出差等计划外干扰因素 |
 | `notes` | text nullable | API 最大 500 字符 | 合成测试备注；正式日志不记录正文 |
 
-唯一约束 `uq_experiment_day(experiment_id, observed_on)` 保证重复提交更新同一天记录，而不是创建重复数据。
+唯一约束 `uq_experiment_day(experiment_id, observed_on)` 保证重复提交和重复导入更新同一天记录，而不是创建重复数据。审计事件只记录日期、格式及新增/更新计数，不记录不适说明、计划外事件或备注正文。
 
 ## 10. `audit_logs`
 

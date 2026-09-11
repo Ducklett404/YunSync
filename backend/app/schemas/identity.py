@@ -16,6 +16,8 @@ class UserOut(BaseModel):
     activity_baseline: str
     constraints: str
     preferences: str
+    reminder_enabled: bool
+    reminder_time: str
     high_risk: bool
     screening_status: str
     screening_answers: dict[str, bool]
@@ -67,6 +69,11 @@ class ProfileUpdateIn(BaseModel):
     activity_baseline: str | None = Field(default=None, max_length=160)
     constraints: str | None = Field(default=None, max_length=500)
     preferences: str | None = Field(default=None, max_length=500)
+    reminder_enabled: bool | None = None
+    reminder_time: str | None = Field(
+        default=None,
+        pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
+    )
 
 
 class SafetyScreeningIn(BaseModel):
