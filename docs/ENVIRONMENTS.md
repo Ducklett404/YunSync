@@ -1,6 +1,6 @@
 # YunSync 环境与配置基线
 
-> 版本：V0.2
+> 版本：V0.3
 >
 > 原则：模板只包含占位值，真实密钥永不进入 Git
 
@@ -25,11 +25,16 @@
 - `CORS_ORIGINS` 不能包含 `*`；
 - `ENVIRONMENT` 必须是已声明的环境名；
 - `API_V1_PREFIX` 必须以 `/` 开头。
+- Staging/Production 只接受 `postgresql+psycopg://` 数据库驱动；连接池大小、溢出、等待和连接回收均有范围限制。
+- `CACHE_ENABLED=true` 时 `REDIS_URL` 只接受 `redis://` 或 `rediss://`；云环境不能使用本机或占位地址。
 - Production 必须设置 `ENABLE_DEMO_LOGIN=false`；演示登录不得进入正式环境。
+- Production 必须设置 `SEED_DEMO_DATA=false`；不得自动写入合成演示账号与记录。
 - Production 必须设置 `USE_LOCAL_STORAGE=false`；本地私有目录不能充当正式对象存储。
 - Production 必须设置 `USE_MOCK_AI=false`；合成 OCR 不能充当正式处理结果。
 
 任一条件不满足时应用直接拒绝启动，避免错误配置进入演示或生产环境。
+
+云适配器启用时还必须提供项目 ID、私有 OBS 桶和对应 OCR/MaaS 端点。`HUAWEI_CREDENTIAL_MODE=instance_metadata` 表示使用运行实例身份；`environment` 表示凭据由部署平台环境或密钥服务注入，仓库模板中不得出现真实值。
 
 ## 3. 日志基线
 
@@ -73,3 +78,11 @@ chmod +x start.sh scripts/verify.sh
 ```
 
 容器环境启动前必须在本机 `.env` 或部署平台密钥设置中提供独立 `SECRET_KEY`。Compose 不再内置可用于 Staging 的默认密钥。
+
+## 7. 云配置预检
+
+```powershell
+.\.venv\Scripts\python.exe scripts\cloud_preflight.py --env-file .env
+```
+
+预检只读取配置，不连接或修改云资源。输出只包含布尔状态、驱动名和凭据来源，不显示数据库、Redis、AK/SK 或 MaaS 密钥内容。检查通过只代表配置形态完整，不能替代真实 RDS/DCS/OBS/OCR/MaaS 调用证据。

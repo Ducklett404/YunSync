@@ -12,7 +12,7 @@ import json
 from datetime import datetime, timezone
 from typing import Sequence, Union
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -98,28 +98,30 @@ def upgrade() -> None:
         sa.column("updated_at", sa.DateTime(timezone=True)),
         sa.column("created_at", sa.DateTime(timezone=True)),
     )
-    bind = op.get_bind()
-    rows = list(bind.execute(sa.select(experiments)).mappings())
-    now = datetime.now(timezone.utc)
-    active_seen: set[str] = set()
-    rows.sort(key=lambda row: (row["user_id"], row["created_at"] or now), reverse=True)
-    for row in rows:
-        values = {
-            "schedule_hash": _schedule_digest(row),
-            "schedule_locked_at": row["created_at"] or now,
-            "started_at": row["created_at"] or now,
-            "updated_at": row["created_at"] or now,
-        }
-        if row["status"] == "active":
-            if row["user_id"] in active_seen:
-                values.update(status="paused", paused_at=now, updated_at=now)
-            else:
-                active_seen.add(row["user_id"])
-        bind.execute(
-            sa.update(experiments)
-            .where(experiments.c.id == row["id"])
-            .values(**values)
-        )
+    offline = context.is_offline_mode()
+    bind = None if offline else op.get_bind()
+    if bind is not None:
+        rows = list(bind.execute(sa.select(experiments)).mappings())
+        now = datetime.now(timezone.utc)
+        active_seen: set[str] = set()
+        rows.sort(key=lambda row: (row["user_id"], row["created_at"] or now), reverse=True)
+        for row in rows:
+            values = {
+                "schedule_hash": _schedule_digest(row),
+                "schedule_locked_at": row["created_at"] or now,
+                "started_at": row["created_at"] or now,
+                "updated_at": row["created_at"] or now,
+            }
+            if row["status"] == "active":
+                if row["user_id"] in active_seen:
+                    values.update(status="paused", paused_at=now, updated_at=now)
+                else:
+                    active_seen.add(row["user_id"])
+            bind.execute(
+                sa.update(experiments)
+                .where(experiments.c.id == row["id"])
+                .values(**values)
+            )
 
     with op.batch_alter_table("experiments") as batch_op:
         batch_op.alter_column("schedule_locked_at", existing_type=sa.DateTime(timezone=True), nullable=False)
@@ -138,7 +140,7 @@ def upgrade() -> None:
         sqlite_where=sa.text("status = 'active'"),
         postgresql_where=sa.text("status = 'active'"),
     )
-    if bind.dialect.name == "sqlite":
+    if bind is not None and bind.dialect.name == "sqlite":
         bind.exec_driver_sql("PRAGMA optimize")
 
 

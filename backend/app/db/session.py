@@ -7,14 +7,26 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from app.core.config import settings
 
 
+def build_engine_options(database_url: str) -> dict:
+    options: dict = {"pool_pre_ping": True}
+    if database_url.startswith("sqlite"):
+        options["connect_args"] = {"check_same_thread": False}
+    else:
+        options.update(
+            {
+                "pool_size": settings.database_pool_size,
+                "max_overflow": settings.database_max_overflow,
+                "pool_timeout": settings.database_pool_timeout_seconds,
+                "pool_recycle": settings.database_pool_recycle_seconds,
+            }
+        )
+    return options
+
+
 if settings.database_url.startswith("sqlite"):
     Path("backend/data").mkdir(parents=True, exist_ok=True)
 
-engine_options: dict = {"pool_pre_ping": True}
-if settings.database_url.startswith("sqlite"):
-    engine_options["connect_args"] = {"check_same_thread": False}
-
-engine = create_engine(settings.database_url, **engine_options)
+engine = create_engine(settings.database_url, **build_engine_options(settings.database_url))
 
 if settings.database_url.startswith("sqlite"):
     @event.listens_for(engine, "connect")
@@ -36,4 +48,3 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
-

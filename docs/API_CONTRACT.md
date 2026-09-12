@@ -1,6 +1,6 @@
 # YunSync API 契约草案
 
-> 版本：V0.6
+> 版本：V0.7
 >
 > 基础路径：`/api/v1`
 >
@@ -21,9 +21,9 @@
 | 方法 | 路径 | 成功响应 | 用途 |
 |---|---|---|---|
 | GET | `/healthz` | 200 `HealthStatus` | 进程存活检查，不访问数据库 |
-| GET | `/readyz` | 200 `HealthStatus` | 数据库就绪检查 |
+| GET | `/readyz` | 200 `HealthStatus` | 数据库就绪检查；可选缓存故障时保持就绪并标记降级 |
 
-`HealthStatus`：`status`、`service`、`environment` 均为字符串。
+`HealthStatus`：`status`、`service`、`environment`，以及可选 `dependencies` 和 `degraded`。`/readyz` 的 `dependencies.database` 为 `ready`；缓存为 `disabled`、`redis` 或 `memory_fallback`。缓存不是核心就绪依赖，Redis/DCS 不可用时返回 200、`degraded=true`。
 
 ## 3. 账号、授权与档案接口
 

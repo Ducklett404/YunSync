@@ -250,3 +250,31 @@ def test_week_eight_analysis_review_and_next_step_are_documented():
     assert "result-explain-v1" in prompt
     assert "75 项通过" in verification
     assert "不是华为云 MaaS 成功调用证据" in verification
+
+
+def test_week_nine_local_cloud_readiness_is_documented_without_fake_cloud_evidence():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    environments = (PROJECT_ROOT / "docs" / "ENVIRONMENTS.md").read_text(
+        encoding="utf-8"
+    )
+    runbook = (PROJECT_ROOT / "docs" / "CLOUD_OPERATIONS_RUNBOOK.md").read_text(
+        encoding="utf-8"
+    )
+    verification = (PROJECT_ROOT / "docs" / "M9A_VERIFICATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "里程碑 M9A" in plan
+    assert "M9B 的真实 RDS/DCS/IAM" in plan
+    for setting in (
+        "SEED_DEMO_DATA",
+        "CACHE_ENABLED",
+        "HUAWEI_CREDENTIAL_MODE",
+        "cloud_preflight.py",
+    ):
+        assert setting in environments
+    for evidence in ("空 RDS", "memory_fallback", "--confirm-database", "M9B 证据清单"):
+        assert evidence in runbook
+    assert "89 项通过" in verification
+    assert "不是真实 DCS" in verification
+    assert "没有把合成结果冒充真实备份可恢复记录" in verification

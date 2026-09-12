@@ -33,6 +33,10 @@ M4A 已实现 `local_private` 与 `huawei_obs` 的适配器边界；本地验证
 
 M5A 已固定 `action-explain-v1` 提示词和服务端输出守卫。真实 MaaS 接入必须保留 `explanation_source`，对诊断、调药、极端方案和疗效保证继续执行同一守卫；模型不可用或输出不合规时只能返回标记为 `policy_fallback` 的固定解释。
 
+M8A 已固定 `result-explain-v1` 和结果统计版本。迁移到真实 MaaS 后，模型只能改写服务端已计算结果，不能重新计算、补造数值或在数据不足时生成方向性结论。
+
+M9A 已增加 PostgreSQL 离线迁移兼容、有界连接池、Redis TTL 降级、Production 演示数据门禁、脱敏云配置预检和备份恢复工具。真实执行顺序、回退边界与证据清单见 [CLOUD_OPERATIONS_RUNBOOK.md](CLOUD_OPERATIONS_RUNBOOK.md)；这些本地结果不能替代真实 RDS、DCS 和 IAM 验收。
+
 ## 建议保留的比赛证据
 
 - CodeArts 需求拆解、代码生成和修复对话截图。

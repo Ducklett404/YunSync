@@ -40,6 +40,9 @@ AuditLog 独立保存报告解析、实验创建和每日记录事件。
 10. Development 可发布“产品规则校验”模板，Production 只发布“专业审核通过”模板，两种状态不可混用。
 11. 受控解释先经过 `action-explain-v1` 输出守卫；模型不可用或输出不安全时返回明确标记的固定解释。
 12. 实验状态机仅允许 `active` 与 `paused` 间受控恢复，并从两者进入不可恢复的 `terminated` / `completed`；完成要求周期结束且 14 天记录齐全。
+13. PostgreSQL 使用有界连接池和 `pool_pre_ping`；SQLite 保留本地测试专用连接参数，Staging/Production 只允许 psycopg 驱动。
+14. Redis/DCS 只缓存不含用户健康数据的行动模板解释；缓存读取后再次通过输出守卫。连接失败时使用进程内 TTL 缓存，`/readyz` 标记降级但核心数据库流程继续运行。
+15. Production 必须关闭演示登录和演示种子；云配置预检只输出状态，不回显连接串、AK/SK 或 API 密钥。
 
 ## 请求处理链路
 
@@ -59,7 +62,7 @@ Browser / API Client
 
 - 持久化实体、字段、外键、索引和业务约束见 [DATA_DICTIONARY.md](DATA_DICTIONARY.md)。
 - HTTP 输入输出、状态码和错误口径见 [API_CONTRACT.md](API_CONTRACT.md)。
-- 数据库结构只通过 Alembic 迁移演进；应用启动时执行幂等迁移和合成数据初始化。
+- 数据库结构只通过 Alembic 迁移演进；应用启动时执行幂等迁移，合成数据初始化由 `SEED_DEMO_DATA` 控制并在 Production 强制关闭。
 - Local、DevSpace 和 Staging 使用独立配置模板，Staging/Production 对默认密钥、SQLite 和通配 CORS 执行启动失败保护。
 
 ## 身份与授权边界
@@ -100,5 +103,5 @@ Browser / API Client
 
 1. 正式身份提供方、验证码发送与账号恢复在部署方案明确后接入；Production 已禁止演示登录。
 2. 行动模板治理机制已具备；首批模板仍需健康专业指导老师逐条复核，真实 MaaS 适配器仍待接入。
-3. 第 7 周补齐缺失原因、身体不适、计划外事件和提醒配置。
-4. 第 9 周在真实 RDS/DCS 环境执行迁移、备份和降级验证。
+3. M9A 已完成 PostgreSQL 离线迁移兼容、Redis 降级和云配置门禁；仍需在真实 RDS/DCS 环境执行迁移、备份和故障验证。
+4. IAM 最小权限范围和密钥注入路径必须在真实云资源创建后复核并留存证据。

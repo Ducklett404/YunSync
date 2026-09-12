@@ -11,6 +11,7 @@ from app.integrations.huawei.maas import (
     MaaSError,
     get_maas_client,
 )
+from app.integrations.cache import cache
 from app.models.action import ActionTemplate
 from app.models.user import UserProfile
 from app.repositories.action_repository import action_repository
@@ -123,6 +124,30 @@ class ActionService:
 
     @staticmethod
     async def _safe_explanation(action: ActionTemplate) -> tuple[str, str]:
+        cache_key = cache.make_key(
+            "action-explanation",
+            action.id,
+            action.version,
+            action.explanation_policy_version,
+        )
+        cached = cache.get_json(cache_key) if cache.enabled else None
+        if isinstance(cached, dict):
+            cached_text = cached.get("text")
+            cached_source = cached.get("source")
+            if isinstance(cached_text, str) and cached_source in {
+                "mock_maas",
+                "huawei_maas",
+                "policy_fallback",
+            }:
+                try:
+                    return (
+                        validate_action_explanation(
+                            cached_text, action_title=action.title
+                        ),
+                        cached_source,
+                    )
+                except ExplanationPolicyError:
+                    cache.delete(cache_key)
         client = get_maas_client()
         context = ActionExplanationContext(
             title=action.title,
@@ -137,12 +162,12 @@ class ActionService:
             generated = await asyncio.wait_for(
                 client.explain_action(context), timeout=settings.maas_timeout_seconds
             )
-            return (
+            result = (
                 validate_action_explanation(generated, action_title=action.title),
                 client.provider,
             )
         except (MaaSError, ExplanationPolicyError, asyncio.TimeoutError):
-            return (
+            result = (
                 build_policy_fallback(
                     action_title=action.title,
                     version=action.version,
@@ -150,6 +175,9 @@ class ActionService:
                 ),
                 "policy_fallback",
             )
+        if cache.enabled:
+            cache.set_json(cache_key, {"text": result[0], "source": result[1]})
+        return result
 
 
 action_service = ActionService()

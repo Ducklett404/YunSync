@@ -13,13 +13,15 @@ from app.core.observability import request_context_middleware
 from app.db.init_db import seed_db
 from app.db.migrations import run_migrations
 from app.db.session import SessionLocal
+from app.integrations.cache import cache
 from app.schemas.common import HealthStatus
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     run_migrations()
-    seed_db()
+    if settings.seed_demo_data:
+        seed_db()
     yield
 
 
@@ -49,7 +51,14 @@ def healthz():
 def readyz():
     with SessionLocal() as db:
         db.execute(text("SELECT 1"))
-    return HealthStatus(status="ready", service=settings.app_name, environment=settings.environment)
+    cache_health = cache.health()
+    return HealthStatus(
+        status="ready",
+        service=settings.app_name,
+        environment=settings.environment,
+        dependencies={"database": "ready", "cache": cache_health.backend},
+        degraded=cache_health.degraded,
+    )
 
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)

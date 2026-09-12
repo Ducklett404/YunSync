@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.core.observability import resolve_request_id
+from app.db.session import build_engine_options
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -109,3 +110,82 @@ def test_production_refuses_mock_ocr():
             use_local_storage=False,
             use_mock_ai=True,
         )
+
+
+def test_staging_requires_psycopg_driver_and_nonlocal_cache():
+    with pytest.raises(ValidationError, match="psycopg"):
+        Settings(
+            _env_file=None,
+            environment="staging",
+            secret_key="a-staging-secret-key-value",
+            database_url="postgresql://user:pass@db/yunsync",
+            cors_origins="https://staging.example.com",
+        )
+
+    with pytest.raises(ValidationError, match="REDIS_URL"):
+        Settings(
+            _env_file=None,
+            environment="staging",
+            secret_key="a-staging-secret-key-value",
+            database_url="postgresql+psycopg://user:pass@db/yunsync",
+            cors_origins="https://staging.example.com",
+            cache_enabled=True,
+            redis_url="redis://localhost:6379/0",
+        )
+
+
+def test_production_refuses_demo_seed_data():
+    with pytest.raises(ValidationError, match="SEED_DEMO_DATA"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            secret_key="a-production-secret-key-value",
+            database_url="postgresql+psycopg://user:pass@db/yunsync",
+            cors_origins="https://app.example.com",
+            enable_demo_login=False,
+            use_local_storage=False,
+            use_mock_ai=False,
+            seed_demo_data=True,
+        )
+
+
+def test_production_cloud_configuration_accepts_instance_metadata_credentials():
+    settings = Settings(
+        _env_file=None,
+        environment="production",
+        secret_key="a-production-secret-key-value",
+        database_url="postgresql+psycopg://user:pass@rds.internal/yunsync",
+        cors_origins="https://app.example.com",
+        enable_demo_login=False,
+        seed_demo_data=False,
+        use_local_storage=False,
+        use_mock_ai=False,
+        cache_enabled=True,
+        redis_url="rediss://dcs.internal:6379/0",
+        huawei_project_id="synthetic-project-id",
+        huawei_credential_mode="instance_metadata",
+        huawei_obs_bucket="synthetic-private-bucket",
+        huawei_ocr_endpoint="https://ocr.example.com",
+        huawei_maas_endpoint="https://maas.example.com",
+        huawei_maas_api_key="synthetic-api-key",
+    )
+
+    assert settings.huawei_credential_mode == "instance_metadata"
+    assert settings.seed_demo_data is False
+
+
+def test_database_engine_options_bound_postgres_pool_and_keep_sqlite_safe():
+    sqlite_options = build_engine_options("sqlite:///test.db")
+    postgres_options = build_engine_options(
+        "postgresql+psycopg://user:pass@rds.internal/yunsync"
+    )
+
+    assert sqlite_options["connect_args"] == {"check_same_thread": False}
+    assert "pool_size" not in sqlite_options
+    assert postgres_options == {
+        "pool_pre_ping": True,
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_timeout": 10,
+        "pool_recycle": 1800,
+    }

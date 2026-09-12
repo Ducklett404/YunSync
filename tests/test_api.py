@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from redis.exceptions import RedisError
 from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
@@ -11,6 +12,7 @@ from app.models.audit import AuditLog
 from app.models.experiment import Experiment, Observation
 from app.models.identity import AuthSession, ConsentRecord
 from app.services.identity_service import CURRENT_CONSENT_VERSION, hash_session_token
+from app.integrations.cache import OptionalCache
 
 
 SAFE_SCREENING = {
@@ -75,6 +77,26 @@ def test_health_and_readiness_endpoints():
     assert health.json()["status"] == "ok"
     assert ready.status_code == 200
     assert ready.json()["status"] == "ready"
+    assert ready.json()["dependencies"] == {"database": "ready", "cache": "disabled"}
+    assert ready.json()["degraded"] is False
+
+
+def test_readiness_stays_available_when_enabled_cache_is_down(monkeypatch):
+    class FailingRedis:
+        def ping(self):
+            raise RedisError("synthetic outage")
+
+    monkeypatch.setattr(
+        "app.main.cache",
+        OptionalCache(enabled=True, client=FailingRedis()),
+    )
+    with TestClient(app) as client:
+        response = client.get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+    assert response.json()["dependencies"]["cache"] == "memory_fallback"
+    assert response.json()["degraded"] is True
 
 
 def test_request_id_is_returned_and_invalid_value_is_replaced():

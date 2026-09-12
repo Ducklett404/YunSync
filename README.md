@@ -25,7 +25,9 @@
 - [M6A 14 天实验状态机与锁定日程验证记录](docs/M6A_VERIFICATION_REPORT.md)
 - [M7A 每日记录、应用内提醒与数据导入验证记录](docs/M7A_VERIFICATION_REPORT.md)
 - [M8A 统计分析、受控复盘与下一轮决策验证记录](docs/M8A_VERIFICATION_REPORT.md)
+- [M9A RDS/DCS/IAM 本地云就绪基线验证记录](docs/M9A_VERIFICATION_REPORT.md)
 - [华为云迁移说明](docs/HUAWEI_CLOUD_MIGRATION.md)
+- [云迁移、缓存、IAM 与备份恢复运行手册](docs/CLOUD_OPERATIONS_RUNBOOK.md)
 
 ## 技术栈
 
@@ -115,6 +117,13 @@ npm run build
 ```
 
 Windows 下也可在项目根目录执行 `.\scripts\verify.ps1` 完成上述全部检查。
+
+云环境变量准备完成后，可先执行只读配置预检；PostgreSQL 备份和恢复工具的 dry-run 不连接数据库：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\cloud_preflight.py --env-file .env
+.\.venv\Scripts\python.exe scripts\postgres_ops.py backup --target backup\yunsync.dump --dry-run
+```
 
 ## 华为云迁移
 
