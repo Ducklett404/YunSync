@@ -226,6 +226,10 @@ export function getApiErrorMessage(error: unknown): string {
     const detail = error.response?.data?.detail
     if (typeof detail === 'string') return detail
     if (detail && typeof detail.message === 'string') return detail.message
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      return '网络响应超时，请检查连接后重试。'
+    }
+    if (!error.response) return '暂时无法连接服务，请检查网络后重试。'
     return error.message || '请求失败'
   }
   return error instanceof Error ? error.message : '发生未知错误'

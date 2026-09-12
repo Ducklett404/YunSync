@@ -30,6 +30,8 @@
 - [云迁移、缓存、IAM 与备份恢复运行手册](docs/CLOUD_OPERATIONS_RUNBOOK.md)
 - [M10A 部署、安全与性能本地基线验证记录](docs/M10A_VERIFICATION_REPORT.md)
 - [部署、安全与性能运行手册](docs/DEPLOYMENT_SECURITY_RUNBOOK.md)
+- [M11A 封闭测试与 RC1 本地基线验证记录](docs/M11A_VERIFICATION_REPORT.md)
+- [RC1 缺陷清单](docs/DEFECT_REGISTER.md)
 
 ## 技术栈
 
@@ -125,6 +127,13 @@ Windows 下也可在项目根目录执行 `.\scripts\verify.ps1` 完成上述全
 ```powershell
 .\scripts\security_audit.ps1
 .\.venv\Scripts\python.exe scripts\performance_smoke.py --base-url http://127.0.0.1:8000
+```
+
+RC1 合成主流程连续验收和本机 Edge 分辨率烟测分别执行：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\rc1_acceptance.py --rounds 3
+.\scripts\browser_smoke.ps1 -BaseUrl http://127.0.0.1:8000/start
 ```
 
 云环境变量准备完成后，可先执行只读配置预检；PostgreSQL 备份和恢复工具的 dry-run 不连接数据库：
