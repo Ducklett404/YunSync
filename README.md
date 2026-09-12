@@ -28,6 +28,8 @@
 - [M9A RDS/DCS/IAM 本地云就绪基线验证记录](docs/M9A_VERIFICATION_REPORT.md)
 - [华为云迁移说明](docs/HUAWEI_CLOUD_MIGRATION.md)
 - [云迁移、缓存、IAM 与备份恢复运行手册](docs/CLOUD_OPERATIONS_RUNBOOK.md)
+- [M10A 部署、安全与性能本地基线验证记录](docs/M10A_VERIFICATION_REPORT.md)
+- [部署、安全与性能运行手册](docs/DEPLOYMENT_SECURITY_RUNBOOK.md)
 
 ## 技术栈
 
@@ -76,7 +78,7 @@ Copy-Item .env.example .env
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload --port 8000
 
 cd frontend
@@ -118,6 +120,13 @@ npm run build
 
 Windows 下也可在项目根目录执行 `.\scripts\verify.ps1` 完成上述全部检查。
 
+安全审计和本地 20 并发性能烟测分别执行：
+
+```powershell
+.\scripts\security_audit.ps1
+.\.venv\Scripts\python.exe scripts\performance_smoke.py --base-url http://127.0.0.1:8000
+```
+
 云环境变量准备完成后，可先执行只读配置预检；PostgreSQL 备份和恢复工具的 dry-run 不连接数据库：
 
 ```powershell
@@ -133,6 +142,6 @@ Windows 下也可在项目根目录执行 `.\scripts\verify.ps1` 完成上述全
 4. 使用根目录 `Dockerfile` 构建镜像，在 ECS 或容器服务运行。
 5. 通过环境变量或密钥管理服务注入凭据，不要上传 `.env`。
 
-应用启动时会先执行 Alembic 迁移，再幂等写入演示数据。正式生产环境建议把迁移步骤放入发布流水线，并保持单实例执行。
+应用启动时会先执行 Alembic 迁移；仅在 `SEED_DEMO_DATA=true` 时幂等写入演示数据，Production 强制关闭该开关。正式生产环境建议把迁移步骤放入发布流水线，并保持单实例执行。
 
 详细步骤见 `docs/HUAWEI_CLOUD_MIGRATION.md`。

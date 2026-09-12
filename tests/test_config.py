@@ -156,6 +156,7 @@ def test_production_cloud_configuration_accepts_instance_metadata_credentials():
         secret_key="a-production-secret-key-value",
         database_url="postgresql+psycopg://user:pass@rds.internal/yunsync",
         cors_origins="https://app.example.com",
+        allowed_hosts="app.example.com",
         enable_demo_login=False,
         seed_demo_data=False,
         use_local_storage=False,
@@ -168,10 +169,58 @@ def test_production_cloud_configuration_accepts_instance_metadata_credentials():
         huawei_ocr_endpoint="https://ocr.example.com",
         huawei_maas_endpoint="https://maas.example.com",
         huawei_maas_api_key="synthetic-api-key",
+        force_https=True,
+        expose_api_docs=False,
+        rate_limit_enabled=True,
+        forwarded_allow_ips="10.0.0.8",
     )
 
     assert settings.huawei_credential_mode == "instance_metadata"
     assert settings.seed_demo_data is False
+    assert settings.force_https is True
+    assert settings.expose_api_docs is False
+    assert settings.rate_limit_enabled is True
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"force_https": False}, "HTTPS"),
+        ({"expose_api_docs": True}, "API_DOCS"),
+        ({"rate_limit_enabled": False}, "RATE_LIMIT"),
+        ({"forwarded_allow_ips": "*"}, "FORWARDED_ALLOW_IPS"),
+        ({"allowed_hosts": "localhost"}, "正式服务域名"),
+    ],
+)
+def test_production_rejects_missing_http_hardening(overrides, message):
+    values = {
+        "_env_file": None,
+        "environment": "production",
+        "secret_key": "a-production-secret-key-value",
+        "database_url": "postgresql+psycopg://user:pass@rds.internal/yunsync",
+        "cors_origins": "https://app.example.com",
+        "allowed_hosts": "app.example.com",
+        "enable_demo_login": False,
+        "seed_demo_data": False,
+        "use_local_storage": False,
+        "use_mock_ai": False,
+        "cache_enabled": True,
+        "redis_url": "rediss://dcs.internal:6379/0",
+        "huawei_project_id": "synthetic-project-id",
+        "huawei_credential_mode": "instance_metadata",
+        "huawei_obs_bucket": "synthetic-private-bucket",
+        "huawei_ocr_endpoint": "https://ocr.example.com",
+        "huawei_maas_endpoint": "https://maas.example.com",
+        "huawei_maas_api_key": "synthetic-api-key",
+        "force_https": True,
+        "expose_api_docs": False,
+        "rate_limit_enabled": True,
+        "forwarded_allow_ips": "10.0.0.8",
+        **overrides,
+    }
+
+    with pytest.raises(ValidationError, match=message):
+        Settings(**values)
 
 
 def test_database_engine_options_bound_postgres_pool_and_keep_sqlite_safe():

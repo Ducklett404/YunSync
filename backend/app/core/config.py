@@ -13,7 +13,16 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     secret_key: str = "development-only"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    allowed_hosts: str = "localhost,127.0.0.1,testserver"
+    forwarded_allow_ips: str = "127.0.0.1"
+    force_https: bool = False
+    expose_api_docs: bool = True
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    slow_request_threshold_ms: int = Field(default=500, ge=50, le=10000)
+    rate_limit_enabled: bool = False
+    rate_limit_requests: int = Field(default=120, ge=10, le=10000)
+    rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    rate_limit_max_clients: int = Field(default=10000, ge=100, le=100000)
     enable_demo_login: bool = True
     seed_demo_data: bool = True
     session_ttl_hours: int = Field(default=12, ge=1, le=72)
@@ -71,6 +80,8 @@ class Settings(BaseSettings):
                 raise ValueError("Staging/Production 必须使用 PostgreSQL psycopg 驱动")
             if "*" in self.cors_origin_list:
                 raise ValueError("Staging/Production 不允许使用通配 CORS 来源")
+            if not self.allowed_host_list or "*" in self.allowed_host_list:
+                raise ValueError("Staging/Production 必须限制 ALLOWED_HOSTS")
         if self.environment == "production" and self.enable_demo_login:
             raise ValueError("Production 必须关闭 ENABLE_DEMO_LOGIN")
         if self.environment == "production" and self.use_local_storage:
@@ -79,6 +90,23 @@ class Settings(BaseSettings):
             raise ValueError("Production 必须关闭 USE_MOCK_AI 并配置真实 AI/OCR 服务")
         if self.environment == "production" and self.seed_demo_data:
             raise ValueError("Production 必须关闭 SEED_DEMO_DATA")
+        if self.environment == "production" and not self.force_https:
+            raise ValueError("Production 必须启用 FORCE_HTTPS")
+        if self.environment == "production" and self.expose_api_docs:
+            raise ValueError("Production 必须关闭 EXPOSE_API_DOCS")
+        if self.environment == "production" and not self.rate_limit_enabled:
+            raise ValueError("Production 必须启用 RATE_LIMIT_ENABLED")
+        if self.environment == "production" and any(
+            host.lower() in {"localhost", "127.0.0.1", "::1"}
+            or self._is_placeholder(host)
+            for host in self.allowed_host_list
+        ):
+            raise ValueError("Production 的 ALLOWED_HOSTS 必须使用正式服务域名")
+        if self.environment == "production" and (
+            "*" in self.forwarded_allow_ip_list
+            or not self.forwarded_allow_ip_list
+        ):
+            raise ValueError("Production 必须限制 FORWARDED_ALLOW_IPS")
 
         if self.environment in {"staging", "production"}:
             if self.cache_enabled and self._is_placeholder_url(self.redis_url):
@@ -109,6 +137,14 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def allowed_host_list(self) -> list[str]:
+        return [host.strip() for host in self.allowed_hosts.split(",") if host.strip()]
+
+    @property
+    def forwarded_allow_ip_list(self) -> list[str]:
+        return [value.strip() for value in self.forwarded_allow_ips.split(",") if value.strip()]
 
     @staticmethod
     def _is_placeholder(value: str) -> bool:

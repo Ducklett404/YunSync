@@ -42,6 +42,11 @@ def _production_settings() -> Settings:
         huawei_ocr_endpoint="https://ocr.example.com",
         huawei_maas_endpoint="https://maas.example.com",
         huawei_maas_api_key="synthetic-api-key",
+        allowed_hosts="app.example.com",
+        forwarded_allow_ips="10.0.0.8",
+        force_https=True,
+        expose_api_docs=False,
+        rate_limit_enabled=True,
     )
 
 
@@ -59,8 +64,10 @@ def test_cloud_preflight_accepts_complete_production_shape_without_connecting():
     report = build_cloud_readiness(_production_settings())
 
     assert report["ready"] is True
+    assert report["version"] == "cloud-preflight-v2"
     assert all(item["passed"] for item in report["checks"])
     assert report["configuration_summary"]["credential_mode"] == "instance_metadata"
+    assert report["configuration_summary"]["https_required"] is True
     assert "synthetic_password" not in json.dumps(report)
 
 

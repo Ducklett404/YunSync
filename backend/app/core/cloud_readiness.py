@@ -7,7 +7,7 @@ from sqlalchemy.engine import make_url
 from app.core.config import Settings
 
 
-CLOUD_PREFLIGHT_VERSION = "cloud-preflight-v1"
+CLOUD_PREFLIGHT_VERSION = "cloud-preflight-v2"
 
 
 def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
@@ -67,6 +67,21 @@ def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
             or (not settings.enable_demo_login and not settings.seed_demo_data),
             "Production 必须关闭演示登录和演示种子。",
         ),
+        _check(
+            "http_hardening",
+            settings.force_https
+            and not settings.expose_api_docs
+            and settings.rate_limit_enabled
+            and bool(settings.allowed_host_list)
+            and "*" not in settings.allowed_host_list
+            and all(
+                not _is_local_or_placeholder(host)
+                for host in settings.allowed_host_list
+            )
+            and bool(settings.forwarded_allow_ip_list)
+            and "*" not in settings.forwarded_allow_ip_list,
+            "云端必须启用 HTTPS 与限流、关闭 API 文档并限制主机和可信代理。",
+        ),
     ]
     return {
         "version": CLOUD_PREFLIGHT_VERSION,
@@ -86,6 +101,13 @@ def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
             "mock_ai_enabled": settings.use_mock_ai,
             "demo_login_enabled": settings.enable_demo_login,
             "demo_seed_enabled": settings.seed_demo_data,
+            "https_required": settings.force_https,
+            "api_docs_exposed": settings.expose_api_docs,
+            "rate_limit_enabled": settings.rate_limit_enabled,
+            "allowed_hosts_configured": bool(settings.allowed_host_list),
+            "forwarded_proxy_allowlist_configured": bool(
+                settings.forwarded_allow_ip_list
+            ),
         },
     }
 

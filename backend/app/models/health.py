@@ -36,6 +36,9 @@ class HealthReport(Base):
 
 class HealthMetric(Base):
     __tablename__ = "health_metrics"
+    __table_args__ = (
+        Index("idx_health_metrics_report_name", "report_id", "name"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     report_id: Mapped[str] = mapped_column(ForeignKey("health_reports.id", ondelete="CASCADE"), index=True)

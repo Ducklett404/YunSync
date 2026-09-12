@@ -1,6 +1,6 @@
 # YunSync 环境与配置基线
 
-> 版本：V0.3
+> 版本：V0.4
 >
 > 原则：模板只包含占位值，真实密钥永不进入 Git
 
@@ -25,6 +25,7 @@
 - `CORS_ORIGINS` 不能包含 `*`；
 - `ENVIRONMENT` 必须是已声明的环境名；
 - `API_V1_PREFIX` 必须以 `/` 开头。
+- `ALLOWED_HOSTS` 不得使用通配值，Production 还必须启用 `FORCE_HTTPS` 和 `RATE_LIMIT_ENABLED`、关闭 `EXPOSE_API_DOCS`，并把 `FORWARDED_ALLOW_IPS` 限制为实际反向代理地址。
 - Staging/Production 只接受 `postgresql+psycopg://` 数据库驱动；连接池大小、溢出、等待和连接回收均有范围限制。
 - `CACHE_ENABLED=true` 时 `REDIS_URL` 只接受 `redis://` 或 `rediss://`；云环境不能使用本机或占位地址。
 - Production 必须设置 `ENABLE_DEMO_LOGIN=false`；演示登录不得进入正式环境。
@@ -43,14 +44,22 @@
 - 不记录请求正文、报告全文、授权头、Cookie、密钥、联系方式或健康备注。
 - 调用方传入的 `X-Request-ID` 仅接受安全字符和 64 位以内长度，防止日志注入。
 - 会话原始令牌、档案正文、初筛答案和上传文件名不得写入审计 payload。
+- 超过 `SLOW_REQUEST_THRESHOLD_MS` 的请求写入 `request_slow`；429 写入 `request_rate_limited`；5xx 写入 `request_failed`，供云日志平台建立告警规则。
 
-## 4. 演示会话
+## 4. HTTP 安全基线
+
+- CORS 只开放配置来源及 GET、POST、PATCH、DELETE、OPTIONS，并只接受 Authorization、Content-Type 和 X-Request-ID 请求头。
+- API 响应默认 `Cache-Control: no-store`，并包含 CSP、`nosniff`、frame、Referrer 和 Permissions Policy；HTTPS 响应增加 HSTS。
+- 进程内滑动窗口限流只作为单实例兜底，多实例部署必须由受控 Nginx、API 网关或 DCS 提供共享限流。
+- `/healthz` 与 `/readyz` 可供内网探针使用；Production 其他路径拒绝非 HTTPS 请求。
+
+## 5. 演示会话
 
 - `ENABLE_DEMO_LOGIN` 控制演示账号入口，Local、DevSpace、Staging 默认开启，Production 强制关闭。
 - `SESSION_TTL_HOURS` 范围为 1–72 小时，默认 12 小时。
 - 演示账号不采集手机号、邮箱或真实身份；令牌存于浏览器会话存储，关闭会话后不会长期保留。
 
-## 5. 报告处理配置
+## 6. 报告处理配置
 
 - `USE_LOCAL_STORAGE=true` 仅用于 Local、Development 与 DevSpace 的合成文件验证；目录由 `UPLOAD_STORAGE_DIR` 指定且不进入 Git。
 - `OCR_TIMEOUT_SECONDS` 范围为 0.1–60 秒，默认 8 秒；`OCR_MAX_ATTEMPTS` 范围为 1–4，默认 2 次。
@@ -58,7 +67,7 @@
 - `USE_MOCK_AI=true` 时只运行确定性的合成 OCR 契约模拟；关闭后若真实适配器未配置，接口明确返回 503。
 - Staging 模板关闭本地存储，但真实 OBS 和 OCR 在提供资源与凭据前仍不可用。
 
-## 6. 启动与验证
+## 7. 启动与验证
 
 Windows：
 
@@ -79,7 +88,7 @@ chmod +x start.sh scripts/verify.sh
 
 容器环境启动前必须在本机 `.env` 或部署平台密钥设置中提供独立 `SECRET_KEY`。Compose 不再内置可用于 Staging 的默认密钥。
 
-## 7. 云配置预检
+## 8. 云配置预检
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\cloud_preflight.py --env-file .env

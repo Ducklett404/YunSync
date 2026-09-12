@@ -9,6 +9,28 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    sourcemap: false,
+    chunkSizeWarningLimit: 550,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalized = id.replaceAll('\\', '/')
+          if (normalized.includes('/node_modules/echarts/') || normalized.includes('/node_modules/zrender/')) {
+            return 'charts'
+          }
+          if (
+            normalized.includes('/node_modules/vue/') ||
+            normalized.includes('/node_modules/@vue/') ||
+            normalized.includes('/node_modules/pinia/') ||
+            normalized.includes('/node_modules/vue-router/')
+          ) {
+            return 'vue-vendor'
+          }
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
@@ -18,4 +40,3 @@ export default defineConfig({
     },
   },
 })
-

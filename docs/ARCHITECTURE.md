@@ -43,12 +43,15 @@ AuditLog 独立保存报告解析、实验创建和每日记录事件。
 13. PostgreSQL 使用有界连接池和 `pool_pre_ping`；SQLite 保留本地测试专用连接参数，Staging/Production 只允许 psycopg 驱动。
 14. Redis/DCS 只缓存不含用户健康数据的行动模板解释；缓存读取后再次通过输出守卫。连接失败时使用进程内 TTL 缓存，`/readyz` 标记降级但核心数据库流程继续运行。
 15. Production 必须关闭演示登录和演示种子；云配置预检只输出状态，不回显连接串、AK/SK 或 API 密钥。
+16. HTTP 边界采用 Host 白名单、精确 CORS、安全响应头、HTTPS 门禁和进程内滑动窗口限流；多实例共享限流仍由网关或 DCS 承担。
+17. 生产容器以固定非 root 用户和只读根文件系统运行，删除 Linux capabilities；真实镜像构建、扫描和部署必须在具备 Docker 的环境留证。
+18. 用户最近实验与报告指标排序使用组合索引；前端把 Vue 运行时和图表库拆成独立缓存块。
 
 ## 请求处理链路
 
 ```text
 Browser / API Client
-  -> CORS 与请求 ID 中间件
+  -> CORS、Host、HTTPS、请求 ID、安全响应头与限流中间件
   -> Bearer 会话、角色权限、当前授权版本校验
   -> FastAPI Controller + Pydantic 校验
   -> Service 业务规则与安全边界
@@ -105,3 +108,4 @@ Browser / API Client
 2. 行动模板治理机制已具备；首批模板仍需健康专业指导老师逐条复核，真实 MaaS 适配器仍待接入。
 3. M9A 已完成 PostgreSQL 离线迁移兼容、Redis 降级和云配置门禁；仍需在真实 RDS/DCS 环境执行迁移、备份和故障验证。
 4. IAM 最小权限范围和密钥注入路径必须在真实云资源创建后复核并留存证据。
+5. M10A 已完成本地容器定义、安全门禁、依赖审计和合成并发烟测；公网 HTTPS、真实告警、镜像扫描和云端负载验证仍需在 M10B 完成。

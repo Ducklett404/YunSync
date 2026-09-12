@@ -7,7 +7,16 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-staging}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env before starting containers}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      FORCE_HTTPS: ${FORCE_HTTPS:-false}
+      EXPOSE_API_DOCS: ${EXPOSE_API_DOCS:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SLOW_REQUEST_THRESHOLD_MS: ${SLOW_REQUEST_THRESHOLD_MS:-500}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-false}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-120}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      RATE_LIMIT_MAX_CLIENTS: ${RATE_LIMIT_MAX_CLIENTS:-10000}
       ENABLE_DEMO_LOGIN: ${ENABLE_DEMO_LOGIN:-true}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
@@ -30,6 +39,15 @@ services:
         condition: service_healthy
     volumes:
       - uploads:/app/uploads
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine

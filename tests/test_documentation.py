@@ -278,3 +278,31 @@ def test_week_nine_local_cloud_readiness_is_documented_without_fake_cloud_eviden
     assert "89 项通过" in verification
     assert "不是真实 DCS" in verification
     assert "没有把合成结果冒充真实备份可恢复记录" in verification
+
+
+def test_week_ten_local_security_performance_is_documented_without_fake_deployment():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    environments = (PROJECT_ROOT / "docs" / "ENVIRONMENTS.md").read_text(
+        encoding="utf-8"
+    )
+    runbook = (PROJECT_ROOT / "docs" / "DEPLOYMENT_SECURITY_RUNBOOK.md").read_text(
+        encoding="utf-8"
+    )
+    verification = (PROJECT_ROOT / "docs" / "M10A_VERIFICATION_REPORT.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "里程碑 M10A" in plan
+    assert "M10B 真实镜像、HTTPS、告警和云端压测仍保持未完成" in plan
+    for setting in (
+        "ALLOWED_HOSTS",
+        "FORWARDED_ALLOW_IPS",
+        "FORCE_HTTPS",
+        "RATE_LIMIT_ENABLED",
+    ):
+        assert setting in environments
+    for evidence in ("M10B 证据清单", "20 个独立演示账号", "真实日志采集"):
+        assert evidence in runbook
+    assert "103 passed" in verification
+    assert "本机没有 Docker" in verification
+    assert "不是 20 名真实用户" in verification

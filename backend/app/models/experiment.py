@@ -35,6 +35,7 @@ class Experiment(Base):
             sqlite_where=text("status = 'active'"),
             postgresql_where=text("status = 'active'"),
         ),
+        Index("idx_experiments_user_created", "user_id", "created_at"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
