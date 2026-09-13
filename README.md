@@ -32,6 +32,14 @@
 - [部署、安全与性能运行手册](docs/DEPLOYMENT_SECURITY_RUNBOOK.md)
 - [M11A 封闭测试与 RC1 本地基线验证记录](docs/M11A_VERIFICATION_REPORT.md)
 - [RC1 缺陷清单](docs/DEFECT_REGISTER.md)
+- [参赛项目报告内容基线](docs/PROJECT_REPORT.md)
+- [技术说明与架构图](docs/TECHNICAL_GUIDE.md)
+- [用户操作手册](docs/USER_GUIDE.md)
+- [五分钟演示与降级手册](docs/DEMO_RUNBOOK.md)
+- [参赛证据索引](docs/EVIDENCE_INDEX.md)
+- [答辩问题库](docs/DEFENSE_QA.md)
+- [开源依赖与许可清单](docs/OPEN_SOURCE_INVENTORY.md)
+- [M12A 参赛材料内容基线验证记录](docs/M12A_VERIFICATION_REPORT.md)
 
 ## 技术栈
 
@@ -134,6 +142,12 @@ RC1 合成主流程连续验收和本机 Edge 分辨率烟测分别执行：
 ```powershell
 .\.venv\Scripts\python.exe scripts\rc1_acceptance.py --rounds 3
 .\scripts\browser_smoke.ps1 -BaseUrl http://127.0.0.1:8000/start
+```
+
+参赛材料内容、必要章节和本地链接可以单独检查：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\materials_check.py
 ```
 
 云环境变量准备完成后，可先执行只读配置预检；PostgreSQL 备份和恢复工具的 dry-run 不连接数据库：
