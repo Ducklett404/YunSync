@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     rate_limit_max_clients: int = Field(default=10000, ge=100, le=100000)
     enable_demo_login: bool = True
     seed_demo_data: bool = True
+    run_migrations_on_startup: bool = True
     session_ttl_hours: int = Field(default=12, ge=1, le=72)
 
     database_url: str = "sqlite:///./backend/data/yunsync.db"
@@ -90,6 +91,8 @@ class Settings(BaseSettings):
             raise ValueError("Production 必须关闭 USE_MOCK_AI 并配置真实 AI/OCR 服务")
         if self.environment == "production" and self.seed_demo_data:
             raise ValueError("Production 必须关闭 SEED_DEMO_DATA")
+        if self.environment == "production" and self.run_migrations_on_startup:
+            raise ValueError("Production 必须关闭 RUN_MIGRATIONS_ON_STARTUP 并使用独立迁移任务")
         if self.environment == "production" and not self.force_https:
             raise ValueError("Production 必须启用 FORCE_HTTPS")
         if self.environment == "production" and self.expose_api_docs:

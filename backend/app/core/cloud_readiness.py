@@ -5,9 +5,14 @@ from typing import Any
 from sqlalchemy.engine import make_url
 
 from app.core.config import Settings
+from app.integrations.huawei.capabilities import (
+    HUAWEI_MAAS_ADAPTER_IMPLEMENTED,
+    HUAWEI_OBS_ADAPTER_IMPLEMENTED,
+    HUAWEI_OCR_ADAPTER_IMPLEMENTED,
+)
 
 
-CLOUD_PREFLIGHT_VERSION = "cloud-preflight-v2"
+CLOUD_PREFLIGHT_VERSION = "cloud-preflight-v3"
 
 
 def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
@@ -54,12 +59,32 @@ def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
             "云环境必须关闭本地文件存储并配置私有 OBS 桶。",
         ),
         _check(
-            "real_ai_adapters",
+            "real_ai_configuration",
             not settings.use_mock_ai
             and bool(settings.huawei_ocr_endpoint)
             and bool(settings.huawei_maas_endpoint)
             and bool(settings.huawei_maas_api_key),
             "真实联调必须关闭 Mock 并注入 OCR/MaaS 端点和 MaaS 密钥。",
+        ),
+        _check(
+            "obs_adapter_implemented",
+            settings.use_local_storage or HUAWEI_OBS_ADAPTER_IMPLEMENTED,
+            "当前 OBS 适配器仍是保护性空实现；完成 SDK 接入和真实私有读写验收后再启用。",
+        ),
+        _check(
+            "ocr_adapter_implemented",
+            settings.use_mock_ai or HUAWEI_OCR_ADAPTER_IMPLEMENTED,
+            "当前 OCR 适配器仍是保护性空实现；完成真实接口接入和脱敏验收后再启用。",
+        ),
+        _check(
+            "maas_adapter_implemented",
+            settings.use_mock_ai or HUAWEI_MAAS_ADAPTER_IMPLEMENTED,
+            "当前 MaaS 适配器仍是保护性空实现；完成真实模型接入和输出守卫验收后再启用。",
+        ),
+        _check(
+            "startup_migrations_disabled",
+            settings.environment != "production" or not settings.run_migrations_on_startup,
+            "Production 必须由独立迁移任务升级数据库，应用身份不得自动改表。",
         ),
         _check(
             "production_demo_controls",
@@ -99,8 +124,12 @@ def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
             ),
             "local_storage_enabled": settings.use_local_storage,
             "mock_ai_enabled": settings.use_mock_ai,
+            "obs_adapter_implemented": HUAWEI_OBS_ADAPTER_IMPLEMENTED,
+            "ocr_adapter_implemented": HUAWEI_OCR_ADAPTER_IMPLEMENTED,
+            "maas_adapter_implemented": HUAWEI_MAAS_ADAPTER_IMPLEMENTED,
             "demo_login_enabled": settings.enable_demo_login,
             "demo_seed_enabled": settings.seed_demo_data,
+            "startup_migrations_enabled": settings.run_migrations_on_startup,
             "https_required": settings.force_https,
             "api_docs_exposed": settings.expose_api_docs,
             "rate_limit_enabled": settings.rate_limit_enabled,

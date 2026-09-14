@@ -9,10 +9,10 @@ if [ ! -d ".venv" ]; then
 fi
 
 . .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 
 if [ ! -d "frontend/node_modules" ]; then
-  (cd frontend && npm install)
+  (cd frontend && npm ci)
 fi
 
 uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000 &

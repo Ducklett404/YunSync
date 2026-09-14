@@ -32,6 +32,7 @@ def _production_settings() -> Settings:
         cors_origins="https://app.example.com",
         enable_demo_login=False,
         seed_demo_data=False,
+        run_migrations_on_startup=False,
         cache_enabled=True,
         redis_url="rediss://dcs.internal:6379/0",
         use_local_storage=False,
@@ -60,14 +61,22 @@ def test_cloud_preflight_reports_local_mode_as_incomplete_without_secrets():
     assert "redis://localhost" not in serialized
 
 
-def test_cloud_preflight_accepts_complete_production_shape_without_connecting():
+def test_cloud_preflight_rejects_unimplemented_real_adapters_even_with_complete_shape():
     report = build_cloud_readiness(_production_settings())
 
-    assert report["ready"] is True
-    assert report["version"] == "cloud-preflight-v2"
-    assert all(item["passed"] for item in report["checks"])
+    checks = {item["code"]: item["passed"] for item in report["checks"]}
+
+    assert report["ready"] is False
+    assert report["version"] == "cloud-preflight-v3"
+    assert checks["obs_private_storage"] is True
+    assert checks["real_ai_configuration"] is True
+    assert checks["startup_migrations_disabled"] is True
+    assert checks["obs_adapter_implemented"] is False
+    assert checks["ocr_adapter_implemented"] is False
+    assert checks["maas_adapter_implemented"] is False
     assert report["configuration_summary"]["credential_mode"] == "instance_metadata"
     assert report["configuration_summary"]["https_required"] is True
+    assert report["configuration_summary"]["startup_migrations_enabled"] is False
     assert "synthetic_password" not in json.dumps(report)
 
 

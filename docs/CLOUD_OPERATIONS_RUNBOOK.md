@@ -18,17 +18,18 @@
 2. 为应用建立独立身份，只授予运行所需资源范围；部署与运维身份分离，备份恢复权限不授予普通应用进程。
 3. 优先设置 `HUAWEI_CREDENTIAL_MODE=instance_metadata` 使用运行实例身份；无法使用时由部署平台密钥服务注入 AK/SK，不写入镜像或 `.env.*.example`。
 4. 将 `.env.staging.example` 复制到部署环境的受保护配置区并替换全部 `CHANGE_ME`。
-5. 执行只读预检：
+5. 为一次性迁移任务注入 `MIGRATION_DATABASE_URL`，为应用注入只具备运行期读写权限的 `DATABASE_URL`；Production 设置 `RUN_MIGRATIONS_ON_STARTUP=false`。
+6. 执行只读预检：
 
 ```bash
 python scripts/cloud_preflight.py --env-file .env
 ```
 
-只有 `ready=true` 才进入连接测试。预检不访问云端，因此后续仍须分别验证真实资源。
+当前版本会如实报告 OBS/OCR/MaaS 保护性空实现，因此不会只凭完整的占位配置得到 `ready=true`。先完成对应适配器及契约测试，再以 `ready=true` 作为进入连接测试的必要条件。预检不访问云端，因此后续仍须分别验证真实资源。
 
 ## 3. 空 RDS 迁移
 
-先使用只具备目标数据库结构变更权限的迁移身份设置 `DATABASE_URL`，再执行：
+先使用只具备目标数据库结构变更权限的迁移身份设置 `DATABASE_URL`（Compose 中对应 `MIGRATION_DATABASE_URL`），再执行：
 
 ```bash
 python -m alembic upgrade head

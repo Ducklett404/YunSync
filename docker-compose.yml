@@ -19,6 +19,7 @@ services:
       RATE_LIMIT_MAX_CLIENTS: ${RATE_LIMIT_MAX_CLIENTS:-10000}
       ENABLE_DEMO_LOGIN: ${ENABLE_DEMO_LOGIN:-true}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      RUN_MIGRATIONS_ON_STARTUP: ${RUN_MIGRATIONS_ON_STARTUP:-false}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://yunsync:yunsync@postgres:5432/yunsync}
       DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
@@ -32,7 +33,23 @@ services:
       CACHE_CONNECT_TIMEOUT_SECONDS: ${CACHE_CONNECT_TIMEOUT_SECONDS:-0.3}
       CACHE_SOCKET_TIMEOUT_SECONDS: ${CACHE_SOCKET_TIMEOUT_SECONDS:-0.5}
       USE_MOCK_AI: ${USE_MOCK_AI:-true}
+      USE_LOCAL_STORAGE: ${USE_LOCAL_STORAGE:-true}
+      UPLOAD_STORAGE_DIR: ${UPLOAD_STORAGE_DIR:-/app/uploads}
+      OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-8}
+      OCR_MAX_ATTEMPTS: ${OCR_MAX_ATTEMPTS:-2}
+      MAAS_TIMEOUT_SECONDS: ${MAAS_TIMEOUT_SECONDS:-8}
+      HUAWEI_REGION: ${HUAWEI_REGION:-cn-north-4}
+      HUAWEI_CREDENTIAL_MODE: ${HUAWEI_CREDENTIAL_MODE:-environment}
+      HUAWEI_PROJECT_ID: ${HUAWEI_PROJECT_ID:-}
+      HUAWEI_ACCESS_KEY: ${HUAWEI_ACCESS_KEY:-}
+      HUAWEI_SECRET_KEY: ${HUAWEI_SECRET_KEY:-}
+      HUAWEI_OCR_ENDPOINT: ${HUAWEI_OCR_ENDPOINT:-}
+      HUAWEI_MAAS_ENDPOINT: ${HUAWEI_MAAS_ENDPOINT:-}
+      HUAWEI_MAAS_API_KEY: ${HUAWEI_MAAS_API_KEY:-}
+      HUAWEI_OBS_BUCKET: ${HUAWEI_OBS_BUCKET:-}
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -48,6 +65,34 @@ services:
       - ALL
     init: true
     restart: unless-stopped
+
+  migrate:
+    build: .
+    command:
+      - sh
+      - -c
+      - |
+        if [ -n "$${MIGRATION_DATABASE_URL:-}" ]; then
+          export DATABASE_URL="$${MIGRATION_DATABASE_URL}"
+        fi
+        exec python -m alembic upgrade head
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://yunsync:yunsync@postgres:5432/yunsync}
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-}
+      RUN_MIGRATIONS_ON_STARTUP: "false"
+      SEED_DEMO_DATA: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: "no"
 
   postgres:
     image: postgres:16-alpine

@@ -4,10 +4,10 @@
 
 1. 本地完成功能开发和单元测试。
 2. 将仓库克隆到 `/root/workspace/YunSync`。
-3. 在开发者空间执行 `./start.sh`，检查 Linux 路径、编码、依赖和端口。
+3. 在开发者空间执行 `./start.sh`，按锁文件安装依赖并检查 Linux 路径、编码和端口；再执行 `./scripts/verify.sh`。
 4. 保持 `USE_MOCK_AI=true` 完成基础闭环。
 5. 先接入 OBS 私有对象读写，再依次接入 OCR、MaaS、RDS 和 DCS Redis，每次只替换一个适配器。
-6. 构建 Docker 镜像并部署到长期运行的 ECS 或容器服务。
+6. 构建 Docker 镜像；先用迁移身份运行一次性 Alembic 任务，再用低权限应用身份部署到长期运行的 ECS 或容器服务。
 
 ## 上云前检查
 
@@ -15,6 +15,7 @@
 - 所有测试通过，前端生产构建成功。
 - 后端监听 `0.0.0.0`，提供 `/healthz` 与 `/readyz`。
 - 数据库使用迁移脚本，不依赖手工建表。
+- Production 设置 `RUN_MIGRATIONS_ON_STARTUP=false`；迁移身份与应用运行身份分离。
 - 只开放必要端口，数据库与 Redis 不直接暴露到公网。
 - 演示环境只使用合成数据和匿名账号。
 - 准备录屏和本地 Mock 降级模式。
@@ -29,7 +30,9 @@
 | Mock OCR | OCR 智能文档解析 | `HUAWEI_OCR_ENDPOINT` |
 | Mock 文案生成 | MaaS | `HUAWEI_MAAS_ENDPOINT`、`HUAWEI_MAAS_API_KEY` |
 
-M4A 已实现 `local_private` 与 `huawei_obs` 的适配器边界；本地验证使用 `USE_LOCAL_STORAGE=true`。云端切换时必须先设置 `USE_LOCAL_STORAGE=false`，补齐 OBS 鉴权实现并验证私有访问后，才可记录为真实 OBS 接入。OCR 同理：`USE_MOCK_AI=false` 后，未配置的适配器会返回 503，不会回退到未标记的合成结果。
+M4A 已实现 `local_private` 与 `huawei_obs` 的适配器边界；本地验证使用 `USE_LOCAL_STORAGE=true`。云端切换时必须先补齐 OBS 鉴权实现并验证私有访问，再设置 `USE_LOCAL_STORAGE=false`。OCR 同理：`USE_MOCK_AI=false` 后，未配置的适配器会返回 503，不会回退到未标记的合成结果。`cloud-preflight-v3` 会把三个保护性空实现分别报告为未通过，不再仅凭端点和密钥字段齐全就报告云端就绪。
+
+Compose 的本地上传卷挂载到 `/app/uploads`，并显式传递存储、超时及华为云配置。其一次性 `migrate` 服务优先读取 `MIGRATION_DATABASE_URL`，应用服务只读取 `DATABASE_URL`；在云平台中应使用同样的身份分离流程。
 
 M5A 已固定 `action-explain-v1` 提示词和服务端输出守卫。真实 MaaS 接入必须保留 `explanation_source`，对诊断、调药、极端方案和疗效保证继续执行同一守卫；模型不可用或输出不合规时只能返回标记为 `policy_fallback` 的固定解释。
 

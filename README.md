@@ -116,9 +116,12 @@ cd /root/workspace
 git clone <your-repository-url> YunSync
 cd YunSync
 cp .env.example .env
-chmod +x start.sh
+chmod +x start.sh scripts/verify.sh
 ./start.sh
+./scripts/verify.sh
 ```
+
+`start.sh` 会安装 `requirements-dev.txt` 并用 `npm ci` 按锁文件初始化依赖。生产容器默认使用一次性 `migrate` 服务升级数据库，应用进程设置 `RUN_MIGRATIONS_ON_STARTUP=false`；可通过 `MIGRATION_DATABASE_URL` 为迁移任务使用独立数据库身份。
 
 ## 测试与构建
 

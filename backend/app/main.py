@@ -20,7 +20,8 @@ from app.schemas.common import HealthStatus
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    run_migrations()
+    if settings.run_migrations_on_startup:
+        run_migrations()
     if settings.seed_demo_data:
         seed_db()
     yield

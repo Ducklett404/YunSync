@@ -30,6 +30,7 @@
 - `CACHE_ENABLED=true` 时 `REDIS_URL` 只接受 `redis://` 或 `rediss://`；云环境不能使用本机或占位地址。
 - Production 必须设置 `ENABLE_DEMO_LOGIN=false`；演示登录不得进入正式环境。
 - Production 必须设置 `SEED_DEMO_DATA=false`；不得自动写入合成演示账号与记录。
+- Production 必须设置 `RUN_MIGRATIONS_ON_STARTUP=false`；数据库升级由一次性迁移任务执行，应用运行身份不持有改表权限。
 - Production 必须设置 `USE_LOCAL_STORAGE=false`；本地私有目录不能充当正式对象存储。
 - Production 必须设置 `USE_MOCK_AI=false`；合成 OCR 不能充当正式处理结果。
 
@@ -86,7 +87,11 @@ chmod +x start.sh scripts/verify.sh
 ./scripts/verify.sh
 ```
 
-容器环境启动前必须在本机 `.env` 或部署平台密钥设置中提供独立 `SECRET_KEY`。Compose 不再内置可用于 Staging 的默认密钥。
+`start.sh` 使用 `requirements-dev.txt` 安装验证工具，并通过 `npm ci` 按锁文件初始化前端依赖。DevSpace 仍默认由应用启动时迁移本地 SQLite，便于无云资源验证。
+
+容器环境启动前必须在本机 `.env` 或部署平台密钥设置中提供独立 `SECRET_KEY`。Compose 不再内置可用于 Staging 的默认密钥。Compose 会先运行一次性 `migrate` 服务，再启动应用；`MIGRATION_DATABASE_URL` 可注入具有结构变更权限的迁移身份，应用只接收权限更低的 `DATABASE_URL`。生产平台不使用 Compose 时，等价地先运行 `python -m alembic upgrade head`，成功后再启动应用。
+
+容器中的本地上传目录固定为 `/app/uploads`，与 Compose 持久卷保持一致；Production 仍必须改用私有 OBS，而不是依赖该卷。
 
 ## 8. 云配置预检
 
@@ -94,4 +99,4 @@ chmod +x start.sh scripts/verify.sh
 .\.venv\Scripts\python.exe scripts\cloud_preflight.py --env-file .env
 ```
 
-预检只读取配置，不连接或修改云资源。输出只包含布尔状态、驱动名和凭据来源，不显示数据库、Redis、AK/SK 或 MaaS 密钥内容。检查通过只代表配置形态完整，不能替代真实 RDS/DCS/OBS/OCR/MaaS 调用证据。
+预检只读取配置，不连接或修改云资源。输出只包含布尔状态、驱动名、适配器实现状态和凭据来源，不显示数据库、Redis、AK/SK 或 MaaS 密钥内容。当前 OBS/OCR/MaaS 仍是保护性空实现，因此即使配置字段齐全也会保持 `ready=false`；只有完成对应真实适配器、契约测试和脱敏云端验收后才能切换能力标志。此后预检通过也仍不能替代真实 RDS/DCS/OBS/OCR/MaaS 调用证据。
