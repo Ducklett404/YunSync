@@ -42,13 +42,13 @@ class ActionService:
         if report is None or report.status != "confirmed":
             return []
         metrics = health_repository.metrics_for_report(db, report.id)
+        metric_codes = {metric.code for metric in metrics}
         if (
-            len(metrics) < MIN_CONFIRMED_METRICS
+            len(metric_codes) < MIN_CONFIRMED_METRICS
             or any(not metric.confirmed for metric in metrics)
         ):
             return []
 
-        metric_codes = {metric.code for metric in metrics}
         ranked: list[dict] = []
         for action in action_repository.list_active(db):
             if not template_is_publishable(action, settings.environment):
@@ -93,7 +93,7 @@ class ActionService:
                     "safety_checks": [
                         "安全初筛通过",
                         f"模板 {action.version} 状态有效",
-                        f"{len(metrics)} 项报告字段已确认",
+                        f"{len(metric_codes)} 项不同报告指标已确认",
                         "行动风险级别为低风险",
                     ],
                 }

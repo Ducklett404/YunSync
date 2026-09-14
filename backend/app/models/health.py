@@ -37,6 +37,12 @@ class HealthReport(Base):
 class HealthMetric(Base):
     __tablename__ = "health_metrics"
     __table_args__ = (
+        Index(
+            "uq_health_metrics_report_code",
+            "report_id",
+            "code",
+            unique=True,
+        ),
         Index("idx_health_metrics_report_name", "report_id", "name"),
     )
 

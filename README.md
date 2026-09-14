@@ -32,6 +32,7 @@
 - [部署、安全与性能运行手册](docs/DEPLOYMENT_SECURITY_RUNBOOK.md)
 - [M11A 封闭测试与 RC1 本地基线验证记录](docs/M11A_VERIFICATION_REPORT.md)
 - [RC1 缺陷清单](docs/DEFECT_REGISTER.md)
+- [RC1 计划对照代码复查报告](docs/CODE_REVIEW_REPORT.md)
 - [参赛项目报告内容基线](docs/PROJECT_REPORT.md)
 - [技术说明与架构图](docs/TECHNICAL_GUIDE.md)
 - [用户操作手册](docs/USER_GUIDE.md)

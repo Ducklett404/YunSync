@@ -4,13 +4,16 @@ import pytest
 from fastapi.testclient import TestClient
 from redis.exceptions import RedisError
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.action import ActionTemplate
 from app.models.audit import AuditLog
 from app.models.experiment import Experiment, Observation
+from app.models.health import HealthMetric
 from app.models.identity import AuthSession, ConsentRecord
+from app.integrations.huawei.ocr import ExtractedMetric, OcrAnalysis
 from app.services.identity_service import CURRENT_CONSENT_VERSION, hash_session_token
 from app.integrations.cache import OptionalCache
 
@@ -596,6 +599,94 @@ def test_ocr_timeout_uses_bounded_retries_without_metrics():
     assert timed_out.json()["detail"]["code"] == "timeout"
     assert latest.json()["ocr_attempts"] == 2
     assert latest.json()["metrics"] == []
+
+
+def test_duplicate_ocr_metric_codes_are_rejected_without_partial_rows(monkeypatch):
+    class DuplicateMetricClient:
+        provider = "duplicate_test_double"
+
+        async def analyze(self, _content, _filename):
+            duplicated = ExtractedMetric(
+                code="bmi",
+                name="身体质量指数",
+                value=25.8,
+                unit="kg/m²",
+                reference_range="18.5-23.9",
+                raw_text="身体质量指数 25.8 kg/m²",
+                confidence=0.98,
+                source_page=1,
+                source_bbox=[0.1, 0.1, 0.3, 0.05],
+            )
+            return OcrAnalysis(
+                provider=self.provider,
+                page_count=1,
+                metrics=[duplicated, duplicated],
+            )
+
+    monkeypatch.setattr(
+        "app.services.report_service.get_ocr_client",
+        lambda: DuplicateMetricClient(),
+    )
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        response = client.post(
+            "/api/v1/reports/analyze",
+            files={"file": ("duplicate.pdf", b"%PDF synthetic", "application/pdf")},
+            headers=headers,
+        )
+        latest = client.get("/api/v1/reports/latest", headers=headers)
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "duplicate_metric_codes"
+    assert latest.status_code == 200
+    assert latest.json()["metrics"] == []
+
+
+def test_database_rejects_duplicate_metric_code_within_one_report():
+    with SessionLocal() as db:
+        source = db.scalar(
+            select(HealthMetric).where(HealthMetric.report_id == "demo-report").limit(1)
+        )
+        assert source is not None
+        db.add(
+            HealthMetric(
+                report_id=source.report_id,
+                user_id=source.user_id,
+                code=source.code,
+                name=source.name,
+                value=source.value,
+                unit=source.unit,
+            )
+        )
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+
+
+def test_participant_can_export_only_their_experiment_as_private_json():
+    with TestClient(app) as client:
+        headers = authorize_demo(client)
+        experiment = client.get("/api/v1/experiments/current", headers=headers).json()
+        exported = client.get(
+            f"/api/v1/experiments/{experiment['id']}/export",
+            headers=headers,
+        )
+        reviewer_headers = login_demo(client, "demo-reviewer")
+        forbidden = client.get(
+            f"/api/v1/experiments/{experiment['id']}/export",
+            headers=reviewer_headers,
+        )
+
+    assert exported.status_code == 200
+    assert exported.headers["cache-control"] == "private, no-store"
+    assert exported.headers["content-type"].startswith("application/json")
+    assert "attachment" in exported.headers["content-disposition"]
+    payload = exported.json()
+    assert payload["schema_version"] == "yunsync-experiment-export-v1"
+    assert payload["experiment"]["id"] == experiment["id"]
+    assert payload["result"]["experiment_id"] == experiment["id"]
+    assert "不构成诊断" in payload["notice"]
+    assert forbidden.status_code == 403
 
 
 def test_ranked_actions_expose_template_governance_and_score_breakdown():

@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V0.7
+> 版本：V0.8
 >
-> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`、`c6d7e8f9a0b1_experiment_state_machine`、`d7e8f9a0b1c2_daily_record_support`、`e8f9a0b1c2d3_result_review_choice`、`f9a0b1c2d3e4_performance_indexes`
+> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`、`c6d7e8f9a0b1_experiment_state_machine`、`d7e8f9a0b1c2_daily_record_support`、`e8f9a0b1c2d3_result_review_choice`、`f9a0b1c2d3e4_performance_indexes`、`0a1b2c3d4e5f_unique_report_metric_codes`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -115,7 +115,7 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `source_bbox` | json | 默认 `[0,0,1,1]` | `[x,y,width,height]` 归一化位置，单项 0–1 |
 | `measured_at` | timestamptz | UTC 当前时间 | 测量或导入时间 |
 
-报告只有在全部指标 `confirmed=true` 后才能转为 `confirmed`。排序服务会再次检查每条指标，避免仅修改报告状态绕过校对。
+报告只有在全部指标 `confirmed=true` 后才能转为 `confirmed`。唯一索引 `uq_health_metrics_report_code(report_id, code)` 防止同一报告用重复标准代码伪增指标数量；排序和实验服务按不同代码计数，并再次检查每条指标，避免绕过校对。
 
 组合索引 `idx_health_metrics_report_name(report_id, name)` 支持报告指标列表的过滤与稳定排序。
 

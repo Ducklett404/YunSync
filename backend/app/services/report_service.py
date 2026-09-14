@@ -164,6 +164,17 @@ class ReportService:
                 report,
                 OcrError("OCR 未提取到可核对指标。", code="no_metrics", retryable=False),
             )
+        metric_codes = [item.code for item in normalized]
+        if len(metric_codes) != len(set(metric_codes)):
+            self._record_failure(
+                db,
+                report,
+                OcrError(
+                    "OCR 返回了重复指标代码，已停止入库，请重试或检查服务配置。",
+                    code="duplicate_metric_codes",
+                    retryable=False,
+                ),
+            )
 
         for item in normalized:
             db.add(

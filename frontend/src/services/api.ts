@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { clearAuthSession, getAccessToken } from '@/state/auth'
+import { resetOnboardingAccess } from '@/state/onboarding'
 import type {
   AccountStatus,
   ActionTemplate,
@@ -30,7 +31,11 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) clearAuthSession()
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      clearAuthSession()
+      resetOnboardingAccess()
+      if (window.location.pathname !== '/start') window.location.replace('/start')
+    }
     return Promise.reject(error)
   },
 )
@@ -206,6 +211,13 @@ export async function importObservations(
 
 export async function fetchExperimentResult(experimentId: string): Promise<ExperimentResult> {
   const { data } = await client.get<ExperimentResult>(`/experiments/${experimentId}/result`)
+  return data
+}
+
+export async function downloadExperimentExport(experimentId: string): Promise<Blob> {
+  const { data } = await client.get<Blob>(`/experiments/${experimentId}/export`, {
+    responseType: 'blob',
+  })
   return data
 }
 

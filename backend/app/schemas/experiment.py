@@ -1,12 +1,17 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ExperimentCreate(BaseModel):
-    action_id: str
+    action_id: str = Field(min_length=1, max_length=36)
     start_date: date | None = None
+
+    @field_validator("action_id", mode="before")
+    @classmethod
+    def normalize_action_id(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
 
 
 MissingReason = Literal[
@@ -93,6 +98,19 @@ class ObservationCreate(BaseModel):
     discomfort_details: str | None = Field(default=None, max_length=300)
     unplanned_event: str | None = Field(default=None, max_length=300)
     notes: str | None = Field(default=None, max_length=500)
+
+    @field_validator(
+        "discomfort_details",
+        "unplanned_event",
+        "notes",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if not isinstance(value, str):
+            return value
+        stripped = value.strip()
+        return stripped or None
 
 
 class ObservationImportIn(BaseModel):

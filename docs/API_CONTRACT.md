@@ -1,6 +1,6 @@
 # YunSync API 契约草案
 
-> 版本：V0.8
+> 版本：V0.9
 >
 > 基础路径：`/api/v1`
 >
@@ -68,6 +68,7 @@
 | GET | `/api/v1/experiments/{id}/observations/template?format=csv|json` | Bearer 会话 | CSV/JSON 附件 | 404 实验；409 日程损坏 |
 | POST | `/api/v1/experiments/{id}/observations/import` | `ObservationImport` | 200 `ObservationImportResult` | 400 文件、日期、指标或状态错误 |
 | GET | `/api/v1/experiments/{id}/result` | path `id` | 200 `ExperimentResult` | 404 实验/模板 |
+| GET | `/api/v1/experiments/{id}/export` | path `id` | JSON 附件 | 403 未授权；404 实验；409 日程损坏 |
 | POST | `/api/v1/experiments/{id}/next-step` | `{ "code": "keep|adjust|extend|stop" }` | 200 `NextStepChoice` | 404 实验；422 代码无效 |
 
 所有路径参数对象均校验属于当前会话用户；其他用户的报告或实验统一返回 404。
@@ -182,6 +183,8 @@
 主要分析使用所有非空主要指标值，独立于行动是否完成；完成率与有效率分别统计。提醒日或常规日任一组少于 2 个有效观测时，均值、中位数、差异和区间均为 `null`，不得返回方向性健康结论。AI 或 Mock 解释超时、报错或未通过 `result-explain-v1` 守卫时，`explanation_source` 为 `policy_fallback`。
 
 `NextStepChoice` 返回 `experiment_id`、`code` 和 `selected_at`。重复提交覆盖最近选择并新增最小化审计事件，不自动新建、停止或改变实验状态。
+
+`GET /experiments/{id}/export` 返回 `yunsync-experiment-export-v1` JSON 附件，包含导出时间、非诊疗声明、锁定实验快照、逐日记录和当前结果复盘。响应使用 `Cache-Control: private, no-store`，且仅实验所属参与者可以下载。
 
 ## 7. 错误状态码
 

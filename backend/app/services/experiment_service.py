@@ -641,7 +641,10 @@ class ExperimentService:
         if report is None or report.status != "confirmed":
             raise PermissionError("请先确认最新报告，再生成个人实验")
         metrics = health_repository.metrics_for_report(db, report.id)
-        if len(metrics) < 3 or any(not metric.confirmed for metric in metrics):
+        if (
+            len({metric.code for metric in metrics}) < 3
+            or any(not metric.confirmed for metric in metrics)
+        ):
             raise PermissionError("已确认报告字段不足，不能生成个人实验")
         if not template_is_publishable(action, settings.environment):
             raise PermissionError("该行动模板未处于可发布的低风险状态")

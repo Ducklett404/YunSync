@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserOut(BaseModel):
@@ -44,6 +44,11 @@ class ConsentNoticeOut(BaseModel):
 class ConsentAcceptIn(BaseModel):
     version: str = Field(min_length=1, max_length=32)
 
+    @field_validator("version", mode="before")
+    @classmethod
+    def normalize_version(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
 
 class ConsentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -74,6 +79,20 @@ class ProfileUpdateIn(BaseModel):
         default=None,
         pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
     )
+
+    @field_validator(
+        "nickname",
+        "goal",
+        "sleep_schedule",
+        "activity_baseline",
+        "constraints",
+        "preferences",
+        "reminder_time",
+        mode="before",
+    )
+    @classmethod
+    def normalize_text(cls, value: str | None) -> str | None:
+        return value.strip() if isinstance(value, str) else value
 
 
 class SafetyScreeningIn(BaseModel):

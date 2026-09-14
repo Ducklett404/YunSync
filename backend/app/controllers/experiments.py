@@ -1,6 +1,9 @@
+import json
+from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from app.core.experiment_policy import ScheduleIntegrityError
@@ -211,6 +214,46 @@ async def experiment_result(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ScheduleIntegrityError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/{experiment_id}/export")
+async def export_experiment(
+    experiment_id: str,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    experiment = _owned_experiment(db, experiment_id, user.id)
+    try:
+        analysis = experiment_service.result(db, experiment_id)
+        result = await result_review_service.explain(analysis)
+        payload = {
+            "schema_version": "yunsync-experiment-export-v1",
+            "generated_at": datetime.now(timezone.utc),
+            "notice": (
+                "本文件仅用于个人健康行为记录与探索性复盘，不构成诊断、治疗或处方建议。"
+            ),
+            "experiment": experiment_service.snapshot(db, experiment),
+            "result": result,
+        }
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ScheduleIntegrityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    content = json.dumps(
+        jsonable_encoder(payload),
+        ensure_ascii=False,
+        indent=2,
+    )
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="yunsync-experiment-{experiment.id}.json"'
+            ),
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @router.post("/{experiment_id}/next-step", response_model=NextStepChoiceOut)

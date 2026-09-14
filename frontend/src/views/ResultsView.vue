@@ -6,6 +6,7 @@ import {
   BarChart3,
   Check,
   CircleCheck,
+  Download,
   Info,
   LoaderCircle,
   Sparkles,
@@ -13,6 +14,7 @@ import {
 import MetricChart from '@/components/MetricChart.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import {
+  downloadExperimentExport,
   fetchCurrentExperiment,
   fetchExperimentResult,
   getApiErrorMessage,
@@ -25,6 +27,7 @@ const result = ref<ExperimentResult | null>(null)
 const error = ref('')
 const success = ref('')
 const savingChoice = ref<NextStepCode | null>(null)
+const exporting = ref(false)
 
 const differenceLabel = computed(() => {
   if (result.value?.observed_difference == null) return '暂不判断'
@@ -81,6 +84,24 @@ async function chooseNextStep(code: NextStepCode) {
   }
 }
 
+async function exportResult() {
+  if (!experiment.value || exporting.value) return
+  exporting.value = true
+  error.value = ''
+  try {
+    const blob = await downloadExperimentExport(experiment.value.id)
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `yunsync-experiment-${experiment.value.id}.json`
+    link.click()
+    URL.revokeObjectURL(link.href)
+  } catch (requestError) {
+    error.value = getApiErrorMessage(requestError)
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     experiment.value = await fetchCurrentExperiment()
@@ -97,7 +118,13 @@ onMounted(async () => {
       eyebrow="步骤 4"
       title="个人结果复盘"
       description="同时查看均值、中位数、有效率、缺失与不确定区间，再决定下一轮怎么做。"
-    />
+    >
+      <button class="button secondary" type="button" :disabled="!experiment || exporting" @click="exportResult">
+        <LoaderCircle v-if="exporting" :size="17" class="spinning" />
+        <Download v-else :size="17" />
+        导出个人实验
+      </button>
+    </PageHeader>
     <div v-if="error" class="message error-message">{{ error }}</div>
     <div v-if="success" class="message success-message">{{ success }}</div>
 
