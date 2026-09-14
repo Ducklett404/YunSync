@@ -40,6 +40,7 @@
 - [参赛证据索引](docs/EVIDENCE_INDEX.md)
 - [答辩问题库](docs/DEFENSE_QA.md)
 - [开源依赖与许可清单](docs/OPEN_SOURCE_INVENTORY.md)
+- [版权声明](COPYRIGHT.md)
 - [M12A 参赛材料内容基线验证记录](docs/M12A_VERIFICATION_REPORT.md)
 
 ## 技术栈
@@ -172,3 +173,7 @@ RC1 合成主流程连续验收和本机 Edge 分辨率烟测分别执行：
 应用启动时会先执行 Alembic 迁移；仅在 `SEED_DEMO_DATA=true` 时幂等写入演示数据，Production 强制关闭该开关。正式生产环境建议把迁移步骤放入发布流水线，并保持单实例执行。
 
 详细步骤见 `docs/HUAWEI_CLOUD_MIGRATION.md`。
+
+## 版权与许可
+
+Copyright © 2026 YunSync Contributors. 详细版权归属见 [COPYRIGHT.md](COPYRIGHT.md)。版权声明本身不等于开源许可证；项目的复制、修改和分发权限应以仓库根目录后续选定的 `LICENSE` 文件为准。
