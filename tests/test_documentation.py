@@ -306,3 +306,23 @@ def test_week_ten_local_security_performance_is_documented_without_fake_deployme
     assert "103 passed" in verification
     assert "本机没有 Docker" in verification
     assert "不是 20 名真实用户" in verification
+
+
+def test_project_license_and_copyright_notice_are_consistent():
+    license_text = (PROJECT_ROOT / "LICENSE").read_text(encoding="utf-8")
+    copyright_text = (PROJECT_ROOT / "COPYRIGHT.md").read_text(encoding="utf-8")
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    inventory = (PROJECT_ROOT / "docs" / "OPEN_SOURCE_INVENTORY.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert license_text.startswith("MIT License\n\nCopyright (c) 2026 YunSync Contributors")
+    for clause in (
+        "Permission is hereby granted, free of charge",
+        "The above copyright notice and this permission notice shall be included",
+        'THE SOFTWARE IS PROVIDED "AS IS"',
+    ):
+        assert clause in license_text
+    assert "[MIT License](LICENSE)" in copyright_text
+    assert "[MIT License](LICENSE)" in readme
+    assert "[MIT License](../LICENSE)" in inventory

@@ -40,6 +40,7 @@
 - [参赛证据索引](docs/EVIDENCE_INDEX.md)
 - [答辩问题库](docs/DEFENSE_QA.md)
 - [开源依赖与许可清单](docs/OPEN_SOURCE_INVENTORY.md)
+- [MIT 开源许可证](LICENSE)
 - [版权声明](COPYRIGHT.md)
 - [M12A 参赛材料内容基线验证记录](docs/M12A_VERIFICATION_REPORT.md)
 
@@ -176,4 +177,4 @@ RC1 合成主流程连续验收和本机 Edge 分辨率烟测分别执行：
 
 ## 版权与许可
 
-Copyright © 2026 YunSync Contributors. 详细版权归属见 [COPYRIGHT.md](COPYRIGHT.md)。版权声明本身不等于开源许可证；项目的复制、修改和分发权限应以仓库根目录后续选定的 `LICENSE` 文件为准。
+Copyright © 2026 YunSync Contributors. 本项目依据 [MIT License](LICENSE) 开源，详细版权归属见 [COPYRIGHT.md](COPYRIGHT.md)。第三方依赖仍分别适用其原有许可证。

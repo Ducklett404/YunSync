@@ -8,9 +8,9 @@ Except for third-party materials identified in this repository, copyright in the
 
 ## Open-source licensing / 开源许可
 
-本声明用于确认版权归属，本身不授予复制、修改、分发、再许可或商业使用权。上述权利应以仓库根目录中的 `LICENSE` 文件为准。在 `LICENSE` 文件正式加入前，仅将仓库设为公开可见并不等同于授予开源许可。
+本声明用于确认版权归属。YunSync 项目依据仓库根目录中的 [MIT License](LICENSE) 授权使用、复制、修改、合并、发布、分发、再许可及销售；使用者须保留许可证要求的版权与许可声明。
 
-This notice records copyright ownership and does not itself grant permission to copy, modify, distribute, sublicense, or commercially use the project. Those permissions are governed by the `LICENSE` file at the repository root. Until a `LICENSE` file is added, making the repository publicly visible does not by itself grant an open-source license.
+This notice records copyright ownership. YunSync is licensed under the [MIT License](LICENSE), which permits use, copying, modification, merging, publication, distribution, sublicensing, and sale, subject to retaining the required copyright and permission notices.
 
 ## Third-party materials / 第三方内容
 
