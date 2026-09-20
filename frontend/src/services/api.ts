@@ -12,8 +12,12 @@ import type {
   NextStepCode,
   ExperimentTransition,
   ExperimentResult,
+  FoodSafetyProfile,
+  FoodSafetyProfileInput,
   ObservationImportResult,
   ReportAnalysis,
+  ReportList,
+  SafetyDecision,
   UserProfile,
 } from '@/types'
 
@@ -78,6 +82,21 @@ export async function updateProfile(payload: Partial<UserProfile>): Promise<User
   return data
 }
 
+export async function fetchFoodSafetyProfile(): Promise<FoodSafetyProfile> {
+  const { data } = await client.get<FoodSafetyProfile>('/profile/food-safety')
+  return data
+}
+
+export async function updateFoodSafetyProfile(payload: FoodSafetyProfileInput): Promise<FoodSafetyProfile> {
+  const { data } = await client.patch<FoodSafetyProfile>('/profile/food-safety', payload)
+  return data
+}
+
+export async function fetchSafetyDecision(): Promise<SafetyDecision> {
+  const { data } = await client.get<SafetyDecision>('/safety/decision')
+  return data
+}
+
 export async function saveSafetyScreening(payload: Record<string, boolean>): Promise<UserProfile> {
   const { data } = await client.post<UserProfile>('/profile/screening', payload)
   return data
@@ -93,6 +112,16 @@ export async function fetchLatestReport(): Promise<ReportAnalysis> {
   return data
 }
 
+export async function fetchReports(limit = 20, offset = 0): Promise<ReportList> {
+  const { data } = await client.get<ReportList>('/reports', { params: { limit, offset } })
+  return data
+}
+
+export async function fetchReport(reportId: string): Promise<ReportAnalysis> {
+  const { data } = await client.get<ReportAnalysis>(`/reports/${reportId}`)
+  return data
+}
+
 export async function analyzeReport(file: File): Promise<ReportAnalysis> {
   const form = new FormData()
   form.append('file', file)
@@ -102,6 +131,14 @@ export async function analyzeReport(file: File): Promise<ReportAnalysis> {
 
 export async function retryReport(reportId: string): Promise<ReportAnalysis> {
   const { data } = await client.post<ReportAnalysis>(`/reports/${reportId}/retry`)
+  return data
+}
+
+export async function updateReportCriticalMarker(
+  reportId: string,
+  status: ReportAnalysis['critical_marker_status'],
+): Promise<ReportAnalysis> {
+  const { data } = await client.patch<ReportAnalysis>(`/reports/${reportId}/critical-marker`, { status })
   return data
 }
 
@@ -238,6 +275,9 @@ export function getApiErrorMessage(error: unknown): string {
     const detail = error.response?.data?.detail
     if (typeof detail === 'string') return detail
     if (detail && typeof detail.message === 'string') return detail.message
+    if (Array.isArray(detail) && typeof detail[0]?.msg === 'string') {
+      return detail[0].msg.replace(/^Value error, /, '')
+    }
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       return '网络响应超时，请检查连接后重试。'
     }

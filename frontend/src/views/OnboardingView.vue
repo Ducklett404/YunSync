@@ -124,7 +124,7 @@ async function continueToReport() {
     setCurrentUser(profile)
     if (profile.high_risk) {
       resetOnboardingAccess()
-      savedMessage.value = '初筛结果已保存，本次自助实验流程已停止。'
+      await router.push('/safety')
       return
     }
     unlockHealthFlow()
@@ -150,9 +150,9 @@ onMounted(loadAccount)
     <ol class="journey-steps" aria-label="云循使用流程">
       <li class="active"><span>1</span>知情与初筛</li>
       <li><span>2</span>报告确认</li>
-      <li><span>3</span>选择行动</li>
-      <li><span>4</span>每日记录</li>
-      <li><span>5</span>结果评估</li>
+      <li><span>3</span>完善档案</li>
+      <li><span>4</span>食养方案</li>
+      <li><span>5</span>复查调整</li>
     </ol>
 
     <section class="panel account-gate" aria-labelledby="demo-account-title">
@@ -187,18 +187,18 @@ onMounted(loadAccount)
           <ShieldCheck :size="21" />
           <div>
             <strong>健康教育与生活方式支持工具</strong>
-            <p>云循用于理解健康信息、记录低风险行动和观察个人短期变化，不提供疾病诊断、治疗、处方或药物调整意见。</p>
+            <p>当前版本用于核对合成体检报告和准备食养安全档案。食养方案尚未开放，不提供疾病诊断、治疗、处方或药物调整意见。</p>
           </div>
         </div>
 
         <div class="consent-list">
           <label class="consent-option">
             <input v-model="acceptedBoundaries" type="checkbox" :disabled="!isAuthenticated" />
-            <span><strong>我已理解产品边界</strong>实验结果只表示个人短期观察，不等同于医疗结论。</span>
+            <span><strong>我已理解产品边界</strong>报告提示仅供核对，不能作为医疗结论或正式食养建议。</span>
           </label>
           <label class="consent-option">
             <input v-model="acceptedSyntheticOnly" type="checkbox" :disabled="!isAuthenticated" />
-            <span><strong>我只使用合成或已脱敏材料</strong>当前开发版本不应上传姓名、证件号码、联系方式等真实个人信息。</span>
+            <span><strong>我只使用合成或已脱敏材料</strong>不上传真实身份信息，也不填写真实疾病、过敏或用药详情。</span>
           </label>
           <label class="consent-option">
             <input v-model="acceptedProcessing" type="checkbox" :disabled="!isAuthenticated" />
@@ -216,7 +216,7 @@ onMounted(loadAccount)
           </div>
           <CircleAlert :size="22" class="muted-icon" />
         </div>
-        <p class="screening-intro">请选择“是”或“否”。任一项选择“是”时，原型会停止生成自助实验。</p>
+        <p class="screening-intro">请选择“是”或“否”。任一项选择“是”时，当前自助流程会停止，并提示先寻求专业评估。</p>
 
         <fieldset v-for="(question, index) in safetyQuestions" :key="question.id" class="safety-question">
           <legend><span>{{ index + 1 }}</span>{{ question.label }}</legend>
@@ -236,7 +236,7 @@ onMounted(loadAccount)
           <CircleAlert :size="20" />
           <div>
             <strong>本次流程已停止</strong>
-            <span>当前回答触发安全边界。请先寻求专业人员评估，不要在云循中自行开始实验。</span>
+            <span>当前回答触发安全边界。请先寻求专业人员评估，不要自行使用食养建议。</span>
           </div>
         </div>
         <div v-else-if="allQuestionsAnswered" class="safety-pass" role="status">

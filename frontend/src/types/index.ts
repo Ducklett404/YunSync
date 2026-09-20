@@ -200,6 +200,8 @@ export interface ReportAnalysis {
   filename: string
   source: string
   status: string
+  critical_marker_status: 'unknown' | 'no' | 'yes'
+  critical_marker_reviewed_at: string | null
   storage_provider: string
   content_type: string
   file_size: number
@@ -211,6 +213,22 @@ export interface ReportAnalysis {
   processed_at: string | null
   synthetic_notice: string
   metrics: HealthMetric[]
+}
+
+export interface ReportSummary {
+  report_id: string
+  filename: string
+  status: string
+  ocr_status: string
+  critical_marker_status: 'unknown' | 'no' | 'yes'
+  created_at: string
+}
+
+export interface ReportList {
+  items: ReportSummary[]
+  total: number
+  limit: number
+  offset: number
 }
 
 export interface UserProfile {
@@ -229,6 +247,36 @@ export interface UserProfile {
   screening_status: 'pending' | 'eligible' | 'needs_professional_review' | string
   screening_answers: Record<string, boolean>
   screened_at: string | null
+}
+
+export type FoodSafetyAnswerStatus = 'unknown' | 'none' | 'present'
+export type FoodSafetySpecialStatus = 'unknown' | 'none' | 'pregnant' | 'breastfeeding' | 'other'
+
+export interface FoodSafetyProfileInput {
+  allergy_status: FoodSafetyAnswerStatus
+  allergens: string[]
+  medication_status: FoodSafetyAnswerStatus
+  medications: string[]
+  condition_status: FoodSafetyAnswerStatus
+  conditions: string[]
+  clinician_restriction_status: FoodSafetyAnswerStatus
+  clinician_restrictions: string[]
+  special_status: FoodSafetySpecialStatus
+  special_details: string
+}
+
+export interface FoodSafetyProfile extends FoodSafetyProfileInput {
+  readiness: 'needs_information' | 'needs_professional_review' | 'awaiting_review_rules'
+  updated_at: string | null
+}
+
+export interface SafetyDecision {
+  decision: 'urgent_care' | 'consult_professional' | 'complete_information' | 'awaiting_review_rules'
+  tier: 'B' | 'C' | null
+  can_generate_plan: boolean
+  rule_version: string
+  message: string
+  missing_items: string[]
 }
 
 export interface DemoSession {

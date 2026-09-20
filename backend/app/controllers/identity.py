@@ -14,6 +14,7 @@ from app.core.security import (
 from app.db.session import get_db
 from app.models.audit import AuditLog
 from app.models.user import UserProfile
+from app.schemas.food_safety import FoodSafetyProfileIn, FoodSafetyProfileOut
 from app.schemas.common import ApiMessage
 from app.schemas.identity import (
     AccountStatusOut,
@@ -28,6 +29,7 @@ from app.schemas.identity import (
     UserOut,
 )
 from app.services.identity_service import CURRENT_CONSENT_VERSION, identity_service
+from app.services.food_safety_service import get_food_safety_profile, save_food_safety_profile
 
 
 router = APIRouter()
@@ -65,9 +67,9 @@ def consent_notice():
         version=CURRENT_CONSENT_VERSION,
         title="云循合成数据演示知情说明",
         items=[
-            "仅用于健康教育、低风险行动记录与个人短期观察，不提供诊断、治疗、处方或调药建议。",
-            "当前开发版本只允许使用合成或已脱敏材料，不应提交可识别个人身份的信息。",
-            "可以随时撤回授权；撤回后停止新的健康分析并暂停进行中的个人实验。",
+            "用于合成体检报告核对和食养安全档案演示；食养方案尚未开放，不提供诊断、治疗、处方或调药建议。",
+            "当前开发版本只允许使用合成或已脱敏材料，不应填写真实身份、疾病、过敏或用药信息。",
+            "可以随时撤回授权；撤回后停止新的健康数据操作，并暂停历史原型中的进行中实验。",
         ],
     )
 
@@ -116,6 +118,23 @@ def update_profile(
     db: Session = Depends(get_db),
 ):
     return identity_service.update_profile(db, user, payload)
+
+
+@router.get("/profile/food-safety", response_model=FoodSafetyProfileOut, tags=["profile"])
+def read_food_safety_profile(
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    return get_food_safety_profile(db, user)
+
+
+@router.patch("/profile/food-safety", response_model=FoodSafetyProfileOut, tags=["profile"])
+def update_food_safety_profile(
+    payload: FoodSafetyProfileIn,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    return save_food_safety_profile(db, user, payload)
 
 
 @router.post("/profile/screening", response_model=UserOut, tags=["profile"])

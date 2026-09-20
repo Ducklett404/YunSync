@@ -18,10 +18,13 @@ import {
   correctReportMetric,
   downloadReportSource,
   fetchLatestReport,
+  fetchReport,
+  fetchReports,
   getApiErrorMessage,
   retryReport,
+  updateReportCriticalMarker,
 } from '@/services/api'
-import type { HealthMetric, ReportAnalysis } from '@/types'
+import type { HealthMetric, ReportAnalysis, ReportSummary } from '@/types'
 
 interface MetricDraft {
   name: string
@@ -31,10 +34,17 @@ interface MetricDraft {
 }
 
 const report = ref<ReportAnalysis | null>(null)
+const reportEntries = ref<ReportSummary[]>([])
+const reportTotal = ref(0)
+const historyLoading = ref(false)
+const historyError = ref('')
+const reportLoading = ref(false)
 const drafts = ref<Record<string, MetricDraft>>({})
 const selectedFile = ref<File | null>(null)
 const loading = ref(false)
 const busyMetricId = ref('')
+const markerChoice = ref<ReportAnalysis['critical_marker_status']>('unknown')
+const markerSaving = ref(false)
 const error = ref('')
 const success = ref('')
 
@@ -44,18 +54,67 @@ const confirmedCount = computed(
 const allFieldsConfirmed = computed(
   () => Boolean(report.value?.metrics.length) && confirmedCount.value === report.value?.metrics.length,
 )
+const isLatestReport = computed(
+  () => report.value?.report_id === reportEntries.value[0]?.report_id,
+)
 
 onMounted(async () => {
   try {
-    setReport(await fetchLatestReport())
+    const loaded = await loadReports()
+    if (loaded && reportEntries.value.length) {
+      setReport(await fetchReport(reportEntries.value[0].report_id))
+    } else if (!loaded) {
+      setReport(await fetchLatestReport())
+    }
   } catch (requestError) {
     const message = getApiErrorMessage(requestError)
     if (message !== '尚无体检报告') error.value = message
   }
 })
 
+async function loadReports(append = false): Promise<boolean> {
+  historyLoading.value = true
+  historyError.value = ''
+  try {
+    const result = await fetchReports(20, append ? reportEntries.value.length : 0)
+    reportEntries.value = append ? [...reportEntries.value, ...result.items] : result.items
+    reportTotal.value = result.total
+    return true
+  } catch (requestError) {
+    historyError.value = getApiErrorMessage(requestError)
+    return false
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+async function openReport(reportId: string) {
+  if (reportLoading.value || report.value?.report_id === reportId) return
+  reportLoading.value = true
+  error.value = ''
+  success.value = ''
+  try {
+    setReport(await fetchReport(reportId))
+  } catch (requestError) {
+    error.value = getApiErrorMessage(requestError)
+  } finally {
+    reportLoading.value = false
+  }
+}
+
 function setReport(value: ReportAnalysis) {
   report.value = value
+  markerChoice.value = value.critical_marker_status
+  reportEntries.value = reportEntries.value.map((entry) =>
+    entry.report_id === value.report_id
+      ? {
+          ...entry,
+          status: value.status,
+          ocr_status: value.ocr_status,
+          critical_marker_status: value.critical_marker_status,
+        }
+      : entry,
+  )
   drafts.value = Object.fromEntries(
     value.metrics.map((metric) => [
       metric.id,
@@ -67,6 +126,23 @@ function setReport(value: ReportAnalysis) {
       },
     ]),
   )
+}
+
+async function saveCriticalMarker() {
+  if (!report.value) return
+  markerSaving.value = true
+  error.value = ''
+  success.value = ''
+  try {
+    setReport(await updateReportCriticalMarker(report.value.report_id, markerChoice.value))
+    success.value = markerChoice.value === 'yes'
+      ? '已记录报告的危急值标记，请尽快联系出具报告的机构或医生核实。'
+      : '报告危急值标记核对结果已保存。'
+  } catch (requestError) {
+    error.value = getApiErrorMessage(requestError)
+  } finally {
+    markerSaving.value = false
+  }
 }
 
 function replaceMetric(updated: HealthMetric) {
@@ -100,11 +176,13 @@ async function runAnalysis() {
   success.value = ''
   try {
     setReport(await analyzeReport(selectedFile.value))
+    await loadReports()
     success.value = '已生成合成 OCR 候选字段，请逐项核对后再完成报告确认。'
   } catch (requestError) {
     error.value = getApiErrorMessage(requestError)
     try {
       setReport(await fetchLatestReport())
+      await loadReports()
     } catch {
       // Keep the actionable upload error when no failed report was persisted.
     }
@@ -124,6 +202,7 @@ async function retryAnalysis() {
     error.value = getApiErrorMessage(requestError)
     try {
       setReport(await fetchLatestReport())
+      await loadReports()
     } catch {
       // Preserve the retry error.
     }
@@ -190,7 +269,8 @@ async function finalizeReport() {
   try {
     await confirmReport(report.value.report_id)
     report.value.status = 'confirmed'
-    success.value = '报告字段已逐项确认，可进入候选行动比较。'
+    setReport(report.value)
+    success.value = '报告字段已逐项确认。食养方案功能仍在建设中。'
   } catch (requestError) {
     error.value = getApiErrorMessage(requestError)
   } finally {
@@ -225,7 +305,7 @@ function sourcePosition(metric: HealthMetric) {
     <PageHeader
       eyebrow="步骤 1"
       title="报告解析与确认"
-      description="每个 OCR 候选字段都必须由用户确认或修正，整份报告确认后才能进入行动排序。"
+      description="每个 OCR 候选字段都必须由用户确认或修正。报告确认是后续食养方案的前置步骤。"
     />
 
     <div class="content-grid report-grid">
@@ -252,6 +332,29 @@ function sourcePosition(metric: HealthMetric) {
           <ShieldCheck :size="18" />
           <span>文件仅进入本地私有目录并通过登录接口访问；当前请勿上传任何真实报告。</span>
         </div>
+        <div class="report-history">
+          <h3>我的报告批次 <span v-if="reportTotal">({{ reportTotal }})</span></h3>
+          <p v-if="historyError" class="message error-message">历史报告读取失败：{{ historyError }}</p>
+          <p v-if="!reportEntries.length && !historyError" class="panel-note">{{ historyLoading ? '正在读取…' : '尚无报告批次。' }}</p>
+          <div v-if="reportEntries.length" class="report-history-list">
+            <button
+              v-for="(entry, index) in reportEntries"
+              :key="entry.report_id"
+              type="button"
+              class="report-history-item"
+              :class="{ selected: report?.report_id === entry.report_id }"
+              :aria-current="report?.report_id === entry.report_id ? 'true' : undefined"
+              :disabled="reportLoading"
+              @click="openReport(entry.report_id)"
+            >
+              <strong>{{ entry.filename }}</strong>
+              <small>{{ new Date(entry.created_at).toLocaleDateString('zh-CN') }} · {{ index === 0 ? '最新' : '历史' }} · {{ entry.status === 'confirmed' ? '已确认' : entry.ocr_status === 'failed' ? '识别失败' : '待确认' }}</small>
+            </button>
+          </div>
+          <button v-if="reportEntries.length < reportTotal" class="text-link button-reset" type="button" :disabled="historyLoading" @click="loadReports(true)">
+            {{ historyLoading ? '读取中…' : '加载更多报告' }}
+          </button>
+        </div>
       </section>
 
       <section class="panel metrics-panel">
@@ -271,6 +374,32 @@ function sourcePosition(metric: HealthMetric) {
 
         <div v-if="error" class="message error-message">{{ error }}</div>
         <div v-if="success" class="message success-message">{{ success }}</div>
+        <div v-if="report && reportEntries.length && !isLatestReport" class="report-notice">
+          当前查看的是历史报告；安全分流以最新报告为准。
+        </div>
+
+        <div v-if="report" class="critical-marker-review">
+          <div class="critical-marker-heading">
+            <div>
+              <strong>核对报告上的危急值标记</strong>
+              <p>请对照报告原件和出具机构的通知确认；不要仅凭数值高低或红色箭头推断。</p>
+            </div>
+            <span class="status-badge" :class="report.critical_marker_status === 'yes' ? 'danger' : report.critical_marker_status === 'no' ? 'safe' : 'pending'">
+              {{ report.critical_marker_status === 'yes' ? '已标注危急值' : report.critical_marker_status === 'no' ? '已确认无标记' : '尚未核对' }}
+            </span>
+          </div>
+          <div class="critical-marker-options" role="radiogroup" aria-label="报告危急值标记核对结果">
+            <label><input v-model="markerChoice" type="radio" name="critical-marker" value="unknown" /> 尚未确认</label>
+            <label><input v-model="markerChoice" type="radio" name="critical-marker" value="no" /> 原件未明确标注</label>
+            <label><input v-model="markerChoice" type="radio" name="critical-marker" value="yes" /> 原件明确标注</label>
+          </div>
+          <div class="critical-marker-actions">
+            <button class="button secondary" type="button" :disabled="markerSaving || markerChoice === report.critical_marker_status" @click="saveCriticalMarker">
+              {{ markerSaving ? '保存中…' : '保存核对结果' }}
+            </button>
+            <RouterLink v-if="report.critical_marker_status === 'yes'" class="text-link" to="/safety">查看安全提示</RouterLink>
+          </div>
+        </div>
 
         <div v-if="report?.ocr_status === 'failed'" class="ocr-failure-state">
           <TriangleAlert :size="24" />

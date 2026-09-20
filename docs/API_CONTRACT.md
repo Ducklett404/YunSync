@@ -39,11 +39,15 @@
 | POST | `/api/v1/consents/accept` | 参与者 | 接受指定的当前授权版本 |
 | POST | `/api/v1/consents/withdraw` | 参与者 | 撤回授权并暂停活动实验 |
 | GET/PATCH | `/api/v1/profile` | 参与者、有效授权 | 读取或更新合成健康档案 |
+| GET/PATCH | `/api/v1/profile/food-safety` | 参与者、有效授权 | 读取或保存过敏、用药、疾病、饮食限制及特殊状态；未回答默认 `unknown` |
+| GET | `/api/v1/safety/decision` | 参与者、有效授权 | 返回初步安全分流、待补项目和规则版本；本版始终不放行正式方案 |
 | POST | `/api/v1/profile/screening` | 参与者、有效授权 | 保存四项安全初筛；任一项触发即停止自助实验 |
 | GET | `/api/v1/admin/audit-events` | 审核角色 | 返回最近 100 条最小化审计事件 |
 | GET | `/api/v1/admin/action-templates` | 审核角色 | 读取全部模板版本及治理状态 |
 | POST | `/api/v1/admin/action-templates/{id}/versions` | 审核角色 | 从已有模板复制一个不活动的草稿版本 |
 | PATCH | `/api/v1/admin/action-templates/{id}/status` | 审核角色 | 设置草稿、原型规则通过或停用状态；切换活动版本 |
+
+食养安全档案的 PATCH 请求须包含五类状态；状态为 `present` 时须提供对应的非空条目列表。响应的 `readiness` 只表示资料状态或需专业评估，`awaiting_review_rules` 也不表示可以自动生成方案。审计只记录变更字段名和资料状态，不记录具体过敏、疾病或用药内容。
 
 ## 4. 健康业务接口
 
@@ -51,8 +55,11 @@
 |---|---|---|---|---|
 | GET | `/api/v1/dashboard` | Bearer 会话 | 200 总览对象 | 401 未登录；403 未授权 |
 | GET | `/api/v1/reports/latest` | Bearer 会话 | 200 `ReportAnalysis` | 403 未授权；404 无报告 |
+| GET | `/api/v1/reports?limit=20&offset=0` | `limit` 1–100；`offset` ≥0 | 200 `ReportList` | 403 未授权；422 分页参数无效 |
+| GET | `/api/v1/reports/{report_id}` | path `report_id` | 200 `ReportAnalysis` | 404 报告不存在或不属于当前用户 |
 | POST | `/api/v1/reports/analyze` | form `file` | 200 `ReportAnalysis` | 401 未登录；403 未授权；400 文件；503 存储/OCR |
 | POST | `/api/v1/reports/{report_id}/retry` | path `report_id` | 200 `ReportAnalysis` | 409 状态不允许；503 存储/OCR |
+| PATCH | `/api/v1/reports/{report_id}/critical-marker` | `{ "status": "unknown|no|yes" }` | 200 `ReportAnalysis` | 404 报告不存在或不属于当前用户；422 状态无效 |
 | GET | `/api/v1/reports/{report_id}/source` | path `report_id` | 200 私有文件 | 404 不属于当前用户；503 文件不可用 |
 | POST | `/api/v1/reports/{report_id}/metrics/{metric_id}/confirm` | path IDs | 200 `HealthMetric` | 404 对象不存在；409 OCR 未完成 |
 | PATCH | `/api/v1/reports/{report_id}/metrics/{metric_id}` | `MetricCorrection` | 200 `HealthMetric` | 404 对象不存在；409 状态不允许；422 字段无效 |
@@ -72,6 +79,8 @@
 | POST | `/api/v1/experiments/{id}/next-step` | `{ "code": "keep|adjust|extend|stop" }` | 200 `NextStepChoice` | 404 实验；422 代码无效 |
 
 所有路径参数对象均校验属于当前会话用户；其他用户的报告或实验统一返回 404。
+
+`ReportList` 返回 `items`、`total`、`limit`、`offset`。每项仅含报告 ID、文件名、状态、OCR 状态、用户确认的危急标记状态和创建时间；按创建时间、ID 降序排列。该接口用于切换已上传的报告批次，当前不提供跨报告趋势或数值可比性结论。安全分流只以最新报告为准。
 
 `GET /actions` 只返回当前环境可发布的活动低风险模板。Development/Test 可使用 `prototype_approved`，Production 只接受 `professionally_approved`。同一行动代码最多一个活动版本。
 
@@ -93,6 +102,7 @@
 ### `ReportAnalysis`
 
 - 报告级状态：`status`、`ocr_status`、`ocr_attempts`、`ocr_error_code`、`ocr_provider`、`processed_at`；
+- 用户对照原件确认的 `critical_marker_status`（`unknown` / `no` / `yes`）及 `critical_marker_reviewed_at`。默认 `unknown`；`yes` 触发初步 C 层安全提示，系统不从 OCR 数值或颜色推断危急值；
 - 非敏感存储元数据：`storage_provider`、`content_type`、`file_size`，不暴露内部对象键或磁盘路径；
 - 每个指标包含结构化值、原始文本、0–1 置信度、从 1 开始的页码、四项归一化坐标及 `pending` / `confirmed` / `corrected` 校对状态；
 - `ocr_status=failed` 时 `metrics` 必须为空。失败响应的 `detail` 包含 `message`、`report_id` 和稳定错误码，供页面恢复失败报告。

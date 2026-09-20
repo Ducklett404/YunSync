@@ -21,6 +21,7 @@ from app.models.user import UserProfile
 from app.repositories.health_repository import health_repository
 from app.schemas.health import MetricCorrectionIn
 from app.services.metric_normalizer import derive_flag, normalize_metric
+from app.services.metric_catalog import CATALOG_VERSION
 
 
 ALLOWED_CONTENT_TYPES = {
@@ -215,6 +216,7 @@ class ReportService:
                     "storage_provider": report.storage_provider,
                     "ocr_provider": report.ocr_provider,
                     "metric_count": len(normalized),
+                    "metric_catalog_version": CATALOG_VERSION,
                     "attempts": report.ocr_attempts,
                 },
             )
@@ -328,6 +330,27 @@ class ReportService:
             )
             db.commit()
             db.refresh(report)
+        return report
+
+    def set_critical_marker(
+        self, db: Session, user_id: str, report_id: str, status: str
+    ) -> HealthReport:
+        report = self._owned_report(db, user_id, report_id)
+        if report.critical_marker_status == status:
+            return report
+        report.critical_marker_status = status
+        report.critical_marker_reviewed_at = (
+            datetime.now(timezone.utc) if status != "unknown" else None
+        )
+        db.add(
+            AuditLog(
+                event_type="report.critical_marker_reviewed",
+                actor_id=user_id,
+                payload={"report_id": report_id, "field": "critical_marker_status"},
+            )
+        )
+        db.commit()
+        db.refresh(report)
         return report
 
     def source_bytes(self, report: HealthReport) -> bytes:

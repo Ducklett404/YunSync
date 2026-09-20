@@ -1,6 +1,12 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class CriticalMarkerIn(BaseModel):
+    status: Literal["unknown", "no", "yes"]
 
 
 class MetricCorrectionIn(BaseModel):
@@ -50,6 +56,8 @@ class ReportAnalysisOut(BaseModel):
     filename: str
     source: str
     status: str
+    critical_marker_status: str
+    critical_marker_reviewed_at: datetime | None
     storage_provider: str
     content_type: str
     file_size: int
@@ -61,3 +69,19 @@ class ReportAnalysisOut(BaseModel):
     processed_at: datetime | None
     synthetic_notice: str
     metrics: list[HealthMetricOut]
+
+
+class ReportSummaryOut(BaseModel):
+    report_id: str
+    filename: str
+    status: str
+    ocr_status: str
+    critical_marker_status: str
+    created_at: datetime
+
+
+class ReportListOut(BaseModel):
+    items: list[ReportSummaryOut]
+    total: int
+    limit: int
+    offset: int

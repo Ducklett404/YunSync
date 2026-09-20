@@ -1,62 +1,69 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { ArrowRight, CalendarCheck, CircleAlert, FileCheck2, Footprints, RefreshCw } from 'lucide-vue-next'
-import MetricChart from '@/components/MetricChart.vue'
+import { ArrowRight, CircleAlert, FileCheck2, RefreshCw, UserRoundCog, UtensilsCrossed } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 const store = useWorkspaceStore()
 
-onMounted(() => store.loadDashboard())
+onMounted(() => store.loadDashboard(true))
 
-const flaggedMetrics = computed(() => store.dashboard?.metrics.filter((item) => item.flag !== 'normal') ?? [])
-const result = computed(() => store.dashboard?.experiment?.result)
+const confirmedMetrics = computed(() =>
+  store.dashboard?.report?.status === 'confirmed'
+    ? store.dashboard.metrics.filter((metric) => metric.confirmed)
+    : [],
+)
+const flaggedMetrics = computed(() => confirmedMetrics.value.filter((metric) => metric.flag === 'attention'))
+const reportState = computed(() => {
+  if (!store.dashboard?.report) return '尚未上传'
+  return store.dashboard.report.status === 'confirmed' ? '已确认' : '待确认'
+})
 </script>
 
 <template>
   <div class="page-stack">
     <PageHeader
-      eyebrow="今日概览"
-      title="健康行动工作台"
-      description="先确认数据，再选择一项值得验证的低风险行动。"
+      eyebrow="体检后食养随访 · V2 过渡版"
+      title="健康数据准备"
+      description="先确认报告和个人档案。食养方案、周计划与复查功能会在后续里程碑逐步开放。"
     >
       <button class="icon-button" title="刷新数据" :disabled="store.loading" @click="store.loadDashboard(true)">
         <RefreshCw :size="18" :class="{ spinning: store.loading }" />
       </button>
     </PageHeader>
 
-    <div v-if="store.error" class="message error-message">{{ store.error }}</div>
+    <div v-if="store.error" class="message error-message" role="alert">{{ store.error }}</div>
     <div v-else-if="store.loading && !store.dashboard" class="loading-block">正在加载演示数据…</div>
 
     <template v-else-if="store.dashboard">
       <div class="notice-strip">
         <CircleAlert :size="18" />
-        <span>{{ store.dashboard.notice }}</span>
+        <span>当前环境使用合成数据。指标展示仅供核对，不能据此诊断疾病或生成正式食养建议。</span>
       </div>
 
-      <section class="summary-grid" aria-label="核心状态">
+      <section class="summary-grid" aria-label="当前准备状态">
         <article class="summary-card">
           <div class="summary-icon teal"><FileCheck2 :size="20" /></div>
           <div>
             <span>最新报告</span>
-            <strong>{{ store.dashboard.report?.status === 'confirmed' ? '已确认' : '待确认' }}</strong>
-            <small>{{ store.dashboard.report?.filename }}</small>
+            <strong>{{ reportState }}</strong>
+            <small>{{ store.dashboard.report?.filename ?? '请先上传合成报告' }}</small>
           </div>
         </article>
         <article class="summary-card">
           <div class="summary-icon amber"><CircleAlert :size="20" /></div>
           <div>
-            <span>需关注指标</span>
+            <span>已确认报告中的需关注指标</span>
             <strong>{{ flaggedMetrics.length }} 项</strong>
-            <small>仅作健康管理提示</small>
+            <small>仅按报告参考范围提示</small>
           </div>
         </article>
         <article class="summary-card">
-          <div class="summary-icon green"><CalendarCheck :size="20" /></div>
+          <div class="summary-icon gray"><UtensilsCrossed :size="20" /></div>
           <div>
-            <span>实验进度</span>
-            <strong>{{ store.dashboard.experiment?.progress ?? 0 }} / 14 天</strong>
-            <small>{{ store.dashboard.experiment?.action_title ?? '尚未选择行动' }}</small>
+            <span>食养方案</span>
+            <strong>建设中</strong>
+            <small>专业内容与安全规则尚待审核</small>
           </div>
         </article>
       </section>
@@ -65,74 +72,39 @@ const result = computed(() => store.dashboard?.experiment?.result)
         <div class="panel">
           <div class="panel-heading">
             <div>
-              <span class="section-kicker">已确认数据</span>
-              <h2>健康指标</h2>
+              <span class="section-kicker">第一步 · 报告数据</span>
+              <h2>核对体检指标</h2>
             </div>
-            <RouterLink class="text-link" to="/report">查看报告 <ArrowRight :size="16" /></RouterLink>
+            <RouterLink class="text-link" to="/report">前往报告 <ArrowRight :size="16" /></RouterLink>
           </div>
-          <div class="metric-list">
-            <div v-for="metric in store.dashboard.metrics" :key="metric.id" class="metric-row">
+          <div v-if="!confirmedMetrics.length" class="empty-state">
+            {{ store.dashboard.report ? '请完成整份报告的逐项确认。' : '上传合成报告后，在原文旁逐项确认指标。' }}
+          </div>
+          <div v-else class="metric-list">
+            <div v-for="metric in confirmedMetrics" :key="metric.id" class="metric-row">
               <div>
                 <strong>{{ metric.name }}</strong>
-                <span>参考 {{ metric.reference_range }}</span>
+                <span>参考 {{ metric.reference_range || '未提供' }}</span>
               </div>
               <div class="metric-value">
                 <strong>{{ metric.value }}</strong>
                 <span>{{ metric.unit }}</span>
-                <em :class="metric.flag">{{ metric.flag === 'normal' ? '范围内' : '需关注' }}</em>
+                <em :class="metric.flag">{{ metric.flag === 'normal' ? '范围内' : metric.flag === 'attention' ? '需关注' : '待判定' }}</em>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="panel experiment-panel">
+        <div class="panel">
           <div class="panel-heading">
             <div>
-              <span class="section-kicker">当前个人实验</span>
-              <h2>{{ store.dashboard.experiment?.action_title }}</h2>
+              <span class="section-kicker">第二步 · 个人约束</span>
+              <h2>完善健康档案</h2>
             </div>
-            <Footprints :size="22" class="muted-icon" />
+            <UserRoundCog :size="22" class="muted-icon" />
           </div>
-          <div class="progress-label">
-            <span>记录进度</span>
-            <strong>{{ store.dashboard.experiment?.progress ?? 0 }} / 14</strong>
-          </div>
-          <div class="progress-track">
-            <span :style="{ width: `${((store.dashboard.experiment?.progress ?? 0) / 14) * 100}%` }"></span>
-          </div>
-          <MetricChart
-            :treatment="result?.treatment_average ?? null"
-            :control="result?.control_average ?? null"
-            :metric-label="result?.metric_label ?? '主要指标'"
-            :metric-unit="result?.metric_unit ?? ''"
-          />
-          <p class="panel-note">{{ result?.message }}</p>
-          <RouterLink class="button primary full-width" to="/experiment">
-            继续今日记录 <ArrowRight :size="17" />
-          </RouterLink>
-        </div>
-      </section>
-
-      <section class="panel compact-panel">
-        <div class="panel-heading">
-          <div>
-            <span class="section-kicker">下一步</span>
-            <h2>候选行动排序</h2>
-          </div>
-          <RouterLink class="text-link" to="/actions">比较全部 <ArrowRight :size="16" /></RouterLink>
-        </div>
-        <div class="action-table-wrap">
-          <table class="data-table">
-            <thead><tr><th>行动</th><th>主要指标</th><th>综合适配分</th><th>风险</th></tr></thead>
-            <tbody>
-              <tr v-for="action in store.dashboard.actions" :key="action.id">
-                <td><strong>{{ action.title }}</strong><span>{{ action.description }}</span></td>
-                <td>{{ action.primary_metric }}</td>
-                <td><span class="score-value">{{ action.score }}</span></td>
-                <td><span class="status-badge safe">低风险</span></td>
-              </tr>
-            </tbody>
-          </table>
+          <p class="panel-note">在档案中明确回答过敏、用药、疾病、医生饮食限制和特殊状态。专业内容与安全规则审核完成前，不会开放正式食养方案。</p>
+          <RouterLink class="button secondary full-width" to="/profile">查看当前档案 <ArrowRight :size="17" /></RouterLink>
         </div>
       </section>
     </template>

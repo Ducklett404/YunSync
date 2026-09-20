@@ -13,7 +13,7 @@ from app.models.user import UserProfile
 from app.schemas.identity import ProfileUpdateIn, SafetyScreeningIn
 
 
-CURRENT_CONSENT_VERSION = "2026-09-11.v1"
+CURRENT_CONSENT_VERSION = "2026-09-20.v2"
 DEMO_ACCOUNT_USERS = {
     "demo-student": "demo-user",
     "demo-reviewer": "demo-reviewer",

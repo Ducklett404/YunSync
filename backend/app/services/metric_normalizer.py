@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import isfinite
 
 from app.integrations.huawei.ocr import ExtractedMetric
+from app.services.metric_catalog import resolve_metric
 
 
 UNIT_ALIASES = {
@@ -30,8 +31,11 @@ class NormalizedMetric:
 
 
 def normalize_metric(item: ExtractedMetric) -> NormalizedMetric:
-    if not item.code or not item.name.strip():
-        raise ValueError("OCR 指标缺少代码或名称")
+    if not item.name.strip():
+        raise ValueError("OCR 指标缺少名称")
+    definition = resolve_metric(item.code, item.name)
+    if not item.code.strip() and definition is None:
+        raise ValueError("未知 OCR 指标缺少代码")
     if not isfinite(item.value):
         raise ValueError("OCR 指标包含无效数值")
     if not 0 <= item.confidence <= 1:
@@ -43,8 +47,8 @@ def normalize_metric(item: ExtractedMetric) -> NormalizedMetric:
 
     unit = UNIT_ALIASES.get(item.unit.strip().lower(), item.unit.strip())
     return NormalizedMetric(
-        code=item.code.strip().lower(),
-        name=item.name.strip(),
+        code=definition.code if definition else item.code.strip().lower(),
+        name=definition.name if definition else item.name.strip(),
         value=float(item.value),
         unit=unit,
         reference_range=item.reference_range.strip(),

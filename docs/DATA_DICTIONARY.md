@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V0.8
+> 版本：V0.9（含 V2 食养安全档案及报告危急标记）
 >
-> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`、`c6d7e8f9a0b1_experiment_state_machine`、`d7e8f9a0b1c2_daily_record_support`、`e8f9a0b1c2d3_result_review_choice`、`f9a0b1c2d3e4_performance_indexes`、`0a1b2c3d4e5f_unique_report_metric_codes`
+> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`、`c6d7e8f9a0b1_experiment_state_machine`、`d7e8f9a0b1c2_daily_record_support`、`e8f9a0b1c2d3_result_review_choice`、`f9a0b1c2d3e4_performance_indexes`、`0a1b2c3d4e5f_unique_report_metric_codes`、`b1c2d3e4f5a6_food_safety_profile`、`c2d3e4f5a6b7_report_critical_marker`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -13,6 +13,7 @@ user_profiles 1 ── N health_reports 1 ── N health_metrics
        │
        ├─────── 1 ── N auth_sessions
        ├─────── 1 ── N consent_records
+       ├─────── 1 ── 0..1 food_safety_profiles
        └─────── 1 ── N experiments N ── 1 action_templates
                            │
                            └──── 1 ── N observations
@@ -20,7 +21,7 @@ user_profiles 1 ── N health_reports 1 ── N health_metrics
 audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID 追踪操作。
 ```
 
-删除用户时，会话、授权、报告、指标、实验和观察记录通过外键级联删除；行动模板和审计日志不随用户级联删除。审计日志只保存最小事件元数据，不保存会话令牌、文件名、档案正文或初筛答案。
+删除用户时，会话、授权、报告、指标、食养安全档案、实验和观察记录通过外键级联删除；行动模板和审计日志不随用户级联删除。审计日志只保存最小事件元数据，不保存会话令牌、文件名、档案正文、食养风险详情或初筛答案。
 
 ## 2. `user_profiles`
 
@@ -65,7 +66,22 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `accepted_at` | timestamptz | UTC 当前时间 | 接受时间 |
 | `withdrawn_at` | timestamptz nullable | 无 | 撤回时间 |
 
-部分唯一索引 `uq_consent_active_user` 保证每名用户最多只有一条 `active` 授权；服务端只认可当前版本 `2026-09-11.v1`。
+部分唯一索引 `uq_consent_active_user` 保证每名用户最多只有一条 `active` 授权；服务端只认可当前版本 `2026-09-20.v2`。
+
+## 4.1 `food_safety_profiles`（V2 技术底座）
+
+每名用户最多一条记录；不存在记录时，API 将五类状态都视为 `unknown`。`none` 必须由用户明确选择，不从空文本推断。
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `user_id` | varchar(36), PK/FK | 档案所属用户；删除用户时级联删除 |
+| `allergy_status`, `medication_status`, `condition_status`, `clinician_restriction_status` | varchar(16) | `unknown` / `none` / `present` |
+| `allergens`, `medications`, `conditions`, `clinician_restrictions` | json 数组 | 仅在相应状态为 `present` 时保存具体合成条目 |
+| `special_status` | varchar(24) | `unknown` / `none` / `pregnant` / `breastfeeding` / `other` |
+| `special_details` | text | 仅在 `other` 时填写 |
+| `updated_at` | timestamptz | 最近保存时间 |
+
+`readiness` 是 API 动态计算的展示状态，不在表内持久化：信息缺失时为 `needs_information`；初筛或档案触发风险时为 `needs_professional_review`；全部明确回答且未触发上述条件时为 `awaiting_review_rules`。最后一种状态仍不允许生成正式食养方案。
 
 ## 5. `health_reports`
 
@@ -76,6 +92,8 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `filename` | varchar(255) | 非空 | 原文件名；正式日志不得记录文件内容 |
 | `source` | varchar(32) | 默认 `synthetic` | `synthetic` 或未来的 `uploaded` |
 | `status` | varchar(32) | 默认 `needs_confirmation` | `processing` / `needs_confirmation` / `confirmed` / `ocr_failed` |
+| `critical_marker_status` | varchar(16) | 默认 `unknown` | 用户对照报告原件确认的危急值标记：`unknown` / `no` / `yes`；不由数值或 OCR 自动推断 |
+| `critical_marker_reviewed_at` | timestamptz nullable | 无 | 用户最近明确选择 `no` 或 `yes` 的时间；恢复 `unknown` 时清空 |
 | `storage_provider` | varchar(32) | 非空 | `local_private`、未来的 `huawei_obs` 或种子/迁移来源 |
 | `storage_key` | varchar(255) nullable | 无 | 私有随机对象键；API 不返回该字段 |
 | `content_type` | varchar(64) | 非空 | 经签名校验的 PDF/PNG/JPEG MIME |
@@ -90,6 +108,8 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `created_at` | timestamptz | UTC 当前时间 | 创建时间 |
 
 组合索引 `idx_health_reports_user_created(user_id, created_at)` 支持“读取当前用户最近报告”的实际查询。
+
+每次上传创建独立 `health_reports` 行，作为当前报告批次；历史列表按 `created_at`、`id` 降序分页。读取批次及详情均限制为当前参与者所有，不向列表暴露私有存储键。
 
 ## 6. `health_metrics`
 

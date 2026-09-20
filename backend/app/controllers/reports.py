@@ -1,6 +1,6 @@
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.security import require_active_participant
@@ -10,7 +10,14 @@ from app.models.health import HealthReport
 from app.models.user import UserProfile
 from app.repositories.health_repository import health_repository
 from app.schemas.common import ApiMessage
-from app.schemas.health import HealthMetricOut, MetricCorrectionIn, ReportAnalysisOut
+from app.schemas.health import (
+    CriticalMarkerIn,
+    HealthMetricOut,
+    MetricCorrectionIn,
+    ReportAnalysisOut,
+    ReportListOut,
+    ReportSummaryOut,
+)
 from app.services.report_service import (
     ReportConflictError,
     ReportProcessingError,
@@ -28,6 +35,8 @@ def _serialize_report(db: Session, report: HealthReport) -> ReportAnalysisOut:
         filename=report.filename,
         source=report.source,
         status=report.status,
+        critical_marker_status=report.critical_marker_status,
+        critical_marker_reviewed_at=report.critical_marker_reviewed_at,
         storage_provider=report.storage_provider,
         content_type=report.content_type,
         file_size=report.file_size,
@@ -54,6 +63,47 @@ def latest_report(
     report = health_repository.latest_report(db, user.id)
     if report is None:
         raise HTTPException(status_code=404, detail="尚无体检报告")
+    return _serialize_report(db, report)
+
+
+@router.get("", response_model=ReportListOut)
+def list_reports(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    reports, total = health_repository.reports_for_user(
+        db, user.id, limit=limit, offset=offset
+    )
+    return ReportListOut(
+        items=[
+            ReportSummaryOut(
+                report_id=report.id,
+                filename=report.filename,
+                status=report.status,
+                ocr_status=report.ocr_status,
+                critical_marker_status=report.critical_marker_status,
+                created_at=report.created_at,
+            )
+            for report in reports
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/{report_id}", response_model=ReportAnalysisOut)
+def get_report(
+    report_id: str,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    try:
+        report = report_service._owned_report(db, user.id, report_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return _serialize_report(db, report)
 
 
@@ -172,3 +222,17 @@ def confirm_report(
     except ReportConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return ApiMessage(message="报告字段已逐项确认")
+
+
+@router.patch("/{report_id}/critical-marker", response_model=ReportAnalysisOut)
+def update_critical_marker(
+    report_id: str,
+    payload: CriticalMarkerIn,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    try:
+        report = report_service.set_critical_marker(db, user.id, report_id, payload.status)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return _serialize_report(db, report)

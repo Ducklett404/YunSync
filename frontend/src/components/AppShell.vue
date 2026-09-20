@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
-  Activity,
-  CalendarDays,
   CircleUserRound,
-  ClipboardCheck,
   FileScan,
   FlaskConical,
   LayoutDashboard,
@@ -16,9 +13,7 @@ import { currentUser, isAuthenticated } from '@/state/auth'
 const signedInNavItems = [
   { to: '/', label: '健康总览', icon: LayoutDashboard },
   { to: '/report', label: '报告确认', icon: FileScan },
-  { to: '/actions', label: '候选行动', icon: ClipboardCheck },
-  { to: '/experiment', label: '个人实验', icon: CalendarDays },
-  { to: '/results', label: '结果评估', icon: Activity },
+  { to: '/safety', label: '安全提示', icon: ShieldCheck },
   { to: '/profile', label: '账号与档案', icon: UserRoundCog },
 ]
 const navItems = computed(() =>

@@ -18,6 +18,8 @@ class HealthReport(Base):
     filename: Mapped[str] = mapped_column(String(255))
     source: Mapped[str] = mapped_column(String(32), default="synthetic")
     status: Mapped[str] = mapped_column(String(32), default="needs_confirmation")
+    critical_marker_status: Mapped[str] = mapped_column(String(16), default="unknown")
+    critical_marker_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     storage_provider: Mapped[str] = mapped_column(String(32), default="local_private")
     storage_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     content_type: Mapped[str] = mapped_column(String(64), default="application/octet-stream")
