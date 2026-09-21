@@ -1,0 +1,186 @@
+{
+  "schema_version": "v2-synthetic-report-regression-1",
+  "source": "synthetic",
+  "contains_personal_data": false,
+  "scope": "Structured OCR payload regression only; these records are not scanned files and do not measure OCR accuracy.",
+  "reports": [
+    {
+      "id": "synthetic-001",
+      "layout": "single-column-basic",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "height", "name": "身高", "value": 170, "unit": "cm", "reference_range": "", "confidence": 0.99, "expected_code": "height", "expected_name": "身高", "expected_unit": "cm", "expected_projection": "as_reported"},
+        {"code": "weight", "name": "体重", "value": 68, "unit": "kg", "reference_range": "", "confidence": 0.99, "expected_code": "weight", "expected_name": "体重", "expected_unit": "kg", "expected_projection": "as_reported"},
+        {"code": "bmi", "name": "BMI", "value": 23.5, "unit": "kg/m2", "reference_range": "18.5-23.9", "confidence": 0.98, "expected_code": "bmi", "expected_name": "身体质量指数", "expected_unit": "kg/m²", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-002",
+      "layout": "two-column-vitals",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "sbp", "name": "高压", "value": 128, "unit": "mmhg", "reference_range": "90-139", "confidence": 0.96, "expected_code": "systolic_bp", "expected_name": "收缩压", "expected_unit": "mmHg", "expected_projection": "as_reported"},
+        {"code": "dbp", "name": "低压", "value": 82, "unit": "mmHg", "reference_range": "60-89", "confidence": 0.96, "expected_code": "diastolic_bp", "expected_name": "舒张压", "expected_unit": "mmHg", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-003",
+      "layout": "laboratory-grid-glucose",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "fpg", "name": "空腹血浆葡萄糖", "value": 100, "unit": "mg/dL", "reference_range": "70-110", "confidence": 0.95, "expected_code": "fasting_glucose", "expected_name": "空腹血糖", "expected_unit": "mg/dL", "expected_projection": "converted"},
+        {"code": "glycated_hemoglobin", "name": "HbA1c", "value": 5.8, "unit": "%", "reference_range": "4.0-6.0", "confidence": 0.94, "expected_code": "hba1c", "expected_name": "糖化血红蛋白", "expected_unit": "%", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-004",
+      "layout": "laboratory-grid-lipid-si",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "tc", "name": "TC", "value": 4.9, "unit": "mmol/l", "reference_range": "3.1-5.2", "confidence": 0.96, "expected_code": "total_cholesterol", "expected_name": "总胆固醇", "expected_unit": "mmol/L", "expected_projection": "as_reported"},
+        {"code": "tg", "name": "TG", "value": 1.5, "unit": "mmol/L", "reference_range": "0.45-1.69", "confidence": 0.96, "expected_code": "triglyceride", "expected_name": "甘油三酯", "expected_unit": "mmol/L", "expected_projection": "as_reported"},
+        {"code": "ldl", "name": "LDL-C", "value": 2.8, "unit": "mmol/L", "reference_range": "0-3.4", "confidence": 0.95, "expected_code": "ldl_c", "expected_name": "低密度脂蛋白胆固醇", "expected_unit": "mmol/L", "expected_projection": "as_reported"},
+        {"code": "hdl", "name": "HDL-C", "value": 1.2, "unit": "mmol/L", "reference_range": ">=1.0", "confidence": 0.95, "expected_code": "hdl_c", "expected_name": "高密度脂蛋白胆固醇", "expected_unit": "mmol/L", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-005",
+      "layout": "laboratory-grid-lipid-conventional",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "total_cholesterol", "name": "总胆固醇", "value": 200, "unit": "mg/dL", "reference_range": "120-200", "confidence": 0.93, "expected_code": "total_cholesterol", "expected_name": "总胆固醇", "expected_unit": "mg/dL", "expected_projection": "converted"},
+        {"code": "triglycerides", "name": "甘油三酯", "value": 150, "unit": "mg/dL", "reference_range": "40-150", "confidence": 0.92, "expected_code": "triglyceride", "expected_name": "甘油三酯", "expected_unit": "mg/dL", "expected_projection": "converted"},
+        {"code": "ldl_c", "name": "低密度脂蛋白", "value": 130, "unit": "mg/dL", "reference_range": "0-130", "confidence": 0.92, "expected_code": "ldl_c", "expected_name": "低密度脂蛋白胆固醇", "expected_unit": "mg/dL", "expected_projection": "converted"},
+        {"code": "hdl_c", "name": "高密度脂蛋白", "value": 50, "unit": "mg/dL", "reference_range": ">=40", "confidence": 0.92, "expected_code": "hdl_c", "expected_name": "高密度脂蛋白胆固醇", "expected_unit": "mg/dL", "expected_projection": "converted"}
+      ]
+    },
+    {
+      "id": "synthetic-006",
+      "layout": "uric-acid-summary",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "ua", "name": "血尿酸", "value": 360, "unit": "μmol/L", "reference_range": "208-428", "confidence": 0.97, "expected_code": "uric_acid", "expected_name": "尿酸", "expected_unit": "μmol/L", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-007",
+      "layout": "liver-panel",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "alt", "name": "谷丙转氨酶", "value": 32, "unit": "U/L", "reference_range": "9-50", "confidence": 0.96, "expected_code": "alt", "expected_name": "丙氨酸氨基转移酶", "expected_unit": "U/L", "expected_projection": "as_reported"},
+        {"code": "ast", "name": "谷草转氨酶", "value": 28, "unit": "U/L", "reference_range": "15-40", "confidence": 0.96, "expected_code": "ast", "expected_name": "天门冬氨酸氨基转移酶", "expected_unit": "U/L", "expected_projection": "as_reported"},
+        {"code": "ggt", "name": "谷氨酰转肽酶", "value": 35, "unit": "U/L", "reference_range": "10-60", "confidence": 0.95, "expected_code": "ggt", "expected_name": "γ-谷氨酰转移酶", "expected_unit": "U/L", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-008",
+      "layout": "renal-panel",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "scr", "name": "血肌酐", "value": 78, "unit": "µmol/L", "reference_range": "57-111", "confidence": 0.95, "expected_code": "creatinine", "expected_name": "肌酐", "expected_unit": "µmol/L", "expected_projection": "as_reported"},
+        {"code": "egfr", "name": "肾小球滤过率", "value": 98, "unit": "mL/min/1.73m²", "reference_range": ">=90", "confidence": 0.94, "expected_code": "egfr", "expected_name": "估算肾小球滤过率", "expected_unit": "mL/min/1.73m²", "expected_projection": "as_reported"},
+        {"code": "urea", "name": "血尿素", "value": 5.2, "unit": "mmol/L", "reference_range": "3.1-8.0", "confidence": 0.95, "expected_code": "urea", "expected_name": "尿素", "expected_unit": "mmol/L", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-009",
+      "layout": "extended-panel-unknown",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "thyroid_tsh", "name": "促甲状腺激素", "value": 2.1, "unit": "mIU/L", "reference_range": "0.27-4.2", "confidence": 0.91, "expected_code": "thyroid_tsh", "expected_name": "促甲状腺激素", "expected_unit": "mIU/L", "expected_projection": "outside_catalog"}
+      ]
+    },
+    {
+      "id": "synthetic-010",
+      "layout": "fullwidth-unit-spelling",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "bmi", "name": "体质指数", "value": 24.1, "unit": "kg／m²", "reference_range": "18.5-23.9", "confidence": 0.89, "expected_code": "bmi", "expected_name": "身体质量指数", "expected_unit": "kg/m²", "expected_projection": "as_reported"},
+        {"code": "glucose_fasting", "name": "FPG", "value": 5.6, "unit": "mmol／l", "reference_range": "3.9-6.1", "confidence": 0.88, "expected_code": "fasting_glucose", "expected_name": "空腹血糖", "expected_unit": "mmol/L", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-011",
+      "layout": "anthropometry-form",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "waist", "name": "腰围", "value": 82, "unit": "cm", "reference_range": "", "confidence": 0.97, "expected_code": "waist_circumference", "expected_name": "腰围", "expected_unit": "cm", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-012",
+      "layout": "blurred-low-confidence",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "fasting_glucose", "name": "空腹血糖", "value": 6.1, "unit": "mmol/L", "reference_range": "3.9-6.1", "confidence": 0.55, "expected_code": "fasting_glucose", "expected_name": "空腹血糖", "expected_unit": "mmol/L", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-013",
+      "layout": "upper-bound-reference",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "total_cholesterol", "name": "总胆固醇", "value": 5.1, "unit": "mmol/L", "reference_range": "<=5.2", "confidence": 0.93, "expected_code": "total_cholesterol", "expected_name": "总胆固醇", "expected_unit": "mmol/L", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-014",
+      "layout": "lower-bound-reference",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "hdl_c", "name": "HDL-C", "value": 1.1, "unit": "mmol/L", "reference_range": ">=1.0", "confidence": 0.93, "expected_code": "hdl_c", "expected_name": "高密度脂蛋白胆固醇", "expected_unit": "mmol/L", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-015",
+      "layout": "missing-reference",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "weight", "name": "体重", "value": 72.4, "unit": "kg", "reference_range": "", "confidence": 0.9, "expected_code": "weight", "expected_name": "体重", "expected_unit": "kg", "expected_projection": "as_reported"}
+      ]
+    },
+    {
+      "id": "synthetic-016",
+      "layout": "blood-count-outside-p0",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "wbc", "name": "白细胞计数", "value": 6.3, "unit": "10^9/L", "reference_range": "3.5-9.5", "confidence": 0.94, "expected_code": "wbc", "expected_name": "白细胞计数", "expected_unit": "10^9/L", "expected_projection": "outside_catalog"}
+      ]
+    },
+    {
+      "id": "synthetic-017",
+      "layout": "renal-unsupported-unit",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "creatinine", "name": "肌酐", "value": 1.0, "unit": "mg/dL", "reference_range": "0.6-1.2", "confidence": 0.91, "expected_code": "creatinine", "expected_name": "肌酐", "expected_unit": "mg/dL", "expected_projection": "unsupported_unit"}
+      ]
+    },
+    {
+      "id": "synthetic-018",
+      "layout": "glucose-unsupported-unit",
+      "expected": "accepted",
+      "metrics": [
+        {"code": "fasting_glucose", "name": "空腹血糖", "value": 1000, "unit": "mg/L", "reference_range": "700-1100", "confidence": 0.9, "expected_code": "fasting_glucose", "expected_name": "空腹血糖", "expected_unit": "mg/L", "expected_projection": "unsupported_unit"}
+      ]
+    },
+    {
+      "id": "synthetic-019",
+      "layout": "identity-conflict",
+      "expected": "rejected",
+      "expected_error": "代码与名称",
+      "metrics": [
+        {"code": "fpg", "name": "尿酸", "value": 6.2, "unit": "mmol/L", "reference_range": "3.9-6.1", "confidence": 0.92}
+      ]
+    },
+    {
+      "id": "synthetic-020",
+      "layout": "invalid-source-location",
+      "expected": "rejected",
+      "expected_error": "坐标",
+      "source_bbox": [0.1, 1.2, 0.3, 0.1],
+      "metrics": [
+        {"code": "bmi", "name": "BMI", "value": 23, "unit": "kg/m²", "reference_range": "18.5-23.9", "confidence": 0.93}
+      ]
+    }
+  ]
+}

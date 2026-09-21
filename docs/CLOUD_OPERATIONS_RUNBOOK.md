@@ -25,7 +25,7 @@
 python scripts/cloud_preflight.py --env-file .env
 ```
 
-当前版本会如实报告 OBS/OCR/MaaS 保护性空实现，因此不会只凭完整的占位配置得到 `ready=true`。先完成对应适配器及契约测试，再以 `ready=true` 作为进入连接测试的必要条件。预检不访问云端，因此后续仍须分别验证真实资源。
+当前版本会如实报告 OBS/MaaS 保护性空实现，并在 OCR 完成 SDK 安装、真实调用及脱敏样本验收前保持 OCR 能力标志为 false，因此不会只凭完整的占位配置得到 `ready=true`。先完成对应适配器及验收，再以 `ready=true` 作为进入连接测试的必要条件。预检不访问云端，因此后续仍须分别验证真实资源。
 
 ## 3. 空 RDS 迁移
 

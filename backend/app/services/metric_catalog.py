@@ -68,3 +68,8 @@ def resolve_metric(code: str, name: str) -> MetricDefinition | None:
     if by_code and by_name and by_code != by_name:
         raise ValueError("OCR 指标代码与名称指向不同的标准指标，请人工核对")
     return by_code or by_name
+
+
+def resolve_metric_code(code: str) -> MetricDefinition | None:
+    """Look up only an explicit code; a display name cannot promote an unknown code."""
+    return BY_CODE.get(_key(code))

@@ -6,14 +6,17 @@ from app.models.user import UserProfile
 from app.repositories.health_repository import health_repository
 from app.schemas.safety_decision import SafetyDecisionOut
 from app.services.food_safety_service import get_food_safety_profile
+from app.services.safety_rule_service import active_safety_release
+from app.services.unit_policy import BLOCKING_UNIT_STATUSES, project_metric_unit
 
 
-RULE_VERSION = "v2-safety-preliminary-2"
+RULE_VERSION = "v2-safety-gate-4"
 
 MISSING_LABELS = (
     ("allergy_status", "食物或原料过敏"),
     ("medication_status", "正在用药"),
     ("condition_status", "已知疾病或健康状况"),
+    ("liver_kidney_status", "肝肾相关疾病或异常情况"),
     ("clinician_restriction_status", "医生提出的饮食限制"),
     ("special_status", "孕哺或其他特殊状态"),
 )
@@ -68,6 +71,17 @@ def evaluate_safety(db: Session, user: UserProfile) -> SafetyDecisionOut:
         metrics = health_repository.metrics_for_report(db, report.id)
         if report.status != "confirmed" or not metrics or any(not metric.confirmed for metric in metrics):
             missing.append("报告逐项确认")
+        if any(
+            project_metric_unit(
+                code=metric.code,
+                name=metric.name,
+                value=metric.value,
+                unit=metric.unit,
+                confirmed=metric.confirmed,
+            ).status in BLOCKING_UNIT_STATUSES
+            for metric in metrics
+        ):
+            missing.append("报告指标名称或单位核对")
 
     if missing:
         return SafetyDecisionOut(
@@ -79,11 +93,22 @@ def evaluate_safety(db: Session, user: UserProfile) -> SafetyDecisionOut:
             missing_items=missing,
         )
 
+    release = active_safety_release(db)
+    if release is None:
+        return SafetyDecisionOut(
+            decision="awaiting_review_rules",
+            tier=None,
+            can_generate_plan=False,
+            rule_version=RULE_VERSION,
+            message="资料已准备，但安全规则尚无有效的专业审核发布版本，暂不能进入自动方案流程。",
+            missing_items=[],
+        )
+
     return SafetyDecisionOut(
-        decision="awaiting_review_rules",
-        tier=None,
-        can_generate_plan=False,
-        rule_version=RULE_VERSION,
-        message="资料已准备，但食材、食谱和安全规则尚未完成专业审核，暂不能生成方案。",
+        decision="ready_general_guidance",
+        tier="A",
+        can_generate_plan=True,
+        rule_version=f"{RULE_VERSION}+{release.version}",
+        message="当前资料通过已发布安全规则的基础门禁，可进入一般食养内容候选流程；后续仍必须使用已审核模板并再次执行禁忌校验。",
         missing_items=[],
     )

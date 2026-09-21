@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,14 +15,15 @@ from app.integrations.huawei.obs import (
     ObjectStorageError,
     get_object_storage,
 )
-from app.integrations.huawei.ocr import OcrAnalysis, OcrError, get_ocr_client
+from app.integrations.huawei.ocr import ExtractedMetric, OcrAnalysis, OcrError, get_ocr_client
 from app.models.audit import AuditLog
 from app.models.health import HealthMetric, HealthReport
 from app.models.user import UserProfile
 from app.repositories.health_repository import health_repository
-from app.schemas.health import MetricCorrectionIn
+from app.schemas.health import ManualReportIn, MetricCorrectionIn, ReportMetadataIn
 from app.services.metric_normalizer import derive_flag, normalize_metric
 from app.services.metric_catalog import CATALOG_VERSION
+from app.services.unit_policy import BLOCKING_UNIT_STATUSES, project_metric_unit
 
 
 ALLOWED_CONTENT_TYPES = {
@@ -65,7 +67,145 @@ def _validate_signature(content: bytes, content_type: str) -> None:
         raise ValueError("文件内容与声明格式不一致")
 
 
+def _same_instant(left: datetime | None, right: datetime | None) -> bool:
+    def normalized(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            return value
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return normalized(left) == normalized(right)
+
+
 class ReportService:
+    def create_manual(
+        self, db: Session, user_id: str, payload: ManualReportIn
+    ) -> HealthReport:
+        if db.get(UserProfile, user_id) is None:
+            raise LookupError("用户不存在")
+
+        normalized = []
+        for index, item in enumerate(payload.metrics):
+            code = item.code or f"manual_{sha256(item.name.casefold().encode('utf-8')).hexdigest()[:12]}"
+            reference_text = item.reference_range or "未填写"
+            normalized.append(
+                (
+                    item,
+                    normalize_metric(
+                        ExtractedMetric(
+                            code=code,
+                            name=item.name,
+                            value=item.value,
+                            unit=item.unit,
+                            reference_range=item.reference_range,
+                            raw_text=f"手工录入：{item.name} {item.value:g} {item.unit}；参考范围 {reference_text}",
+                            confidence=1.0,
+                            source_page=1,
+                            source_bbox=[0.0, round(min(0.95, index * 0.03), 2), 0.0, 0.0],
+                        )
+                    ),
+                )
+            )
+        codes = [result.code for _, result in normalized]
+        if len(codes) != len(set(codes)):
+            raise ValueError("同一批次不能重复录入同一个标准指标")
+
+        now = datetime.now(timezone.utc)
+        report = HealthReport(
+            id=str(uuid4()),
+            user_id=user_id,
+            filename=payload.title,
+            institution=payload.institution,
+            examined_at=payload.measured_at,
+            source="manual",
+            status="needs_confirmation",
+            storage_provider="manual_entry",
+            storage_key=None,
+            content_type="application/json",
+            file_size=0,
+            content_sha256="",
+            ocr_provider="manual_entry",
+            ocr_status="completed",
+            ocr_attempts=0,
+            ocr_page_count=0,
+            processed_at=now,
+        )
+        db.add(report)
+        db.flush()
+        for source, result in normalized:
+            db.add(
+                HealthMetric(
+                    report_id=report.id,
+                    user_id=user_id,
+                    code=result.code,
+                    name=result.name,
+                    value=result.value,
+                    unit=result.unit,
+                    reference_range=result.reference_range,
+                    method=source.method or "",
+                    flag=result.flag,
+                    confirmed=False,
+                    review_status="pending",
+                    raw_text=result.raw_text,
+                    extracted_value=source.value,
+                    extracted_unit=source.unit,
+                    extracted_reference_range=source.reference_range,
+                    confidence=1.0,
+                    source_page=1,
+                    source_bbox=result.source_bbox,
+                    measured_at=payload.measured_at,
+                )
+            )
+        db.add(
+            AuditLog(
+                event_type="report.manual_created",
+                actor_id=user_id,
+                payload={
+                    "report_id": report.id,
+                    "metric_count": len(normalized),
+                    "metric_catalog_version": CATALOG_VERSION,
+                },
+            )
+        )
+        db.commit()
+        db.refresh(report)
+        return report
+
+    def update_metadata(
+        self,
+        db: Session,
+        user_id: str,
+        report_id: str,
+        payload: ReportMetadataIn,
+    ) -> HealthReport:
+        report = self._owned_report(db, user_id, report_id)
+        changed_fields = []
+        if report.institution != payload.institution:
+            changed_fields.append("institution")
+        if not _same_instant(report.examined_at, payload.examined_at):
+            changed_fields.append("examined_at")
+        if not changed_fields:
+            return report
+
+        report.institution = payload.institution
+        report.examined_at = payload.examined_at
+        if "examined_at" in changed_fields:
+            for metric in health_repository.metrics_for_report(db, report.id):
+                metric.measured_at = payload.examined_at
+        if report.status == "confirmed":
+            report.status = "needs_confirmation"
+        db.add(
+            AuditLog(
+                event_type="report.metadata_corrected",
+                actor_id=user_id,
+                payload={"report_id": report.id, "changed_fields": changed_fields},
+            )
+        )
+        db.commit()
+        db.refresh(report)
+        return report
+
     async def analyze(self, db: Session, user_id: str, file: UploadFile) -> HealthReport:
         if db.get(UserProfile, user_id) is None:
             raise LookupError("用户不存在")
@@ -277,20 +417,48 @@ class ReportService:
         payload: MetricCorrectionIn,
     ) -> HealthMetric:
         report = self._owned_report(db, user_id, report_id)
-        if report.status == "confirmed":
-            raise ReportConflictError("已完成确认的报告不能继续修改")
         if report.ocr_status != "completed":
             raise ReportConflictError("OCR 未完成，不能修正字段")
         metric = self._owned_metric(db, user_id, report_id, metric_id)
-        changed_fields = [
+        requested_method = metric.method if payload.method is None else payload.method
+        content_changed_fields = [
             field
             for field in ("name", "value", "unit", "reference_range")
             if getattr(metric, field) != getattr(payload, field)
         ]
+        method_changed = metric.method != requested_method
+        if report.status == "confirmed":
+            current_projection = project_metric_unit(
+                code=metric.code,
+                name=metric.name,
+                value=metric.value,
+                unit=metric.unit,
+                confirmed=metric.confirmed,
+            )
+            unit_recovery = current_projection.status in BLOCKING_UNIT_STATUSES
+            method_only = method_changed and not content_changed_fields
+            if not unit_recovery and not method_only:
+                raise ReportConflictError("已完成确认的报告不能继续修改")
+            report.status = "needs_confirmation"
+            db.add(
+                AuditLog(
+                    event_type=(
+                        "report.reopened_for_unit_review"
+                        if unit_recovery
+                        else "report.reopened_for_method_review"
+                    ),
+                    actor_id=user_id,
+                    payload={"report_id": report_id, "metric_id": metric_id},
+                )
+            )
+        changed_fields = [*content_changed_fields]
+        if method_changed:
+            changed_fields.append("method")
         metric.name = payload.name
         metric.value = payload.value
         metric.unit = payload.unit
         metric.reference_range = payload.reference_range
+        metric.method = requested_method
         metric.flag = derive_flag(payload.value, payload.reference_range)
         metric.confirmed = True
         metric.review_status = "corrected" if changed_fields else "confirmed"
@@ -319,6 +487,18 @@ class ReportService:
         pending_count = sum(not metric.confirmed for metric in metrics)
         if pending_count:
             raise ReportConflictError(f"仍有 {pending_count} 个字段未逐项确认")
+        unit_conflicts = sum(
+            project_metric_unit(
+                code=metric.code,
+                name=metric.name,
+                value=metric.value,
+                unit=metric.unit,
+                confirmed=metric.confirmed,
+            ).status in BLOCKING_UNIT_STATUSES
+            for metric in metrics
+        )
+        if unit_conflicts:
+            raise ReportConflictError(f"仍有 {unit_conflicts} 个标准指标的名称或单位待核对")
         if report.status != "confirmed":
             report.status = "confirmed"
             db.add(
@@ -355,7 +535,7 @@ class ReportService:
 
     def source_bytes(self, report: HealthReport) -> bytes:
         if not report.storage_key:
-            raise ObjectStorageError("该报告没有可下载的源文件")
+            raise ReportConflictError("该报告没有可下载的源文件")
         if report.storage_provider != "local_private":
             return get_object_storage().read_private(report.storage_key)
         return LocalPrivateStorageClient().read_private(report.storage_key)

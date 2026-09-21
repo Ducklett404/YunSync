@@ -5,6 +5,7 @@ export interface HealthMetric {
   value: number
   unit: string
   reference_range: string
+  method: string
   flag: 'normal' | 'attention' | string
   confirmed: boolean
   review_status: 'pending' | 'confirmed' | 'corrected' | string
@@ -15,6 +16,13 @@ export interface HealthMetric {
   confidence: number
   source_page: number
   source_bbox: number[]
+  measured_at: string
+  unit_projection?: {
+    status: 'unconfirmed' | 'as_reported' | 'converted' | 'unsupported_unit' | 'outside_catalog' | 'identity_conflict' | 'invalid_value'
+    standard_unit: string | null
+    standard_value: number | null
+    rule_version: string
+  }
 }
 
 export interface ActionTemplate {
@@ -198,11 +206,14 @@ export interface DashboardData {
 export interface ReportAnalysis {
   report_id: string
   filename: string
+  institution: string
+  examined_at: string | null
   source: string
   status: string
   critical_marker_status: 'unknown' | 'no' | 'yes'
   critical_marker_reviewed_at: string | null
   storage_provider: string
+  source_available: boolean
   content_type: string
   file_size: number
   ocr_provider: string
@@ -229,6 +240,47 @@ export interface ReportList {
   total: number
   limit: number
   offset: number
+}
+
+export interface MetricHistoryPoint {
+  report_id: string
+  metric_id: string
+  report_created_at: string
+  examined_at: string | null
+  institution: string
+  measured_at: string
+  value: number
+  unit: string
+  reference_range: string
+  method: string
+  standard_value: number | null
+  projection_status: NonNullable<HealthMetric['unit_projection']>['status']
+}
+
+export interface MetricHistoryPair {
+  previous_report_id: string
+  current_report_id: string
+  status: 'numeric_only' | 'not_projected' | 'duplicate_in_report' | 'metadata_missing' | 'method_changed' | 'reference_range_missing' | 'reference_range_changed'
+  arithmetic_change: number | null
+  direction: 'higher' | 'lower' | 'same' | null
+  reference_range_changed: boolean
+  source_unit_changed: boolean
+  institution_changed: boolean
+  method_changed: boolean
+  limitations: string[]
+}
+
+export interface MetricHistory {
+  rule_version: string
+  reports_considered: number
+  report_limit: number
+  series: {
+    code: string
+    name: string
+    standard_unit: string
+    points: MetricHistoryPoint[]
+    latest_pair: MetricHistoryPair | null
+  }[]
 }
 
 export interface UserProfile {
@@ -259,6 +311,8 @@ export interface FoodSafetyProfileInput {
   medications: string[]
   condition_status: FoodSafetyAnswerStatus
   conditions: string[]
+  liver_kidney_status: FoodSafetyAnswerStatus
+  liver_kidney_conditions: string[]
   clinician_restriction_status: FoodSafetyAnswerStatus
   clinician_restrictions: string[]
   special_status: FoodSafetySpecialStatus
@@ -271,8 +325,8 @@ export interface FoodSafetyProfile extends FoodSafetyProfileInput {
 }
 
 export interface SafetyDecision {
-  decision: 'urgent_care' | 'consult_professional' | 'complete_information' | 'awaiting_review_rules'
-  tier: 'B' | 'C' | null
+  decision: 'urgent_care' | 'consult_professional' | 'complete_information' | 'awaiting_review_rules' | 'ready_general_guidance'
+  tier: 'A' | 'B' | 'C' | null
   can_generate_plan: boolean
   rule_version: string
   message: string

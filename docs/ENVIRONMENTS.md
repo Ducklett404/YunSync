@@ -63,7 +63,7 @@
 ## 6. 报告处理配置
 
 - `USE_LOCAL_STORAGE=true` 仅用于 Local、Development 与 DevSpace 的合成文件验证；目录由 `UPLOAD_STORAGE_DIR` 指定且不进入 Git。
-- `OCR_TIMEOUT_SECONDS` 范围为 0.1–60 秒，默认 8 秒；`OCR_MAX_ATTEMPTS` 范围为 1–4，默认 2 次。
+- `OCR_TIMEOUT_SECONDS` 范围为 0.1–60 秒，默认 8 秒；`OCR_MAX_ATTEMPTS` 范围为 1–4，默认 2 次；`OCR_PDF_MAX_PAGES` 范围为 1–20，默认 10 页。
 - `MAAS_TIMEOUT_SECONDS` 范围为 0.1–60 秒，默认 8 秒；超时或输出校验失败时使用明确标记的固定解释。
 - `USE_MOCK_AI=true` 时只运行确定性的合成 OCR 契约模拟；关闭后若真实适配器未配置，接口明确返回 503。
 - Staging 模板关闭本地存储，但真实 OBS 和 OCR 在提供资源与凭据前仍不可用。
@@ -99,4 +99,4 @@ chmod +x start.sh scripts/verify.sh
 .\.venv\Scripts\python.exe scripts\cloud_preflight.py --env-file .env
 ```
 
-预检只读取配置，不连接或修改云资源。输出只包含布尔状态、驱动名、适配器实现状态和凭据来源，不显示数据库、Redis、AK/SK 或 MaaS 密钥内容。当前 OBS/OCR/MaaS 仍是保护性空实现，因此即使配置字段齐全也会保持 `ready=false`；只有完成对应真实适配器、契约测试和脱敏云端验收后才能切换能力标志。此后预检通过也仍不能替代真实 RDS/DCS/OBS/OCR/MaaS 调用证据。
+预检只读取配置，不连接或修改云资源。输出只包含布尔状态、驱动名、适配器实现状态和凭据来源，不显示数据库、Redis、AK/SK 或 MaaS 密钥内容。OBS/MaaS 仍是保护性空实现；OCR 已有请求与解析适配器，但在 SDK 安装、真实服务调用和脱敏样本验收完成前仍保持能力标志为 false。因此完整占位配置仍会得到 `ready=false`。预检通过也不能替代真实 RDS/DCS/OBS/OCR/MaaS 调用证据。

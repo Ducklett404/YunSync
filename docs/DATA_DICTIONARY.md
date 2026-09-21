@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V0.9（含 V2 食养安全档案及报告危急标记）
+> 版本：V1.0（含 V2 报告可比性和安全规则发布）
 >
-> 对应迁移：`6169c3448442_initial_schema`、`8c1d2e3f4a5b_identity_consent_profile`、`a4b5c6d7e8f9_report_ocr_review`、`b5c6d7e8f9a0_action_template_governance`、`c6d7e8f9a0b1_experiment_state_machine`、`d7e8f9a0b1c2_daily_record_support`、`e8f9a0b1c2d3_result_review_choice`、`f9a0b1c2d3e4_performance_indexes`、`0a1b2c3d4e5f_unique_report_metric_codes`、`b1c2d3e4f5a6_food_safety_profile`、`c2d3e4f5a6b7_report_critical_marker`
+> 最新迁移：`e4f5a6b7c8d9_safety_rule_releases`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -19,6 +19,7 @@ user_profiles 1 ── N health_reports 1 ── N health_metrics
                            └──── 1 ── N observations
 
 audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID 追踪操作。
+safety_rule_releases：独立发布记录，由审核角色维护；同时最多一个活动版本。
 ```
 
 删除用户时，会话、授权、报告、指标、食养安全档案、实验和观察记录通过外键级联删除；行动模板和审计日志不随用户级联删除。审计日志只保存最小事件元数据，不保存会话令牌、文件名、档案正文、食养风险详情或初筛答案。
@@ -70,18 +71,36 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 
 ## 4.1 `food_safety_profiles`（V2 技术底座）
 
-每名用户最多一条记录；不存在记录时，API 将五类状态都视为 `unknown`。`none` 必须由用户明确选择，不从空文本推断。
+每名用户最多一条记录；不存在记录时，API 将六类状态都视为 `unknown`。`none` 必须由用户明确选择，不从空文本推断。
 
 | 字段 | 类型 | 含义 |
 |---|---|---|
 | `user_id` | varchar(36), PK/FK | 档案所属用户；删除用户时级联删除 |
 | `allergy_status`, `medication_status`, `condition_status`, `clinician_restriction_status` | varchar(16) | `unknown` / `none` / `present` |
 | `allergens`, `medications`, `conditions`, `clinician_restrictions` | json 数组 | 仅在相应状态为 `present` 时保存具体合成条目 |
+| `liver_kidney_status` | varchar(16) | 肝肾相关情况：`unknown` / `none` / `present` |
+| `liver_kidney_conditions` | json 数组 | 仅在 `liver_kidney_status=present` 时保存具体合成条目 |
 | `special_status` | varchar(24) | `unknown` / `none` / `pregnant` / `breastfeeding` / `other` |
 | `special_details` | text | 仅在 `other` 时填写 |
 | `updated_at` | timestamptz | 最近保存时间 |
 
 `readiness` 是 API 动态计算的展示状态，不在表内持久化：信息缺失时为 `needs_information`；初筛或档案触发风险时为 `needs_professional_review`；全部明确回答且未触发上述条件时为 `awaiting_review_rules`。最后一种状态仍不允许生成正式食养方案。
+
+## 4.2 `safety_rule_releases`
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `id` | varchar(36), PK | 发布记录 ID |
+| `version` | varchar(40), unique | 不可重复的规则版本 |
+| `status` | varchar(16) | `published` / `retired`；部分唯一索引保证最多一个活动版本 |
+| `evidence_ref` | varchar(240) | 外部签署或受控审核证据位置 |
+| `reviewer_qualification` | varchar(160) | 审核人提交的资质说明；上线时须线下核验 |
+| `reviewed_rule_codes` | json 数组 | 已明确审核的规则范围；必须覆盖服务端必需集合 |
+| `attested` | boolean | 审核角色是否主动确认该记录 |
+| `reviewer_id` | varchar(36) | 发布操作账号；不替代真实审核人签名 |
+| `published_at`, `retired_at` | timestamptz | 发布和停用时间 |
+
+发布、替换和停用均写入最小化审计；资质说明和证据正文不复制到审计 payload。没有活动版本时，安全决策保持 `awaiting_review_rules` 并阻断后续方案。
 
 ## 5. `health_reports`
 
@@ -89,17 +108,19 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 |---|---|---|---|
 | `id` | varchar(36) | PK, UUID | 报告标识 |
 | `user_id` | varchar(36) | FK → `user_profiles.id`, index, cascade | 所属用户 |
-| `filename` | varchar(255) | 非空 | 原文件名；正式日志不得记录文件内容 |
-| `source` | varchar(32) | 默认 `synthetic` | `synthetic` 或未来的 `uploaded` |
+| `filename` | varchar(255) | 非空 | 上传批次的原文件名，或手工批次的用户标题；正式日志不得记录该内容 |
+| `institution` | varchar(120) | 默认空字符串 | 用户按报告原件核对的检测机构；空表示未填写 |
+| `examined_at` | timestamptz nullable | 无 | 用户按报告原件核对的检查时间；与上传时间分开 |
+| `source` | varchar(32) | 默认 `synthetic` | `synthetic`、`uploaded` 或用户逐项创建的 `manual` |
 | `status` | varchar(32) | 默认 `needs_confirmation` | `processing` / `needs_confirmation` / `confirmed` / `ocr_failed` |
 | `critical_marker_status` | varchar(16) | 默认 `unknown` | 用户对照报告原件确认的危急值标记：`unknown` / `no` / `yes`；不由数值或 OCR 自动推断 |
 | `critical_marker_reviewed_at` | timestamptz nullable | 无 | 用户最近明确选择 `no` 或 `yes` 的时间；恢复 `unknown` 时清空 |
-| `storage_provider` | varchar(32) | 非空 | `local_private`、未来的 `huawei_obs` 或种子/迁移来源 |
+| `storage_provider` | varchar(32) | 非空 | `local_private`、无源文件的 `manual_entry`、未来的 `huawei_obs` 或种子/迁移来源 |
 | `storage_key` | varchar(255) nullable | 无 | 私有随机对象键；API 不返回该字段 |
-| `content_type` | varchar(64) | 非空 | 经签名校验的 PDF/PNG/JPEG MIME |
+| `content_type` | varchar(64) | 非空 | 经签名校验的 PDF/PNG/JPEG MIME；手工批次为 `application/json` |
 | `file_size` | integer | 默认 0 | 上传字节数，最大 5 MB |
 | `content_sha256` | varchar(64) | 默认空字符串 | 文件内容摘要，不是公开下载标识 |
-| `ocr_provider` | varchar(32) | 非空 | `mock_ocr`、未来的 `huawei_ocr` 或历史来源 |
+| `ocr_provider` | varchar(32) | 非空 | `mock_ocr`、不调用 OCR 的 `manual_entry`、真实适配器 `huawei_ocr` 或历史来源 |
 | `ocr_status` | varchar(24) | 非空 | `processing` / `completed` / `failed` |
 | `ocr_attempts` | integer | 默认 0 | 最近一次处理实际尝试次数 |
 | `ocr_error_code` | varchar(64) nullable | 无 | 稳定失败类别，不保存外部服务响应正文 |
@@ -123,19 +144,22 @@ audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID
 | `value` | float | 非空 | 结构化数值 |
 | `unit` | varchar(32) | 非空 | 单位 |
 | `reference_range` | varchar(64) | 默认空字符串 | 报告原参考范围 |
+| `method` | varchar(120) | 默认空字符串 | 用户按原件核对的检测方法；用于可比性门禁，不用于诊断 |
 | `flag` | varchar(16) | 默认 `normal` | `normal` / `attention`，不是疾病诊断 |
 | `confirmed` | boolean | 默认 false | 是否经用户核对 |
 | `review_status` | varchar(24) | 默认 `pending` | `pending` / `confirmed` / `corrected` |
-| `raw_text` | text | 默认空字符串 | OCR 原文片段，用于用户核对 |
+| `raw_text` | text | 默认空字符串 | OCR 原文片段，或标明“手工录入”的输入摘要，用于用户核对 |
 | `extracted_value` | float nullable | 无 | 首次标准化值，修正时保持不变 |
 | `extracted_unit` | varchar(32) | 默认空字符串 | 首次标准化单位 |
 | `extracted_reference_range` | varchar(64) | 默认空字符串 | 首次提取参考范围 |
-| `confidence` | float | 默认 0 | OCR 候选置信度，应用层约束 0–1 |
+| `confidence` | float | 默认 0 | OCR 候选置信度，应用层约束 0–1；手工输入固定为 1，但仍须用户确认 |
 | `source_page` | integer | 默认 1 | 原文页码，从 1 开始 |
 | `source_bbox` | json | 默认 `[0,0,1,1]` | `[x,y,width,height]` 归一化位置，单项 0–1 |
 | `measured_at` | timestamptz | UTC 当前时间 | 测量或导入时间 |
 
 报告只有在全部指标 `confirmed=true` 后才能转为 `confirmed`。唯一索引 `uq_health_metrics_report_code(report_id, code)` 防止同一报告用重复标准代码伪增指标数量；排序和实验服务按不同代码计数，并再次检查每条指标，避免绕过校对。
+
+`unit_projection` 是 API 根据已确认的 `code`、`name`、`value` 和 `unit` 动态生成的派生字段，不入库。已知 P0 指标的名称或单位冲突会阻止报告最终确认；原 `value`、`unit`、`reference_range` 与 `extracted_*` 字段不被换算覆盖。投影规则版本为 `v2-unit-draft-1`，不能替代检测方法和参考范围可比性审核。
 
 组合索引 `idx_health_metrics_report_name(report_id, name)` 支持报告指标列表的过滤与稳定排序。
 

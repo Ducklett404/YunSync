@@ -16,12 +16,20 @@ class FoodSafetyProfileIn(BaseModel):
     medications: list[str] = Field(default_factory=list, max_length=20)
     condition_status: AnswerStatus
     conditions: list[str] = Field(default_factory=list, max_length=20)
+    liver_kidney_status: AnswerStatus
+    liver_kidney_conditions: list[str] = Field(default_factory=list, max_length=20)
     clinician_restriction_status: AnswerStatus
     clinician_restrictions: list[str] = Field(default_factory=list, max_length=20)
     special_status: SpecialStatus
     special_details: str = Field(default="", max_length=240)
 
-    @field_validator("allergens", "medications", "conditions", "clinician_restrictions")
+    @field_validator(
+        "allergens",
+        "medications",
+        "conditions",
+        "liver_kidney_conditions",
+        "clinician_restrictions",
+    )
     @classmethod
     def normalize_items(cls, items: list[str]) -> list[str]:
         cleaned = [item.strip() for item in items]
@@ -42,6 +50,7 @@ class FoodSafetyProfileIn(BaseModel):
             ("allergy_status", "allergens"),
             ("medication_status", "medications"),
             ("condition_status", "conditions"),
+            ("liver_kidney_status", "liver_kidney_conditions"),
             ("clinician_restriction_status", "clinician_restrictions"),
         ):
             status = getattr(self, status_field)

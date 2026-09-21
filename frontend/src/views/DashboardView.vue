@@ -103,7 +103,7 @@ const reportState = computed(() => {
             </div>
             <UserRoundCog :size="22" class="muted-icon" />
           </div>
-          <p class="panel-note">在档案中明确回答过敏、用药、疾病、医生饮食限制和特殊状态。专业内容与安全规则审核完成前，不会开放正式食养方案。</p>
+          <p class="panel-note">在档案中明确回答过敏、用药、疾病、肝肾情况、医生饮食限制和特殊状态。专业内容与安全规则审核完成前，不会开放正式食养方案。</p>
           <RouterLink class="button secondary full-width" to="/profile">查看当前档案 <ArrowRight :size="17" /></RouterLink>
         </div>
       </section>

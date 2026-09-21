@@ -74,7 +74,7 @@ def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
         _check(
             "ocr_adapter_implemented",
             settings.use_mock_ai or HUAWEI_OCR_ADAPTER_IMPLEMENTED,
-            "当前 OCR 适配器仍是保护性空实现；完成真实接口接入和脱敏验收后再启用。",
+            "OCR 请求适配已实现；完成 SDK 安装、真实服务调用和脱敏样本验收后再启用能力标志。",
         ),
         _check(
             "maas_adapter_implemented",

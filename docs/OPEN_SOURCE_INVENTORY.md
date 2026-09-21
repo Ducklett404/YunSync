@@ -19,6 +19,8 @@ YunSync 项目自身采用 [MIT License](../LICENSE)；本清单中的第三方�
 | redis-py | `>=5.2,<7.0` | 6.4.0 | MIT |
 | HTTPX | `>=0.28,<1.0` | 0.28.1 | BSD-3-Clause |
 | Alembic | `>=1.14,<2.0` | 1.19.2 | MIT |
+| huaweicloudsdkcore | `>=3.1,<4.0` | 当前环境待安装 | Apache-2.0 |
+| huaweicloudsdkocr | `>=3.1,<4.0` | 当前环境待安装 | Apache-2.0 |
 
 版本与许可值来自当前安装包的 Core Metadata；它们不是对未来解析版本的承诺。
 

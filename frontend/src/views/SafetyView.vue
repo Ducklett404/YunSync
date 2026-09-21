@@ -28,6 +28,7 @@ function titleFor(value: SafetyDecision['decision']): string {
     case 'consult_professional': return '请先咨询专业人员'
     case 'complete_information': return '请先补齐资料'
     case 'awaiting_review_rules': return '等待专业规则审核'
+    case 'ready_general_guidance': return '基础安全门禁已通过'
   }
 }
 
@@ -65,7 +66,7 @@ onMounted(loadDecision)
         <CircleAlert :size="18" />
         <span>待完成：{{ decision.missing_items.join('、') }}</span>
       </div>
-      <p class="panel-note">当前版本不会生成正式食养方案。安全规则版本：{{ decision.rule_version }}</p>
+      <p class="panel-note">{{ decision.can_generate_plan ? '当前仅表示可以进入已审核内容候选流程，仍不代表已经生成正式方案。' : '当前状态会阻止正式食养方案。' }} 安全规则版本：{{ decision.rule_version }}</p>
       <div class="account-actions">
         <RouterLink v-if="decision.decision === 'complete_information'" class="button secondary" to="/profile">
           补充安全档案 <ArrowRight :size="17" />

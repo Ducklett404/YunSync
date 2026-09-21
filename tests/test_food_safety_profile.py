@@ -44,6 +44,7 @@ def all_none() -> dict:
         "allergy_status": "none",
         "medication_status": "none",
         "condition_status": "none",
+        "liver_kidney_status": "none",
         "clinician_restriction_status": "none",
         "special_status": "none",
     }

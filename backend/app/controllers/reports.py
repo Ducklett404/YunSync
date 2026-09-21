@@ -13,9 +13,11 @@ from app.schemas.common import ApiMessage
 from app.schemas.health import (
     CriticalMarkerIn,
     HealthMetricOut,
+    ManualReportIn,
     MetricCorrectionIn,
     ReportAnalysisOut,
     ReportListOut,
+    ReportMetadataIn,
     ReportSummaryOut,
 )
 from app.services.report_service import (
@@ -33,11 +35,14 @@ def _serialize_report(db: Session, report: HealthReport) -> ReportAnalysisOut:
     return ReportAnalysisOut(
         report_id=report.id,
         filename=report.filename,
+        institution=report.institution,
+        examined_at=report.examined_at,
         source=report.source,
         status=report.status,
         critical_marker_status=report.critical_marker_status,
         critical_marker_reviewed_at=report.critical_marker_reviewed_at,
         storage_provider=report.storage_provider,
+        source_available=bool(report.storage_key),
         content_type=report.content_type,
         file_size=report.file_size,
         ocr_provider=report.ocr_provider,
@@ -49,6 +54,8 @@ def _serialize_report(db: Session, report: HealthReport) -> ReportAnalysisOut:
         synthetic_notice=(
             "当前 OCR 返回合成演示结果，不代表对上传文件作出医学判断。"
             if report.source == "synthetic"
+            else "该批次由用户手工录入，仍需逐项核对，不构成医学诊断。"
+            if report.source == "manual"
             else "识别结果需由用户逐项核对，不构成医学诊断。"
         ),
         metrics=metrics,
@@ -129,6 +136,35 @@ async def analyze_report(
     return _serialize_report(db, report)
 
 
+@router.post("/manual", response_model=ReportAnalysisOut)
+def create_manual_report(
+    payload: ManualReportIn,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    try:
+        report = report_service.create_manual(db, user.id, payload)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _serialize_report(db, report)
+
+
+@router.patch("/{report_id}/metadata", response_model=ReportAnalysisOut)
+def update_report_metadata(
+    report_id: str,
+    payload: ReportMetadataIn,
+    user: UserProfile = Depends(require_active_participant),
+    db: Session = Depends(get_db),
+):
+    try:
+        report = report_service.update_metadata(db, user.id, report_id, payload)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return _serialize_report(db, report)
+
+
 @router.post("/{report_id}/retry", response_model=ReportAnalysisOut)
 async def retry_report(
     report_id: str,
@@ -162,6 +198,8 @@ def download_source(
         content = report_service.source_bytes(report)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ReportConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ObjectStorageError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return Response(

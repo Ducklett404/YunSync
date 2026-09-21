@@ -155,6 +155,13 @@ a { color: inherit; text-decoration: none; }
 .upload-zone input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .upload-zone strong { max-width: 100%; overflow-wrap: anywhere; font-size: 15px; }
 .upload-zone span { color: var(--muted); font-size: 12px; }
+.manual-toggle { margin-top: 10px; }
+.manual-entry-form { display: grid; gap: 12px; margin-top: 14px; padding: 14px; background: #f7f9f9; border: 1px solid var(--line); border-radius: 6px; }
+.manual-metric-list { display: grid; gap: 10px; max-height: 46vh; overflow-y: auto; }
+.manual-metric-card { display: grid; gap: 10px; padding: 12px; background: white; border: 1px solid var(--line); border-radius: 5px; }
+.manual-metric-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.manual-metric-heading .icon-button { width: 30px; height: 30px; color: var(--red); }
+.manual-metric-value-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 9px; }
 .privacy-note { display: flex; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .privacy-note svg { flex: 0 0 auto; color: var(--teal); }
 .report-history { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
@@ -168,6 +175,22 @@ a { color: inherit; text-decoration: none; }
 .report-history > .text-link { margin-top: 10px; }
 .metrics-panel .button { margin-top: 14px; }
 .report-notice { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 11px 13px; color: #5f4a1c; background: var(--amber-soft); border-left: 3px solid #d39a37; font-size: 13px; line-height: 1.55; }
+.source-preview-panel { display: grid; gap: 11px; margin-bottom: 16px; padding: 14px; background: #f7f9f9; border: 1px solid var(--line); border-radius: 6px; scroll-margin-top: 92px; }
+.source-preview-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.source-preview-heading > div { display: grid; gap: 4px; }
+.source-preview-heading small { color: var(--muted); font-size: 12px; }
+.source-preview-heading .button-reset { display: inline-flex; align-items: center; gap: 5px; }
+.source-preview-state { min-height: 180px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); background: white; border: 1px dashed #c5d0d2; border-radius: 5px; font-size: 13px; }
+.source-preview-state.error-message { flex-direction: column; margin: 0; padding: 18px; color: var(--red); }
+.source-pdf-frame { width: 100%; height: 460px; background: white; border: 1px solid #c5d0d2; border-radius: 5px; }
+.source-image-canvas { position: relative; max-height: 520px; overflow: auto; background: #dce2e3; border: 1px solid #c5d0d2; border-radius: 5px; }
+.source-image-canvas img { display: block; width: 100%; height: auto; }
+.source-location-highlight { position: absolute; min-width: 10px; min-height: 10px; border: 3px solid #e05252; background: rgba(224,82,82,.14); box-shadow: 0 0 0 2px rgba(255,255,255,.86); pointer-events: none; }
+.source-preview-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.report-metadata-review { display: grid; gap: 12px; margin-bottom: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 6px; }
+.report-metadata-review > div:first-child p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.report-metadata-fields { display: grid; grid-template-columns: minmax(160px, .6fr) minmax(220px, 1.4fr); gap: 12px; }
+.report-metadata-review > .button { justify-self: start; margin-top: 0; }
 .critical-marker-review { display: grid; gap: 12px; margin-bottom: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 6px; }
 .critical-marker-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .critical-marker-heading strong { color: var(--ink); }
@@ -189,10 +212,19 @@ a { color: inherit; text-decoration: none; }
 .inline-field.compact input { min-width: 92px; }
 .inline-field input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px #dcefed; }
 .inline-field input:disabled { color: #3f4b50; background: #f2f5f5; }
+.unit-projection-note { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.unit-projection-note.warning { color: var(--amber); }
+.metric-method-field { margin-top: 9px; }
+.metric-history-panel { margin-top: 18px; }
+.metric-history-table .data-table { min-width: 860px; }
+.metric-history-table td:first-child { min-width: 150px; }
+.metric-history-table td:first-child small, .history-limit { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.metric-history-table .button-reset { text-align: left; white-space: normal; }
 .source-excerpt { margin-top: 7px !important; font-size: 12px !important; line-height: 1.5; }
 .confidence-value { display: block; color: var(--green); font-size: 15px; font-weight: 800; }
 .confidence-value.low { color: var(--amber); }
 .confidence-value + small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.source-locate-button { display: block; margin-top: 7px; font-size: 12px; }
 .review-actions { display: grid; gap: 6px; }
 .metrics-panel .review-actions .button, .metrics-panel .finalize-row .button, .metrics-panel .ocr-failure-state .button { margin-top: 0; }
 .button.compact-button { min-height: 34px; padding: 0 10px; font-size: 12px; }
@@ -474,6 +506,8 @@ a { color: inherit; text-decoration: none; }
   .form-grid.two-column { grid-template-columns: 1fr; }
   .data-table { min-width: 650px; }
   .report-notice, .finalize-row { align-items: flex-start; flex-direction: column; }
+  .source-preview-heading { align-items: flex-start; flex-direction: column; }
+  .source-pdf-frame { height: 380px; }
   .critical-marker-heading, .critical-marker-actions { align-items: flex-start; flex-direction: column; }
   .critical-marker-options { display: grid; }
   .finalize-row .button { width: 100%; }

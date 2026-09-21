@@ -34,6 +34,8 @@ const safetyForm = reactive({
   medications: '',
   condition_status: 'unknown' as FoodSafetyAnswerStatus,
   conditions: '',
+  liver_kidney_status: 'unknown' as FoodSafetyAnswerStatus,
+  liver_kidney_conditions: '',
   clinician_restriction_status: 'unknown' as FoodSafetyAnswerStatus,
   clinician_restrictions: '',
   special_status: 'unknown' as FoodSafetySpecialStatus,
@@ -67,6 +69,8 @@ function fillSafetyForm(profile: FoodSafetyProfile) {
   safetyForm.medications = profile.medications.join('\n')
   safetyForm.condition_status = profile.condition_status
   safetyForm.conditions = profile.conditions.join('\n')
+  safetyForm.liver_kidney_status = profile.liver_kidney_status
+  safetyForm.liver_kidney_conditions = profile.liver_kidney_conditions.join('\n')
   safetyForm.clinician_restriction_status = profile.clinician_restriction_status
   safetyForm.clinician_restrictions = profile.clinician_restrictions.join('\n')
   safetyForm.special_status = profile.special_status
@@ -86,6 +90,8 @@ function safetyPayload(): FoodSafetyProfileInput {
     medications: safetyForm.medication_status === 'present' ? lines(safetyForm.medications) : [],
     condition_status: safetyForm.condition_status,
     conditions: safetyForm.condition_status === 'present' ? lines(safetyForm.conditions) : [],
+    liver_kidney_status: safetyForm.liver_kidney_status,
+    liver_kidney_conditions: safetyForm.liver_kidney_status === 'present' ? lines(safetyForm.liver_kidney_conditions) : [],
     clinician_restriction_status: safetyForm.clinician_restriction_status,
     clinician_restrictions: safetyForm.clinician_restriction_status === 'present' ? lines(safetyForm.clinician_restrictions) : [],
     special_status: safetyForm.special_status,
@@ -287,6 +293,16 @@ onMounted(loadProfile)
         <label v-if="safetyForm.condition_status === 'present'">
           <span>健康状况（每行一项）</span>
           <textarea v-model="safetyForm.conditions" rows="3" maxlength="1200" placeholder="仅填写合成演示信息"></textarea>
+        </label>
+        <label>
+          <span>肝肾相关疾病或异常情况</span>
+          <select v-model="safetyForm.liver_kidney_status">
+            <option value="unknown">尚未回答</option><option value="none">明确没有</option><option value="present">有</option>
+          </select>
+        </label>
+        <label v-if="safetyForm.liver_kidney_status === 'present'">
+          <span>肝肾相关情况（每行一项）</span>
+          <textarea v-model="safetyForm.liver_kidney_conditions" rows="3" maxlength="1200" placeholder="仅填写合成演示信息"></textarea>
         </label>
         <label v-if="safetyForm.clinician_restriction_status === 'present'">
           <span>饮食限制（每行一项）</span>

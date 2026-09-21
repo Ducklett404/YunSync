@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     upload_storage_dir: str = "backend/data/uploads"
     ocr_timeout_seconds: float = Field(default=8.0, ge=0.1, le=60.0)
     ocr_max_attempts: int = Field(default=2, ge=1, le=4)
+    ocr_pdf_max_pages: int = Field(default=10, ge=1, le=20)
     maas_timeout_seconds: float = Field(default=8.0, ge=0.1, le=60.0)
     huawei_region: str = "cn-north-4"
     huawei_credential_mode: Literal["environment", "instance_metadata"] = "environment"

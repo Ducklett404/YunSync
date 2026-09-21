@@ -39,15 +39,20 @@
 | POST | `/api/v1/consents/accept` | 参与者 | 接受指定的当前授权版本 |
 | POST | `/api/v1/consents/withdraw` | 参与者 | 撤回授权并暂停活动实验 |
 | GET/PATCH | `/api/v1/profile` | 参与者、有效授权 | 读取或更新合成健康档案 |
-| GET/PATCH | `/api/v1/profile/food-safety` | 参与者、有效授权 | 读取或保存过敏、用药、疾病、饮食限制及特殊状态；未回答默认 `unknown` |
-| GET | `/api/v1/safety/decision` | 参与者、有效授权 | 返回初步安全分流、待补项目和规则版本；本版始终不放行正式方案 |
+| GET/PATCH | `/api/v1/profile/food-safety` | 参与者、有效授权 | 读取或保存过敏、用药、疾病、肝肾情况、饮食限制及特殊状态；未回答默认 `unknown` |
+| GET | `/api/v1/safety/decision` | 参与者、有效授权 | 返回 A/B/C 或资料/规则待办、待补项目和已发布规则版本 |
 | POST | `/api/v1/profile/screening` | 参与者、有效授权 | 保存四项安全初筛；任一项触发即停止自助实验 |
 | GET | `/api/v1/admin/audit-events` | 审核角色 | 返回最近 100 条最小化审计事件 |
 | GET | `/api/v1/admin/action-templates` | 审核角色 | 读取全部模板版本及治理状态 |
 | POST | `/api/v1/admin/action-templates/{id}/versions` | 审核角色 | 从已有模板复制一个不活动的草稿版本 |
 | PATCH | `/api/v1/admin/action-templates/{id}/status` | 审核角色 | 设置草稿、原型规则通过或停用状态；切换活动版本 |
+| GET | `/api/v1/admin/safety-rules` | 审核角色 | 读取安全规则发布和停用历史 |
+| POST | `/api/v1/admin/safety-rules` | 审核角色 | 登记完整审核范围、证据与资质说明并发布新版本；自动停用旧活动版本 |
+| PATCH | `/api/v1/admin/safety-rules/{id}/retire` | 审核角色 | 停用活动版本，使 A 层即时关闭 |
 
-食养安全档案的 PATCH 请求须包含五类状态；状态为 `present` 时须提供对应的非空条目列表。响应的 `readiness` 只表示资料状态或需专业评估，`awaiting_review_rules` 也不表示可以自动生成方案。审计只记录变更字段名和资料状态，不记录具体过敏、疾病或用药内容。
+食养安全档案的 PATCH 请求须包含过敏、用药、疾病、肝肾情况、医生限制和特殊状态六类状态；状态为 `present` 时须提供对应的非空条目列表。响应的 `readiness` 只表示资料状态或需专业评估。审计只记录变更字段名和资料状态，不记录具体过敏、疾病或用药内容。
+
+安全规则发布请求的 `attested` 必须为 `true`，并覆盖服务端规定的全部规则代码。发布接口只保存工作流记录，不验证审核人的执业资质真伪；上线验收必须核对 `evidence_ref` 和实际审核人。A 层只表示可进入后续已审核内容候选流程，不代表已生成食养方案。
 
 ## 4. 健康业务接口
 
@@ -57,6 +62,9 @@
 | GET | `/api/v1/reports/latest` | Bearer 会话 | 200 `ReportAnalysis` | 403 未授权；404 无报告 |
 | GET | `/api/v1/reports?limit=20&offset=0` | `limit` 1–100；`offset` ≥0 | 200 `ReportList` | 403 未授权；422 分页参数无效 |
 | GET | `/api/v1/reports/{report_id}` | path `report_id` | 200 `ReportAnalysis` | 404 报告不存在或不属于当前用户 |
+| POST | `/api/v1/reports/manual` | `ManualReport` | 200 `ReportAnalysis` | 400 重复标准指标；403 未授权；422 字段无效 |
+| PATCH | `/api/v1/reports/{report_id}/metadata` | 检查日期、检测机构 | 200 `ReportAnalysis` | 404 报告不存在；422 日期或字段无效 |
+| GET | `/api/v1/metrics/summary?report_limit=20` | `report_limit` 1–50 | 200 `MetricHistory` | 403 未授权；422 参数无效 |
 | POST | `/api/v1/reports/analyze` | form `file` | 200 `ReportAnalysis` | 401 未登录；403 未授权；400 文件；503 存储/OCR |
 | POST | `/api/v1/reports/{report_id}/retry` | path `report_id` | 200 `ReportAnalysis` | 409 状态不允许；503 存储/OCR |
 | PATCH | `/api/v1/reports/{report_id}/critical-marker` | `{ "status": "unknown|no|yes" }` | 200 `ReportAnalysis` | 404 报告不存在或不属于当前用户；422 状态无效 |
@@ -80,7 +88,13 @@
 
 所有路径参数对象均校验属于当前会话用户；其他用户的报告或实验统一返回 404。
 
-`ReportList` 返回 `items`、`total`、`limit`、`offset`。每项仅含报告 ID、文件名、状态、OCR 状态、用户确认的危急标记状态和创建时间；按创建时间、ID 降序排列。该接口用于切换已上传的报告批次，当前不提供跨报告趋势或数值可比性结论。安全分流只以最新报告为准。
+`ReportList` 返回 `items`、`total`、`limit`、`offset`。每项仅含报告 ID、文件名、状态、OCR 状态、用户确认的危急标记状态和创建时间；按创建时间、ID 降序排列。该接口用于切换已上传的报告批次。安全分流只以最新报告为准。
+
+`MetricHistory` 仅读取当前用户最近 `report_limit` 份**整份已确认**报告中的逐项已确认 P0 指标。已填写检查日期的记录按检查日期排序；缺少日期的历史记录排在已知日期之前。按标准代码合并别名，保留报告 ID、检查日期、机构、检测方法、原值、原单位、参考范围和单位投影。只有标准指标唯一、单位可投影、检查日期明确、两次检测方法填写并一致，且参考范围填写并经文本规范化后一致时，`latest_pair` 才返回标准单位下的算术差和方向。检测方法缺失或变化、参考范围缺失或不同、单位无法投影、同批次重复指标时差值为 `null`；机构和原单位变化以限制说明返回。参考范围规范化仅统一空白和常见标点写法，不推断区间的医学等价性。算术差不得被解释为临床趋势或食养效果。未知代码不进入此接口。历史规则版本为 `v2-history-draft-3`。
+
+### `ManualReport`
+
+手工批次包含 1—30 个指标、批次名称、带时区的检查时间和可选检测机构。每项包含名称、数值、单位、可选参考范围、可选检测方法和可选标准代码；普通用户页面不要求填写标准代码，后端按名称别名匹配，未知名称生成稳定的 `manual_*` 内部代码并保留原名称。同一批次映射到相同标准代码的重复项会整体拒绝。创建后所有指标仍为 `pending`，必须走逐项确认和报告最终确认；手工批次没有可下载源文件，源文件接口返回 409。
 
 `GET /actions` 只返回当前环境可发布的活动低风险模板。Development/Test 可使用 `prototype_approved`，Production 只接受 `professionally_approved`。同一行动代码最多一个活动版本。
 
@@ -97,15 +111,22 @@
 }
 ```
 
-修正请求必须同时提交四个可编辑字段。成功后 `review_status` 为 `corrected`；原始 `raw_text`、`extracted_value`、`extracted_unit` 和 `extracted_reference_range` 保持不变。没有实际变化时按普通确认处理。
+修正请求必须同时提交名称、数值、单位和参考范围，并可提交检测方法。成功后 `review_status` 为 `corrected`；原始 `raw_text`、`extracted_value`、`extracted_unit` 和 `extracted_reference_range` 保持不变。没有实际变化时按普通确认处理。整份报告确认后只能补充或更正检测方法，不能借此同时改变已锁定数值；单位/名称冲突的受限恢复路径除外。
 
 ### `ReportAnalysis`
 
 - 报告级状态：`status`、`ocr_status`、`ocr_attempts`、`ocr_error_code`、`ocr_provider`、`processed_at`；
+- 检查元数据：`examined_at`、`institution`；指标另含用户核对的 `method`。修改已确认报告的检查元数据或检测方法会将报告恢复为待确认状态，并记录不含具体内容的审计事件；
 - 用户对照原件确认的 `critical_marker_status`（`unknown` / `no` / `yes`）及 `critical_marker_reviewed_at`。默认 `unknown`；`yes` 触发初步 C 层安全提示，系统不从 OCR 数值或颜色推断危急值；
-- 非敏感存储元数据：`storage_provider`、`content_type`、`file_size`，不暴露内部对象键或磁盘路径；
+- 非敏感存储元数据：`storage_provider`、`source_available`、`content_type`、`file_size`，不暴露内部对象键或磁盘路径；`source_available=false` 时前端不请求或展示源文件预览；
 - 每个指标包含结构化值、原始文本、0–1 置信度、从 1 开始的页码、四项归一化坐标及 `pending` / `confirmed` / `corrected` 校对状态；
+- 每个指标的 `unit_projection` 在读取时按 `v2-unit-draft-1` 计算，包含 `status`、`standard_unit`、`standard_value`、`rule_version`。未确认、未知指标、名称冲突或不支持的单位不返回标准数值；原 `value`、`unit`、`reference_range` 和首次提取字段保持不变；
 - `ocr_status=failed` 时 `metrics` 必须为空。失败响应的 `detail` 包含 `message`、`report_id` 和稳定错误码，供页面恢复失败报告。
+
+关闭 Mock 后，华为云适配器按智能文档解析接口逐页提交 PDF，PNG/JPEG 提交一页；默认最多处理 10 页，可用 `OCR_PDF_MAX_PAGES` 在 1–20 页内配置。适配器只接收能映射到 P0 名称且表格行中具有明确数值和单位的候选，保留置信度和位置，其余内容交给人工录入或修正。真实云调用仍须凭证、服务开通和脱敏样本验收。
+
+已逐项确认的字段在报告最终确认前仍可修正。标准 P0 指标若有名称冲突或未支持的单位，`POST /reports/{report_id}/confirm` 返回 409；未知的非 P0 指标不参与单位投影，也不因缺少单位规则阻止报告确认。单位投影不代表跨实验室可比性已通过审核。
+对历史上已经确认、但现行单位规则判定有冲突的报告，仅冲突字段可重新修正；首次修正会将报告恢复为 `needs_confirmation`，须重新完成报告确认，并记录最小化审计事件。
 
 ### `Action`
 

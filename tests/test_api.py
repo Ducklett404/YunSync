@@ -476,6 +476,7 @@ def test_report_requires_magic_signature_and_sanitizes_filename():
     assert accepted.status_code == 200
     assert accepted.json()["filename"] == "synthetic.pdf"
     assert accepted.json()["storage_provider"] == "local_private"
+    assert accepted.json()["source_available"] is True
     assert accepted.json()["file_size"] == len(b"%PDF synthetic")
 
 

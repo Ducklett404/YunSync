@@ -15,6 +15,7 @@ def _readiness(data: FoodSafetyProfileIn, user: UserProfile) -> Readiness:
         data.allergy_status,
         data.medication_status,
         data.condition_status,
+        data.liver_kidney_status,
         data.clinician_restriction_status,
         data.special_status,
     ):
@@ -23,6 +24,7 @@ def _readiness(data: FoodSafetyProfileIn, user: UserProfile) -> Readiness:
         data.allergy_status,
         data.medication_status,
         data.condition_status,
+        data.liver_kidney_status,
         data.clinician_restriction_status,
     ) or data.special_status != "none":
         return "needs_professional_review"
@@ -38,6 +40,7 @@ def get_food_safety_profile(db: Session, user: UserProfile) -> FoodSafetyProfile
             "allergy_status": "unknown",
             "medication_status": "unknown",
             "condition_status": "unknown",
+            "liver_kidney_status": "unknown",
             "clinician_restriction_status": "unknown",
             "special_status": "unknown",
         }
