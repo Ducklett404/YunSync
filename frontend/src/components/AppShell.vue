@@ -5,6 +5,7 @@ import {
   FileScan,
   FlaskConical,
   LayoutDashboard,
+  LibraryBig,
   ShieldCheck,
   UserRoundCog,
 } from 'lucide-vue-next'
@@ -17,7 +18,11 @@ const signedInNavItems = [
   { to: '/profile', label: '账号与档案', icon: UserRoundCog },
 ]
 const navItems = computed(() =>
-  isAuthenticated.value
+  currentUser.value?.role === 'reviewer'
+    ? [
+        { to: '/admin/content', label: '内容知识库', icon: LibraryBig },
+      ]
+    : isAuthenticated.value
     ? signedInNavItems
     : [{ to: '/start', label: '开始使用', icon: CircleUserRound }],
 )

@@ -359,3 +359,73 @@ export interface AccountStatus {
   consent: ConsentRecord | null
   required_consent_version: string
 }
+
+export type ContentType = 'ingredient' | 'recipe' | 'contraindication'
+export type ContentStatus = 'draft' | 'reviewed' | 'published' | 'retired'
+
+export interface EvidenceSource {
+  id: string
+  code: string
+  version: string
+  ref: string
+  title: string
+  publisher: string
+  url_or_archive_ref: string
+  published_on: string
+  jurisdiction: string
+  content_hash: string
+  status: 'active' | 'superseded' | 'withdrawn'
+  checked_at: string
+  created_at: string
+}
+
+export interface ContentItem {
+  id: string
+  content_type: ContentType
+  code: string
+  version: string
+  title: string
+  payload: Record<string, unknown>
+  status: ContentStatus
+  is_active: boolean
+  created_by: string
+  created_at: string
+  published_at: string | null
+  retired_at: string | null
+}
+
+export interface ContentReview {
+  id: string
+  item_id: string
+  decision: 'approved' | 'rejected'
+  reviewer_id: string
+  reviewer_qualification: string
+  review_scope: string
+  evidence_ref: string
+  attested: boolean
+  notes: string
+  created_at: string
+}
+
+export interface ContentValidationResult {
+  item_id: string
+  content_type: ContentType | null
+  code: string | null
+  version: string | null
+  valid: boolean
+  errors: string[]
+  warnings: string[]
+}
+
+export interface BulkContentValidation {
+  valid: boolean
+  results: ContentValidationResult[]
+}
+
+export interface ContentComparison {
+  content_type: ContentType
+  code: string
+  from_version: string
+  to_version: string
+  changed_fields: Record<string, { from: unknown; to: unknown }>
+}

@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V1.0（含 V2 报告可比性和安全规则发布）
+> 版本：V1.1（含 V2 报告可比性、安全规则发布和 M4 内容知识库）
 >
-> 最新迁移：`e4f5a6b7c8d9_safety_rule_releases`
+> 最新迁移：`f5a6b7c8d9e0_content_knowledge_base`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -20,9 +20,11 @@ user_profiles 1 ── N health_reports 1 ── N health_metrics
 
 audit_logs：独立审计事件表，通过 actor_id 与 payload 中的业务 ID 追踪操作。
 safety_rule_releases：独立发布记录，由审核角色维护；同时最多一个活动版本。
+evidence_sources 1 ── N knowledge_items（通过 payload.source_refs 的稳定引用校验）
+knowledge_items 1 ── N content_reviews
 ```
 
-删除用户时，会话、授权、报告、指标、食养安全档案、实验和观察记录通过外键级联删除；行动模板和审计日志不随用户级联删除。审计日志只保存最小事件元数据，不保存会话令牌、文件名、档案正文、食养风险详情或初筛答案。
+删除用户时，会话、授权、报告、指标、食养安全档案、实验和观察记录通过外键级联删除；行动模板、知识条目、证据来源和审计日志不随用户级联删除。删除知识条目时，其审核记录级联删除。审计日志只保存最小事件元数据，不保存会话令牌、文件名、档案正文、食养风险详情、初筛答案、内容正文或审核资质正文。
 
 ## 2. `user_profiles`
 
@@ -101,6 +103,55 @@ safety_rule_releases：独立发布记录，由审核角色维护；同时最多
 | `published_at`, `retired_at` | timestamptz | 发布和停用时间 |
 
 发布、替换和停用均写入最小化审计；资质说明和证据正文不复制到审计 payload。没有活动版本时，安全决策保持 `awaiting_review_rules` 并阻断后续方案。
+
+## 4.3 `evidence_sources`
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `id` | varchar(36), PK | 来源版本 ID |
+| `code`, `version` | varchar(64/40) | 组成唯一索引和稳定引用 `code@version` |
+| `title`, `publisher` | varchar(240/160) | 来源标题与发布机构 |
+| `url_or_archive_ref` | varchar(500) | 官方 URL 或受控归档位置 |
+| `published_on` | date | 来源发布日期 |
+| `jurisdiction` | varchar(80) | 适用地区或演示范围 |
+| `content_hash` | varchar(64) | 登记内容的 SHA-256 标识 |
+| `status` | varchar(20) | `active` / `superseded` / `withdrawn` |
+| `checked_at`, `created_at` | timestamptz | 最近核验和创建时间 |
+
+同一 `code + version` 唯一。把来源改为非活动状态前，服务层检查是否仍被当前发布条目引用；存在引用时拒绝操作。
+
+## 4.4 `knowledge_items`
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `id` | varchar(36), PK | 条目版本 ID |
+| `content_type` | varchar(24) | `ingredient` / `recipe` / `contraindication` |
+| `code`, `version` | varchar(64/40) | 业务代码和不可变版本；同类型、代码、版本唯一 |
+| `title` | varchar(160) | 展示标题 |
+| `payload` | json | 由对应 Pydantic Schema 校验的结构化内容 |
+| `status` | varchar(20) | `draft` / `reviewed` / `published` / `retired` |
+| `is_active` | boolean | 是否为同类型、同代码的当前生效发布版本 |
+| `created_by` | varchar(36) | 创建账号或 `synthetic-seed` |
+| `created_at`, `published_at`, `retired_at` | timestamptz | 生命周期时间 |
+
+部分唯一索引 `uq_knowledge_items_active_version(content_type, code) WHERE is_active` 保证同时最多一个生效版本。食材 payload 保存物种、部位、类别、加工、过敏原、目录和来源；食谱保存精确食材版本、克数、步骤、替代、频次、周期、份量和注意事项；禁忌保存对象、触发条件、动作和提示。参与者目录只读取 `published + is_active`。
+
+## 4.5 `content_reviews`
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `id` | varchar(36), PK | 审核记录 ID |
+| `item_id` | FK → `knowledge_items.id` | 被审核的不可变内容版本；删除条目时级联删除 |
+| `decision` | varchar(16) | `approved` / `rejected` |
+| `reviewer_id` | varchar(36) | 执行审核的登录账号 |
+| `reviewer_qualification` | varchar(160) | 审核人声明的资质；正式上线须外部核验 |
+| `review_scope` | varchar(240) | 本次核对的内容范围 |
+| `evidence_ref` | varchar(240) | 签署、工单或受控证据位置 |
+| `attested` | boolean | 审核员是否主动确认声明 |
+| `notes` | text | 限制或修订说明，不复制到审计日志 |
+| `created_at` | timestamptz | 审核时间 |
+
+发布以按时间和 ID 排序的最新审核为准，必须为 `approved` 且 `attested=true`。已发布或已停用条目不可追加审核；修订须创建新版本。
 
 ## 5. `health_reports`
 

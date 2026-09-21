@@ -15,7 +15,9 @@ from app.services.identity_service import hash_session_token, identity_service
 
 ROLE_PERMISSIONS = {
     "participant": frozenset({"health:use", "profile:manage", "consent:manage"}),
-    "reviewer": frozenset({"audit:read", "templates:manage", "safety_rules:publish"}),
+    "reviewer": frozenset(
+        {"audit:read", "templates:manage", "safety_rules:publish", "content:manage"}
+    ),
 }
 
 bearer_scheme = HTTPBearer(auto_error=False)

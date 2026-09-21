@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { canAccessHealthFlow } from '@/state/onboarding'
-import { isAuthenticated } from '@/state/auth'
+import { currentUser, isAuthenticated } from '@/state/auth'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -13,10 +13,14 @@ export const router = createRouter({
     { path: '/experiment', name: 'experiment', component: () => import('@/views/ExperimentView.vue'), meta: { title: '个人实验', requiresOnboarding: true } },
     { path: '/results', name: 'results', component: () => import('@/views/ResultsView.vue'), meta: { title: '结果评估', requiresOnboarding: true } },
     { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { title: '账号与档案', requiresAuth: true } },
+    { path: '/admin/content', name: 'content-admin', component: () => import('@/views/AdminContentView.vue'), meta: { title: '内容知识库', requiresReviewer: true } },
   ],
 })
 
 router.beforeEach((to) => {
+  if (to.meta.requiresReviewer && (!isAuthenticated.value || currentUser.value?.role !== 'reviewer')) {
+    return { name: 'onboarding' }
+  }
   if (to.meta.requiresAuth && !isAuthenticated.value) {
     return { name: 'onboarding' }
   }

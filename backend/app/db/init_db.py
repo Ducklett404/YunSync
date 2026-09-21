@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.core.experiment_policy import SCHEDULE_VERSION, schedule_digest
 from app.db.session import SessionLocal
 from app.models import ActionTemplate, Experiment, HealthMetric, HealthReport, Observation, UserProfile
+from app.services.content_seed_service import seed_content_knowledge
 
 
 ACTION_SEEDS = [
@@ -110,6 +111,7 @@ def _demo_schedule(start: date) -> list[dict]:
 
 def seed_db() -> None:
     with SessionLocal() as db:
+        seed_content_knowledge(db)
         if db.get(UserProfile, "demo-user") is None:
             db.add(
                 UserProfile(

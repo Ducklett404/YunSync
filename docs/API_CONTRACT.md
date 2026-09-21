@@ -1,6 +1,6 @@
 # YunSync API 契约草案
 
-> 版本：V0.9
+> 版本：V1.0
 >
 > 基础路径：`/api/v1`
 >
@@ -49,10 +49,23 @@
 | GET | `/api/v1/admin/safety-rules` | 审核角色 | 读取安全规则发布和停用历史 |
 | POST | `/api/v1/admin/safety-rules` | 审核角色 | 登记完整审核范围、证据与资质说明并发布新版本；自动停用旧活动版本 |
 | PATCH | `/api/v1/admin/safety-rules/{id}/retire` | 审核角色 | 停用活动版本，使 A 层即时关闭 |
+| GET | `/api/v1/admin/content/sources` | 审核角色 | 按关键词和状态检索证据来源版本 |
+| POST | `/api/v1/admin/content/sources` | 审核角色 | 登记带内容标识和核验时间的证据来源版本 |
+| PATCH | `/api/v1/admin/content/sources/{id}/status` | 审核角色 | 生效、替代或撤回来源；仍被发布内容引用时拒绝停用 |
+| GET | `/api/v1/admin/content/items` | 审核角色 | 按类型、状态、标题或代码检索全部内容版本 |
+| POST | `/api/v1/admin/content/items` | 审核角色 | 创建经类型 Schema 和禁语检查的草稿版本 |
+| POST | `/api/v1/admin/content/items/{id}/review` | 审核角色 | 登记批准或退回、资质说明、范围和证据记录号 |
+| POST | `/api/v1/admin/content/items/{id}/publish` | 审核角色 | 校验最新批准、来源和依赖后发布，自动停用同代码旧版本 |
+| POST | `/api/v1/admin/content/items/{id}/retire` | 审核角色 | 停用指定内容版本 |
+| POST | `/api/v1/admin/content/items/{id}/rollback` | 审核角色 | 重新校验并恢复具备批准审核记录的历史版本 |
+| GET | `/api/v1/admin/content/{type}/{code}/compare` | 审核角色 | 比较 `from_version` 与 `to_version` 的字段变化 |
+| POST | `/api/v1/admin/content/validate` | 审核角色 | 批量校验 1—100 个条目的发布依赖 |
 
 食养安全档案的 PATCH 请求须包含过敏、用药、疾病、肝肾情况、医生限制和特殊状态六类状态；状态为 `present` 时须提供对应的非空条目列表。响应的 `readiness` 只表示资料状态或需专业评估。审计只记录变更字段名和资料状态，不记录具体过敏、疾病或用药内容。
 
 安全规则发布请求的 `attested` 必须为 `true`，并覆盖服务端规定的全部规则代码。发布接口只保存工作流记录，不验证审核人的执业资质真伪；上线验收必须核对 `evidence_ref` 和实际审核人。A 层只表示可进入后续已审核内容候选流程，不代表已生成食养方案。
+
+内容审核请求的 `attested` 同样必须为 `true`。服务端保存审核声明，但不验证资质真伪。食谱发布要求引用的每个精确食材版本、替代食材版本及禁忌规则均处于当前发布状态；食药物质还要求目录状态为 `listed`。创建和发布都会拒绝系统规定的医疗功效表述。发布、停用和回滚审计不复制审核资质、备注或条目正文。
 
 ## 4. 健康业务接口
 
@@ -65,6 +78,9 @@
 | POST | `/api/v1/reports/manual` | `ManualReport` | 200 `ReportAnalysis` | 400 重复标准指标；403 未授权；422 字段无效 |
 | PATCH | `/api/v1/reports/{report_id}/metadata` | 检查日期、检测机构 | 200 `ReportAnalysis` | 404 报告不存在；422 日期或字段无效 |
 | GET | `/api/v1/metrics/summary?report_limit=20` | `report_limit` 1–50 | 200 `MetricHistory` | 403 未授权；422 参数无效 |
+| GET | `/api/v1/catalog/ingredients` | 参与者有效授权 | 200 当前发布食材数组 | 401 未登录；403 未授权 |
+| GET | `/api/v1/catalog/recipes` | 参与者有效授权 | 200 当前发布食谱数组 | 401 未登录；403 未授权 |
+| GET | `/api/v1/catalog/contraindications` | 参与者有效授权 | 200 当前发布禁忌数组 | 401 未登录；403 未授权 |
 | POST | `/api/v1/reports/analyze` | form `file` | 200 `ReportAnalysis` | 401 未登录；403 未授权；400 文件；503 存储/OCR |
 | POST | `/api/v1/reports/{report_id}/retry` | path `report_id` | 200 `ReportAnalysis` | 409 状态不允许；503 存储/OCR |
 | PATCH | `/api/v1/reports/{report_id}/critical-marker` | `{ "status": "unknown|no|yes" }` | 200 `ReportAnalysis` | 404 报告不存在或不属于当前用户；422 状态无效 |
@@ -87,6 +103,8 @@
 | POST | `/api/v1/experiments/{id}/next-step` | `{ "code": "keep|adjust|extend|stop" }` | 200 `NextStepChoice` | 404 实验；422 代码无效 |
 
 所有路径参数对象均校验属于当前会话用户；其他用户的报告或实验统一返回 404。
+
+三个 `/catalog/*` 接口是后续推荐与 AI 表达层唯一允许使用的内容入口，只返回 `published` 且 `is_active=true` 的持久化条目及精确版本。无候选时返回空数组；调用方不得根据草稿、自由文本或模型常识补造食材、食谱、克数、频次或禁忌。
 
 `ReportList` 返回 `items`、`total`、`limit`、`offset`。每项仅含报告 ID、文件名、状态、OCR 状态、用户确认的危急标记状态和创建时间；按创建时间、ID 降序排列。该接口用于切换已上传的报告批次。安全分流只以最新报告为准。
 

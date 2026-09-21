@@ -6,6 +6,12 @@ import type {
   ActionTemplate,
   ConsentNotice,
   ConsentRecord,
+  BulkContentValidation,
+  ContentComparison,
+  ContentItem,
+  ContentReview,
+  ContentStatus,
+  ContentType,
   DashboardData,
   DemoSession,
   Experiment,
@@ -14,6 +20,7 @@ import type {
   ExperimentResult,
   FoodSafetyProfile,
   FoodSafetyProfileInput,
+  EvidenceSource,
   MetricHistory,
   ObservationImportResult,
   ReportAnalysis,
@@ -291,6 +298,61 @@ export async function saveNextStep(
     code: NextStepCode
     selected_at: string
   }>(`/experiments/${experimentId}/next-step`, { code })
+  return data
+}
+
+export async function fetchContentItems(filters: {
+  content_type?: ContentType
+  status?: ContentStatus
+  q?: string
+} = {}): Promise<ContentItem[]> {
+  const { data } = await client.get<ContentItem[]>('/admin/content/items', { params: filters })
+  return data
+}
+
+export async function fetchEvidenceSources(): Promise<EvidenceSource[]> {
+  const { data } = await client.get<EvidenceSource[]>('/admin/content/sources')
+  return data
+}
+
+export async function reviewContentItem(
+  itemId: string,
+  payload: {
+    decision: 'approved' | 'rejected'
+    reviewer_qualification: string
+    review_scope: string
+    evidence_ref: string
+    attested: true
+    notes: string
+  },
+): Promise<ContentReview> {
+  const { data } = await client.post<ContentReview>(`/admin/content/items/${itemId}/review`, payload)
+  return data
+}
+
+export async function changeContentItemStatus(
+  itemId: string,
+  action: 'publish' | 'retire' | 'rollback',
+): Promise<ContentItem> {
+  const { data } = await client.post<ContentItem>(`/admin/content/items/${itemId}/${action}`)
+  return data
+}
+
+export async function validateContentItems(itemIds: string[]): Promise<BulkContentValidation> {
+  const { data } = await client.post<BulkContentValidation>('/admin/content/validate', { item_ids: itemIds })
+  return data
+}
+
+export async function compareContentVersions(
+  contentType: ContentType,
+  code: string,
+  fromVersion: string,
+  toVersion: string,
+): Promise<ContentComparison> {
+  const { data } = await client.get<ContentComparison>(
+    `/admin/content/${contentType}/${code}/compare`,
+    { params: { from_version: fromVersion, to_version: toVersion } },
+  )
   return data
 }
 

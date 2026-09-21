@@ -93,11 +93,16 @@ async function loadAccount() {
   }
 }
 
-async function signInDemo() {
+async function signInDemo(accountId = 'demo-student') {
   loadingAccount.value = true
   accountError.value = ''
   try {
-    setAuthSession(await loginDemo())
+    const session = await loginDemo(accountId)
+    setAuthSession(session)
+    if (session.user.role === 'reviewer') {
+      await router.push('/admin/content')
+      return
+    }
     applyAccountStatus(await fetchAccountStatus())
   } catch (error) {
     accountError.value = getApiErrorMessage(error)
@@ -162,11 +167,16 @@ onMounted(loadAccount)
         <p v-if="currentUser">{{ currentUser.nickname }} · {{ currentUser.role === 'participant' ? '参与者' : '审核角色' }}</p>
         <p v-else>系统只签发短期演示会话，不需要手机号、邮箱或真实身份信息。</p>
       </div>
-      <button v-if="!isAuthenticated" class="button primary" :disabled="loadingAccount" @click="signInDemo">
-        <LoaderCircle v-if="loadingAccount" :size="17" class="spinning" />
-        <LogIn v-else :size="17" />
-        登录演示账号
-      </button>
+      <div v-if="!isAuthenticated" class="account-actions">
+        <button class="button primary" :disabled="loadingAccount" @click="signInDemo('demo-student')">
+          <LoaderCircle v-if="loadingAccount" :size="17" class="spinning" />
+          <LogIn v-else :size="17" />
+          登录参与者账号
+        </button>
+        <button class="button secondary" :disabled="loadingAccount" @click="signInDemo('demo-reviewer')">
+          登录审核员账号
+        </button>
+      </div>
       <span v-else class="status-badge safe">会话有效</span>
     </section>
 
