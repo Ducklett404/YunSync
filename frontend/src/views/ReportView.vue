@@ -496,7 +496,7 @@ async function finalizeReport() {
     report.value.status = 'confirmed'
     setReport(report.value)
     await loadMetricHistory()
-    success.value = '报告字段已逐项确认。食养方案功能仍在建设中。'
+    success.value = '报告字段已逐项确认。请继续完善安全档案；方案仅使用已审核发布的内容。'
   } catch (requestError) {
     error.value = getApiErrorMessage(requestError)
   } finally {

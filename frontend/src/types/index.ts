@@ -333,6 +333,55 @@ export interface SafetyDecision {
   missing_items: string[]
 }
 
+export interface CarePlanRequest {
+  selected_metric_codes: string[]
+  servings: number
+  start_on: string | null
+  max_minutes: number | null
+  max_budget_yuan_per_serving: number | null
+  available_cookware: string[]
+  preferred_taste: string
+  region: string
+  unavailable_ingredient_codes: string[]
+}
+
+export interface CarePlan {
+  id: string
+  report_id: string
+  status: 'READY' | 'ACTIVE' | 'PAUSED'
+  created_at: string
+  activated_at: string | null
+  paused_at: string | null
+  snapshot: {
+    schema_version: string
+    report_date: string
+    safety_rule_version: string
+    goals: { metric_id: string; code: string; name: string; value: number; unit: string; reference_range: string; report_date: string; statement: string }[]
+    recipes: {
+      code: string; version: string; title: string; servings: number; score: number
+      score_breakdown: Record<string, number>
+      matched_metric_codes: string[]; reason: string; goal_statement: string
+      materials: { code: string; version: string; title: string; grams: number; edible_part: string; preparation: string; substituted_for: string | null; alternatives: { code: string; version: string; title: string; grams: number; note: string }[] }[]
+      preprocessing: string[]
+      steps: { order: number; instruction: string; duration_minutes: number; heat: string; cookware: string[] }[]
+      frequency: string; max_weekly_uses: number; cycle: string; serving_note: string; caution: string
+      nutrition_tags: string[]; dining_alternatives: string[]; total_minutes: number; estimated_cost_yuan_per_serving: number | null
+      source_refs: string[]; review_id: string; published_at: string
+    }[]
+    schedule: { day: number; date: string; recipe_code: string; recipe_version: string; servings: number }[]
+    shopping_list: { code: string; version: string; title: string; total_grams: number; edible_part: string }[]
+    contraindication_refs: string[]
+    source_refs: string[]
+    constraints: CarePlanRequest
+    explanation_mode: 'reviewed_template'
+    ranking_policy_version: string
+    general_principle: string
+    professional_consultation: string
+    follow_up: string
+    disclaimer: string
+  }
+}
+
 export interface DemoSession {
   access_token: string
   token_type: string

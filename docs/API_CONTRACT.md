@@ -237,6 +237,17 @@
 
 ## 7. 错误状态码
 
+### V2 M5 食养方案接口
+
+所有接口要求当前版本授权的参与者会话，且仅能访问本人方案。
+
+- `GET /care-plans/current`：返回本人最近方案或 `null`；若活动方案的报告、安全规则、食谱、食材或来源失效，返回已暂停状态。
+- `POST /care-plans`：提交 `selected_metric_codes`（1–3 个已确认 P0 代码，可省略以使用最新报告的需关注指标）、`servings`、`start_on`、`max_minutes`、`max_budget_yuan_per_serving`、`available_cookware`、`preferred_taste`、`region` 和 `unavailable_ingredient_codes`。返回 `READY` 快照；同一输入及内容版本重复提交返回同一方案。
+- `POST /care-plans/{id}/activate`：再次检查当前报告、安全状态和所有引用版本，再将 `READY` 变为 `ACTIVE`。
+- `GET /care-plans/{id}/export`：导出本人方案、食谱卡、7 天安排和合并采购清单的 JSON，响应带 `private, no-store`。
+
+方案只从当前有效、具名审核的版本中生成。食谱需要结构化 `max_weekly_uses`，且 7 天安排不能超过该上限。资料不全、风险拦截、候选少于 3 道、频次无法覆盖 7 天或约束冲突时返回 `409`，不补造食谱或用量。当前合成种子仍为草稿，因此正式路径会返回明确阻断。
+
 | 状态码 | 场景 |
 |---:|---|
 | 400 | 文件、日期、实验状态或分组不符合业务规则 |

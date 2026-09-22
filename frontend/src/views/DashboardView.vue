@@ -25,7 +25,7 @@ const reportState = computed(() => {
     <PageHeader
       eyebrow="体检后食养随访 · V2 过渡版"
       title="健康数据准备"
-      description="先确认报告和个人档案。食养方案、周计划与复查功能会在后续里程碑逐步开放。"
+      description="先确认报告和个人档案，再查看经审核内容生成的食养方案。复查迭代将在后续里程碑开放。"
     >
       <button class="icon-button" title="刷新数据" :disabled="store.loading" @click="store.loadDashboard(true)">
         <RefreshCw :size="18" :class="{ spinning: store.loading }" />
@@ -62,8 +62,8 @@ const reportState = computed(() => {
           <div class="summary-icon gray"><UtensilsCrossed :size="20" /></div>
           <div>
             <span>食养方案</span>
-            <strong>建设中</strong>
-            <small>专业内容与安全规则尚待审核</small>
+            <strong>可检查</strong>
+            <small>仅在专业内容与安全规则发布后生成</small>
           </div>
         </article>
       </section>
@@ -103,8 +103,9 @@ const reportState = computed(() => {
             </div>
             <UserRoundCog :size="22" class="muted-icon" />
           </div>
-          <p class="panel-note">在档案中明确回答过敏、用药、疾病、肝肾情况、医生饮食限制和特殊状态。专业内容与安全规则审核完成前，不会开放正式食养方案。</p>
+          <p class="panel-note">在档案中明确回答过敏、用药、疾病、肝肾情况、医生饮食限制和特殊状态。专业内容与安全规则审核完成前，不会生成正式食养方案。</p>
           <RouterLink class="button secondary full-width" to="/profile">查看当前档案 <ArrowRight :size="17" /></RouterLink>
+          <RouterLink class="text-link" to="/care-plan">查看方案准备状态 <ArrowRight :size="16" /></RouterLink>
         </div>
       </section>
     </template>

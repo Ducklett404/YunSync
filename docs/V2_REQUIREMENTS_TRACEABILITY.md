@@ -24,10 +24,10 @@
 | CR-02 识别可信 | 原文页码/坐标、置信度、字段修正、审计、单位门禁 | `test_huawei_ocr_contract.py`、`test_unit_policy.py` | M2 契约完成；真实云验收待办 |
 | CR-03 看懂指标 | P0 字典、摘要、保守安全分流 | `test_metric_catalog.py`、`test_safety_rule_release.py` | M1–M3 底座完成；专业解释属后续阶段 |
 | CR-04 结合约束 | 过敏、用药、疾病、肝肾、医生限制、孕哺/特殊状态 | `test_food_safety_profile.py` | M3 工程完成 |
-| CR-05 食养建议 | 已发布知识目录与安全放行前置门禁；个体匹配属于 M5 | `test_safety_rule_release.py`、`test_content_knowledge.py` | M4 工程完成；专业审核待办 |
-| CR-06 材料准备 | 版本化 Ingredient 引用、材料克数、可食部、预处理和替换 | `test_content_knowledge.py` | M4 工程完成；M5 份数换算待办 |
-| CR-07 制作食用 | 连续步骤、时长、火候、厨具、频次、周期、份量和注意事项 | `test_content_knowledge.py` | M4 工程完成；专业审核待办 |
-| CR-08 持续执行 | 旧执行资产可迁移，V2 尚未接入 | 无 V2 验收证据 | M5–M6 待实施 |
+| CR-05 食养建议 | 已发布知识目录、安全放行、指标目标匹配及 3–7 张食谱卡 | `test_safety_rule_release.py`、`test_content_knowledge.py`、`test_care_plan_service.py` | M5 工程完成；专业与客户审核待办 |
+| CR-06 材料准备 | 版本化 Ingredient 引用、份数换算、替代比例与合并采购 | `test_content_knowledge.py`、`test_care_plan_service.py` | M5 工程完成；专业审核待办 |
+| CR-07 制作食用 | 连续步骤、时长、火候、厨具、周频次上限、周期、份量和注意事项 | `test_content_knowledge.py`、`test_care_plan_service.py` | M5 工程完成；专业审核待办 |
+| CR-08 持续执行 | 7 天示例安排和导出；实际完成、跳过、不适反馈仍待接入 | `test_care_plan_service.py` | M5 安排完成；M6 反馈待实施 |
 | CR-09 复查更新 | 跨报告对齐及保守可比性门禁 | `test_metric_history.py` | M2 数据底座完成；方案迭代待 M7 |
 | CR-10 安全追溯 | 规则版本发布/停用、角色权限、审计 | `test_safety_rule_release.py` | M3 工程完成；专业签署待办 |
 

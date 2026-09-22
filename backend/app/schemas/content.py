@@ -125,9 +125,14 @@ class RecipePayload(BaseModel):
     preprocessing: list[Annotated[str, Field(max_length=240)]] = Field(min_length=1, max_length=20)
     steps: list[RecipeStep] = Field(min_length=1, max_length=30)
     frequency: str = Field(min_length=2, max_length=160)
+    max_weekly_uses: int | None = Field(default=None, ge=1, le=7)
     cycle: str = Field(min_length=2, max_length=160)
     serving_note: str = Field(min_length=3, max_length=240)
     nutrition_tags: list[Annotated[str, Field(max_length=80)]] = Field(default_factory=list, max_length=20)
+    estimated_cost_yuan_per_serving: float | None = Field(default=None, ge=0, le=10000)
+    taste_tags: list[Annotated[str, Field(max_length=80)]] = Field(default_factory=list, max_length=20)
+    region_tags: list[Annotated[str, Field(max_length=80)]] = Field(default_factory=list, max_length=20)
+    dining_alternatives: list[Annotated[str, Field(min_length=3, max_length=240)]] = Field(default_factory=list, max_length=8)
     contraindication_codes: list[str] = Field(default_factory=list, max_length=30)
     caution: str = Field(min_length=3, max_length=500)
     source_refs: list[str] = Field(min_length=1, max_length=20)
@@ -136,6 +141,9 @@ class RecipePayload(BaseModel):
         "target_tags",
         "preprocessing",
         "nutrition_tags",
+        "taste_tags",
+        "region_tags",
+        "dining_alternatives",
         "contraindication_codes",
     )
     @classmethod

@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.controllers import (
     actions,
+    care_plans,
     catalog,
     content_admin,
     dashboard,
@@ -18,6 +19,7 @@ from app.controllers import (
 api_router = APIRouter()
 api_router.include_router(identity.router)
 api_router.include_router(catalog.router)
+api_router.include_router(care_plans.router)
 api_router.include_router(content_admin.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(reports.router)

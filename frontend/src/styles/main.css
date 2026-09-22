@@ -486,7 +486,28 @@ a { color: inherit; text-decoration: none; }
 .evidence-source-list strong { font-size: 13px; }
 .evidence-source-list span:not(.status-badge) { margin-top: 4px; color: var(--muted); font-size: 11px; }
 
+.plan-form { display: grid; gap: 16px; }
+.plan-metric-options { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 5px; }
+.plan-metric-options legend { padding: 0 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.plan-metric-options label { display: flex; align-items: center; gap: 7px; padding: 8px 10px; background: #f5f7f7; border-radius: 4px; font-size: 12px; }
+.plan-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.plan-fields label { display: grid; gap: 6px; color: #48565c; font-size: 12px; font-weight: 700; }
+.plan-fields input { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid #cfd8da; border-radius: 5px; }
+.plan-recipes { display: grid; gap: 10px; margin-top: 14px; }
+.plan-recipe { padding: 14px; border: 1px solid var(--line); border-radius: 5px; }
+.plan-recipe summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; cursor: pointer; }
+.plan-recipe summary span, .plan-recipe p, .plan-recipe li, .plan-recipe small { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.plan-recipe h3 { margin: 16px 0 6px; font-size: 14px; }
+.plan-recipe ul, .plan-recipe ol { padding-left: 20px; }
+.plan-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin: 14px 0 24px; }
+.plan-week > div { display: grid; gap: 6px; padding: 12px; background: #f5f7f7; border-radius: 5px; }
+.plan-week strong { font-size: 12px; }
+.plan-week span { color: var(--muted); font-size: 11px; }
+.plan-shopping { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; padding: 0; list-style: none; }
+.plan-shopping li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+
 @media (max-width: 980px) {
+  .plan-week { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .app-shell { grid-template-columns: 86px minmax(0, 1fr); }
   .sidebar { padding-inline: 10px; }
   .brand { justify-content: center; padding-inline: 0; }
@@ -507,6 +528,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (max-width: 680px) {
+  .plan-fields, .plan-shopping { grid-template-columns: 1fr; }
+  .plan-week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app-shell { display: block; }
   .sidebar { position: fixed; inset: auto 0 0; z-index: 40; width: 100%; height: 64px; padding: 7px 8px; border-top: 1px solid #30454b; }
   .brand, .safety-block { display: none; }

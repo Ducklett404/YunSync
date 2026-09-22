@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LibraryBig,
   ShieldCheck,
+  UtensilsCrossed,
   UserRoundCog,
 } from 'lucide-vue-next'
 import { currentUser, isAuthenticated } from '@/state/auth'
@@ -15,6 +16,7 @@ const signedInNavItems = [
   { to: '/', label: '健康总览', icon: LayoutDashboard },
   { to: '/report', label: '报告确认', icon: FileScan },
   { to: '/safety', label: '安全提示', icon: ShieldCheck },
+  { to: '/care-plan', label: '食养方案', icon: UtensilsCrossed },
   { to: '/profile', label: '账号与档案', icon: UserRoundCog },
 ]
 const navItems = computed(() =>

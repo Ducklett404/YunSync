@@ -12,6 +12,8 @@ import type {
   ContentReview,
   ContentStatus,
   ContentType,
+  CarePlan,
+  CarePlanRequest,
   DashboardData,
   DemoSession,
   Experiment,
@@ -102,6 +104,26 @@ export async function updateFoodSafetyProfile(payload: FoodSafetyProfileInput): 
 
 export async function fetchSafetyDecision(): Promise<SafetyDecision> {
   const { data } = await client.get<SafetyDecision>('/safety/decision')
+  return data
+}
+
+export async function fetchCurrentCarePlan(): Promise<CarePlan | null> {
+  const { data } = await client.get<CarePlan | null>('/care-plans/current')
+  return data
+}
+
+export async function createCarePlan(payload: CarePlanRequest): Promise<CarePlan> {
+  const { data } = await client.post<CarePlan>('/care-plans', payload)
+  return data
+}
+
+export async function activateCarePlan(planId: string): Promise<CarePlan> {
+  const { data } = await client.post<CarePlan>(`/care-plans/${planId}/activate`)
+  return data
+}
+
+export async function downloadCarePlan(planId: string): Promise<Blob> {
+  const { data } = await client.get<Blob>(`/care-plans/${planId}/export`, { responseType: 'blob' })
   return data
 }
 
