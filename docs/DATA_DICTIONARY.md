@@ -1,8 +1,8 @@
 # YunSync 数据字典
 
-> 版本：V1.1（含 V2 报告可比性、安全规则发布和 M4 内容知识库）
+> 版本：V1.2（含 V2 报告可比性、内容知识库和 M5–M6 方案闭环）
 >
-> 最新迁移：`f5a6b7c8d9e0_content_knowledge_base`
+> 最新迁移：`b7c8d9e0f1a2_care_plan_follow_up`
 >
 > 数据口径：开发与演示环境只保存合成数据
 
@@ -14,6 +14,9 @@ user_profiles 1 ── N health_reports 1 ── N health_metrics
        ├─────── 1 ── N auth_sessions
        ├─────── 1 ── N consent_records
        ├─────── 1 ── 0..1 food_safety_profiles
+       ├─────── 1 ── N care_plans 1 ── N adherence_logs
+       │                    ├──── 1 ── 0..1 follow_up_reminders
+       │                    └──── old/new plan_revisions
        └─────── 1 ── N experiments N ── 1 action_templates
                            │
                            └──── 1 ── N observations
@@ -24,7 +27,7 @@ evidence_sources 1 ── N knowledge_items（通过 payload.source_refs 的稳�
 knowledge_items 1 ── N content_reviews
 ```
 
-删除用户时，会话、授权、报告、指标、食养安全档案、实验和观察记录通过外键级联删除；行动模板、知识条目、证据来源和审计日志不随用户级联删除。删除知识条目时，其审核记录级联删除。审计日志只保存最小事件元数据，不保存会话令牌、文件名、档案正文、食养风险详情、初筛答案、内容正文或审核资质正文。
+删除用户时，会话、授权、报告、指标、食养安全档案、方案、执行记录、提醒、修订、实验和观察记录通过外键级联删除；行动模板、知识条目、证据来源和审计日志不随用户级联删除。删除知识条目时，其审核记录级联删除。审计日志只保存最小事件元数据，不保存会话令牌、文件名、档案正文、食养风险详情、初筛答案、执行备注、内容正文或审核资质正文。
 
 ## 2. `user_profiles`
 
@@ -213,6 +216,62 @@ knowledge_items 1 ── N content_reviews
 `unit_projection` 是 API 根据已确认的 `code`、`name`、`value` 和 `unit` 动态生成的派生字段，不入库。已知 P0 指标的名称或单位冲突会阻止报告最终确认；原 `value`、`unit`、`reference_range` 与 `extracted_*` 字段不被换算覆盖。投影规则版本为 `v2-unit-draft-1`，不能替代检测方法和参考范围可比性审核。
 
 组合索引 `idx_health_metrics_report_name(report_id, name)` 支持报告指标列表的过滤与稳定排序。
+
+## 6.1 `care_plans`
+
+| 字段 | 类型 | 约束/默认值 | 含义 |
+|---|---|---|---|
+| `id` | varchar(36) | PK, UUID | 方案快照标识 |
+| `user_id` | varchar(36) | FK → `user_profiles.id`, cascade | 所属参与者 |
+| `report_id` | varchar(36) | FK → `health_reports.id`, cascade | 本版方案依据的已确认报告 |
+| `status` | varchar(16) | check | `READY` / `ACTIVE` / `PAUSED` / `SUPERSEDED` |
+| `request_hash` | varchar(64) | 与用户联合唯一 | 方案输入与快照摘要，支持幂等 |
+| `snapshot` | json | 非空 | 目标、审核食谱版本、7 天安排、采购、来源、安全规则及生成约束的不可变快照 |
+| `version` | integer | 默认 1，与用户联合唯一 | 当前用户方案链中的显示版本；迁移按创建时间为旧方案回填 |
+| `previous_plan_id` | varchar(36) nullable | self FK, delete set null | 直接上一版方案 |
+| `pause_reason` | varchar(40) nullable | 无 | `new_report`、`adverse_feedback`、`reassessment_required` 或 `expired_draft` 等机器可读原因 |
+| `created_at` / `activated_at` / `paused_at` / `superseded_at` | timestamptz | 后三者可空 | 各状态时间 |
+
+每名用户同时最多一个 `ACTIVE` 方案。模板、来源或风险失效以及新报告出现时，活动或待确认方案转为 `PAUSED`；新版本确认后旧版转为只读 `SUPERSEDED`，历史 `snapshot` 不被新模板覆盖。
+
+## 6.2 `adherence_logs`
+
+| 字段 | 类型 | 约束/默认值 | 含义 |
+|---|---|---|---|
+| `id` | varchar(36) | PK, UUID | 执行记录标识 |
+| `user_id` / `plan_id` | varchar(36) | FK, cascade | 所属用户与方案 |
+| `day` | integer | 1–7，与方案联合唯一 | 方案安排日序号 |
+| `status` | varchar(16) | check | `completed` / `skipped` / `replaced` |
+| `replacement` | varchar(120) | 默认空 | 用户实际自行替换内容，仅作事实记录 |
+| `discomfort` | boolean | 默认 false | true 时即时暂停方案且不能自行撤销 |
+| `note` | text | 默认空 | 最小必要执行备注；不进入审计 payload |
+| `created_at` / `updated_at` | timestamptz | 非空 | 创建及最近更新时间 |
+
+## 6.3 `follow_up_reminders`
+
+| 字段 | 类型 | 约束/默认值 | 含义 |
+|---|---|---|---|
+| `id` | varchar(36) | PK, UUID | 提醒标识 |
+| `user_id` / `plan_id` | varchar(36) | FK, cascade；每方案最多一条 | 所属用户与方案 |
+| `remind_on` | date | 非空 | 用户按已有依据填写的日期 |
+| `basis` | varchar(16) | 应用层枚举 | `doctor` / `report` / `personal` |
+| `note` | varchar(240) | 默认空 | 日期依据简述；系统不生成医学周期 |
+| `enabled` | boolean | 默认 true | 是否显示应用内到期提示 |
+| `updated_at` | timestamptz | 非空 | 最近更新时间 |
+
+## 6.4 `plan_revisions`
+
+| 字段 | 类型 | 约束/默认值 | 含义 |
+|---|---|---|---|
+| `id` | varchar(36) | PK, UUID | 修订记录标识 |
+| `user_id` | varchar(36) | FK, cascade | 所属参与者 |
+| `old_plan_id` / `new_plan_id` | varchar(36) | FK, cascade；各自唯一 | 旧快照与新草案，一条旧方案最多产生一个自动修订 |
+| `new_report_id` | varchar(36) | FK, cascade | 第二份已确认报告 |
+| `changes` | json | 非空 | 指标、食谱和日程的继续/减少/增加/替换/暂停/新增说明，相同食谱记录周安排次数变化 |
+| `comparison` | json | 非空 | 两报告保守对比及旧方案执行汇总快照；不包含自由文本备注 |
+| `created_at` | timestamptz | 非空 | 修订时间 |
+
+修订记录保存生成当时的可比性限制和执行天数汇总。执行反馈只作为可执行性背景，不用于把指标变化归因于方案。
 
 ## 7. `action_templates`
 

@@ -10,6 +10,7 @@ export const router = createRouter({
     { path: '/report', name: 'report', component: () => import('@/views/ReportView.vue'), meta: { title: '报告确认', requiresOnboarding: true } },
     { path: '/safety', name: 'safety', component: () => import('@/views/SafetyView.vue'), meta: { title: '安全提示', requiresAuth: true } },
     { path: '/care-plan', name: 'care-plan', component: () => import('@/views/CarePlanView.vue'), meta: { title: '食养方案', requiresOnboarding: true } },
+    { path: '/follow-up', name: 'follow-up', component: () => import('@/views/FollowUpView.vue'), meta: { title: '执行与复查', requiresOnboarding: true } },
     { path: '/actions', name: 'actions', component: () => import('@/views/ActionsView.vue'), meta: { title: '候选行动', requiresOnboarding: true } },
     { path: '/experiment', name: 'experiment', component: () => import('@/views/ExperimentView.vue'), meta: { title: '个人实验', requiresOnboarding: true } },
     { path: '/results', name: 'results', component: () => import('@/views/ResultsView.vue'), meta: { title: '结果评估', requiresOnboarding: true } },

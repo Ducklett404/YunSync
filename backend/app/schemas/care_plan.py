@@ -124,10 +124,78 @@ class CarePlanSnapshot(BaseModel):
 class CarePlanOut(BaseModel):
     id: str
     report_id: str
-    status: Literal["READY", "ACTIVE", "PAUSED"]
+    status: Literal["READY", "ACTIVE", "PAUSED", "SUPERSEDED"]
+    version: int
+    previous_plan_id: str | None
+    pause_reason: str | None
+    superseded_at: datetime | None
     snapshot: CarePlanSnapshot
     created_at: datetime
     activated_at: datetime | None
     paused_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class AdherenceLogIn(BaseModel):
+    status: Literal["completed", "skipped", "replaced"]
+    replacement: str = Field(default="", max_length=120)
+    discomfort: bool = False
+    note: str = Field(default="", max_length=500)
+
+    @field_validator("replacement", "note")
+    @classmethod
+    def clean_feedback_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class AdherenceLogOut(AdherenceLogIn):
+    id: str
+    plan_id: str
+    day: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ReminderIn(BaseModel):
+    remind_on: date
+    basis: Literal["doctor", "report", "personal"]
+    note: str = Field(default="", max_length=240)
+    enabled: bool = True
+
+    @field_validator("note")
+    @classmethod
+    def clean_reminder_note(cls, value: str) -> str:
+        return value.strip()
+
+
+class ReminderOut(ReminderIn):
+    id: str
+    plan_id: str
+    due: bool
+    updated_at: datetime
+
+
+class FollowUpCompareIn(BaseModel):
+    previous_report_id: str
+    current_report_id: str
+
+
+class RevisionChange(BaseModel):
+    type: Literal["continued", "reduced", "increased", "replaced", "paused", "added"]
+    subject: str
+    reason: str
+
+
+class PlanRevisionOut(BaseModel):
+    id: str
+    old_plan_id: str
+    new_plan_id: str
+    new_report_id: str
+    changes: list[RevisionChange]
+    comparison: dict
+    created_at: datetime
 
     model_config = {"from_attributes": True}

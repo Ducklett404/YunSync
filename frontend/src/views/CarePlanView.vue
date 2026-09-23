@@ -113,7 +113,7 @@ onMounted(load)
 
 <template>
   <div class="page-stack">
-    <PageHeader eyebrow="V2 · M5 个体方案" title="食养方案与一周安排"
+    <PageHeader eyebrow="V2 · M5–M6 食养方案" title="食养方案与一周安排"
       description="从已确认指标和经专业审核发布的食谱中生成一周示例餐食，材料和采购量可逐项核对。">
       <button class="icon-button" title="刷新方案状态" :disabled="loading" @click="load">
         <RefreshCw :size="18" :class="{ spinning: loading }" />
@@ -168,8 +168,10 @@ onMounted(load)
           <label>地域标签（可选） <input v-model="form.region" maxlength="80" placeholder="仅匹配审核模板已有标签" /></label>
           <label>暂不可得食材代码（逗号分隔，可选） <input v-model="unavailableText" placeholder="将优先使用审核过的替代材料" /></label>
         </div>
-        <button class="button primary" :disabled="saving || !safety?.can_generate_plan || !form.selected_metric_codes.length || plan?.status === 'ACTIVE'"
+        <button class="button primary" :disabled="saving || !safety?.can_generate_plan || !form.selected_metric_codes.length || plan?.status === 'ACTIVE' || plan?.status === 'READY' || plan?.pause_reason === 'new_report' || plan?.pause_reason === 'adverse_feedback'"
           @click="generate">{{ saving ? '正在校验…' : '生成方案草案' }}</button>
+        <p v-if="plan?.pause_reason === 'new_report'" class="panel-note">新报告已到，请到 <RouterLink to="/follow-up">执行与复查</RouterLink> 页面完成对比并生成新版本。</p>
+        <p v-if="plan?.pause_reason === 'adverse_feedback'" class="panel-note">因不适已暂停，需先寻求专业评估，系统不自动生成新方案。</p>
       </section>
 
       <template v-if="plan">
@@ -184,7 +186,8 @@ onMounted(load)
           <p class="panel-note">禁忌版本：{{ plan.snapshot.contraindication_refs.join('、') || '本期食谱无专属禁忌条目' }} · 排序规则：{{ plan.snapshot.ranking_policy_version }}</p>
           <button v-if="plan.status === 'READY'" class="button primary" :disabled="saving" @click="activate">核对后确认方案</button>
           <button class="button secondary" @click="exportPlan">导出方案与采购清单 JSON</button>
-          <p v-if="plan.status === 'PAUSED'" class="message error-message">报告、安全条件或内容版本已变化，此方案仅供历史核对。</p>
+          <RouterLink class="button secondary" to="/follow-up">记录执行与复查</RouterLink>
+          <p v-if="plan.status === 'PAUSED'" class="message error-message">{{ plan.pause_reason === 'adverse_feedback' ? '已记录不适，请停止执行并寻求专业评估。' : '报告、安全条件或内容版本已变化，此方案仅供历史核对。' }}</p>
         </section>
 
         <section class="panel">

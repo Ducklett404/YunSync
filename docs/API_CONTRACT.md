@@ -244,9 +244,22 @@
 - `GET /care-plans/current`：返回本人最近方案或 `null`；若活动方案的报告、安全规则、食谱、食材或来源失效，返回已暂停状态。
 - `POST /care-plans`：提交 `selected_metric_codes`（1–3 个已确认 P0 代码，可省略以使用最新报告的需关注指标）、`servings`、`start_on`、`max_minutes`、`max_budget_yuan_per_serving`、`available_cookware`、`preferred_taste`、`region` 和 `unavailable_ingredient_codes`。返回 `READY` 快照；同一输入及内容版本重复提交返回同一方案。
 - `POST /care-plans/{id}/activate`：再次检查当前报告、安全状态和所有引用版本，再将 `READY` 变为 `ACTIVE`。
-- `GET /care-plans/{id}/export`：导出本人方案、食谱卡、7 天安排和合并采购清单的 JSON，响应带 `private, no-store`。
+- `GET /care-plans/{id}/export`：导出 `yunsync-care-plan-v2` JSON，包含方案 ID、版本、上一版引用、状态、食谱卡、7 天安排和合并采购清单，响应带 `private, no-store`。
 
 方案只从当前有效、具名审核的版本中生成。食谱需要结构化 `max_weekly_uses`，且 7 天安排不能超过该上限。资料不全、风险拦截、候选少于 3 道、频次无法覆盖 7 天或约束冲突时返回 `409`，不补造食谱或用量。当前合成种子仍为草稿，因此正式路径会返回明确阻断。
+
+### V2 M6 执行、复查与方案修订接口
+
+所有接口要求当前授权的参与者身份；方案、日志、提醒和两份报告均核对归属，越权返回 `404`。`PUT` 写入同一内容幂等。
+
+- `GET /care-plans`、`GET /care-plans/{id}`：按本人权限读取最近 20 个方案或指定历史快照；方案含 `version`、`previous_plan_id`、`pause_reason` 和 `SUPERSEDED` 状态。
+- `GET /care-plans/{id}/logs`、`PUT /care-plans/{id}/logs/{day}`：读取或记录 1–7 天的执行情况。`status` 为 `completed`、`skipped` 或 `replaced`；替换必须填写 `replacement`，只作为用户事实记录；`discomfort=true` 立即将活动方案暂停且不可自行撤销。
+- `GET /care-plans/{id}/reminder`、`PUT /care-plans/{id}/reminder`：用户提供 `remind_on`、`basis`（`doctor` / `report` / `personal`）、`note` 和 `enabled`。医生或报告依据须说明日期来源。服务端只提供应用内 `due` 状态，不推断医学周期或发送外部通知。
+- `POST /follow-ups/compare`：提交 `previous_report_id` 与 `current_report_id`，仅对两份本人已确认报告中的 P0 指标进行配对；返回检查时间间隔、原值/单位、按现有单位规则得到的算术差和可比性限制。缺少检查日期、方法或参考范围等情况停止差值计算；任何变化均不解释为食谱疗效。
+- `POST /care-plans/{id}/revise`：以已因新报告暂停的旧方案为基线，重跑 M5 安全与内容校验，生成 `READY` 新版本和变更日志。重复相同输入返回同一版本；不适反馈后禁止自动修订。
+- `GET /care-plans/{id}/revision`：返回旧/新方案、第二份报告、保守对比快照，以及 `continued` / `reduced` / `increased` / `replaced` / `paused` / `added` 模板变更记录；相同食谱会记录新旧周安排次数。新版本经用户确认后旧版本转为只读 `SUPERSEDED`。
+
+新报告上传、逐项核对和整份确认继续使用 `/reports` 既有接口。旧方案及逐日记录保留，不覆盖历史；暂停或未确认的方案不能记录未来执行。
 
 | 状态码 | 场景 |
 |---:|---|

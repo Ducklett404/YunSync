@@ -505,6 +505,20 @@ a { color: inherit; text-decoration: none; }
 .plan-week span { color: var(--muted); font-size: 11px; }
 .plan-shopping { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; padding: 0; list-style: none; }
 .plan-shopping li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.follow-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.follow-fields label { display: grid; gap: 6px; color: #48565c; font-size: 12px; font-weight: 700; }
+.follow-fields input:not([type="checkbox"]), .follow-fields select, .follow-fields textarea { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid #cfd8da; border-radius: 5px; color: var(--ink); background: white; font: inherit; }
+.follow-fields textarea { resize: vertical; }
+.follow-fields .follow-wide { grid-column: 1 / -1; }
+.follow-fields .follow-check { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; }
+.follow-records, .follow-history, .follow-comparison { display: grid; gap: 8px; margin-top: 18px; }
+.follow-records > div { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 12px; background: #f5f7f7; border-radius: 5px; font-size: 12px; }
+.follow-records span { color: var(--muted); }
+.follow-compare-row { display: grid; grid-template-columns: minmax(100px, .7fr) repeat(2, minmax(130px, 1fr)); gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.follow-compare-row small { grid-column: 1 / -1; color: var(--muted); line-height: 1.5; }
+.follow-history details { padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; }
+.follow-history summary { cursor: pointer; font-weight: 700; }
+.follow-history p { color: var(--muted); }
 
 @media (max-width: 980px) {
   .plan-week { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -528,7 +542,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (max-width: 680px) {
-  .plan-fields, .plan-shopping { grid-template-columns: 1fr; }
+  .plan-fields, .plan-shopping, .follow-fields { grid-template-columns: 1fr; }
+  .follow-compare-row { grid-template-columns: 1fr; }
   .plan-week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app-shell { display: block; }
   .sidebar { position: fixed; inset: auto 0 0; z-index: 40; width: 100%; height: 64px; padding: 7px 8px; border-top: 1px solid #30454b; }

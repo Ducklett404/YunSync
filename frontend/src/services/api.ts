@@ -14,6 +14,12 @@ import type {
   ContentType,
   CarePlan,
   CarePlanRequest,
+  AdherenceLog,
+  AdherenceLogInput,
+  FollowUpComparison,
+  FollowUpReminder,
+  FollowUpReminderInput,
+  PlanRevision,
   DashboardData,
   DemoSession,
   Experiment,
@@ -109,6 +115,48 @@ export async function fetchSafetyDecision(): Promise<SafetyDecision> {
 
 export async function fetchCurrentCarePlan(): Promise<CarePlan | null> {
   const { data } = await client.get<CarePlan | null>('/care-plans/current')
+  return data
+}
+
+export async function fetchCarePlanHistory(): Promise<CarePlan[]> {
+  const { data } = await client.get<CarePlan[]>('/care-plans')
+  return data
+}
+
+export async function fetchCarePlanLogs(planId: string): Promise<AdherenceLog[]> {
+  const { data } = await client.get<AdherenceLog[]>(`/care-plans/${planId}/logs`)
+  return data
+}
+
+export async function putCarePlanLog(planId: string, day: number, payload: AdherenceLogInput): Promise<AdherenceLog> {
+  const { data } = await client.put<AdherenceLog>(`/care-plans/${planId}/logs/${day}`, payload)
+  return data
+}
+
+export async function fetchFollowUpReminder(planId: string): Promise<FollowUpReminder | null> {
+  const { data } = await client.get<FollowUpReminder | null>(`/care-plans/${planId}/reminder`)
+  return data
+}
+
+export async function putFollowUpReminder(planId: string, payload: FollowUpReminderInput): Promise<FollowUpReminder> {
+  const { data } = await client.put<FollowUpReminder>(`/care-plans/${planId}/reminder`, payload)
+  return data
+}
+
+export async function compareFollowUpReports(previousReportId: string, currentReportId: string): Promise<FollowUpComparison> {
+  const { data } = await client.post<FollowUpComparison>('/follow-ups/compare', {
+    previous_report_id: previousReportId, current_report_id: currentReportId,
+  })
+  return data
+}
+
+export async function reviseCarePlan(planId: string, payload: CarePlanRequest): Promise<CarePlan> {
+  const { data } = await client.post<CarePlan>(`/care-plans/${planId}/revise`, payload)
+  return data
+}
+
+export async function fetchPlanRevision(planId: string): Promise<PlanRevision | null> {
+  const { data } = await client.get<PlanRevision | null>(`/care-plans/${planId}/revision`)
   return data
 }
 

@@ -1,6 +1,6 @@
 """Three synthetic M5 cases and fail-closed plan state transitions."""
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,11 +13,15 @@ from app.db.session import get_db
 from app.core.security import require_active_participant
 from app.main import app
 from app.models import (
-    CarePlan, ContentReview, EvidenceSource, FoodSafetyProfile, HealthMetric,
+    AuditLog, CarePlan, ContentReview, EvidenceSource, FoodSafetyProfile, HealthMetric,
     HealthReport, KnowledgeItem, SafetyRuleRelease, UserProfile,
 )
-from app.schemas.care_plan import CarePlanRequest
+from app.schemas.care_plan import AdherenceLogIn, CarePlanRequest, ReminderIn
 from app.services.care_plan_service import CarePlanConflict, care_plan_service
+from app.services.care_plan_follow_up_service import (
+    get_revision, record_log, revise_plan, set_reminder,
+)
+from app.services.follow_up_service import compare_reports
 from app.services.safety_rule_service import REQUIRED_SAFETY_RULE_CODES
 
 
@@ -244,6 +248,238 @@ def test_care_plan_api_contract_and_authorization(case_db):
             exported = client.get(f"/api/v1/care-plans/{data['id']}/export")
             assert exported.status_code == 200
             assert exported.headers["cache-control"] == "private, no-store"
+            assert exported.json()["format"] == "yunsync-care-plan-v2"
+            assert exported.json()["version"] == 1
             assert exported.json()["snapshot"]["shopping_list"]
+        finally:
+            app.dependency_overrides.clear()
+
+
+def _add_follow_up_report(db: Session, user: UserProfile, *, confirmed: bool = True):
+    old = db.get(HealthReport, "qa-report")
+    old.examined_at = datetime.now(timezone.utc) - timedelta(days=8)
+    old.institution = "测试机构"
+    for metric in db.query(HealthMetric).filter(HealthMetric.report_id == old.id):
+        metric.method = "测试方法"
+    new = HealthReport(
+        id="qa-report-follow-up", user_id=user.id, filename="合成复查报告",
+        status="confirmed" if confirmed else "needs_confirmation",
+        critical_marker_status="no", institution="测试机构",
+        examined_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc) + timedelta(seconds=1),
+    )
+    db.add(new)
+    for code, name, value, unit in (
+        ("bmi", "身体质量指数", 24.8, "kg/m²"),
+        ("fasting_glucose", "空腹血糖", 5.9, "mmol/L"),
+        ("triglyceride", "甘油三酯", 1.7, "mmol/L"),
+    ):
+        db.add(HealthMetric(
+            id=f"qa-follow-up-{code}", report_id=new.id, user_id=user.id,
+            code=code, name=name, value=value, unit=unit,
+            reference_range="请核对原件", method="测试方法",
+            flag="attention", confirmed=confirmed,
+        ))
+    db.commit()
+    return new
+
+
+def test_m6_feedback_is_idempotent_and_discomfort_pauses(case_db):
+    db, user = case_db
+    plan = care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
+    care_plan_service.activate(db, user, plan.id)
+    payload = AdherenceLogIn(status="completed", note="测试完成")
+    first = record_log(db, user, plan.id, 1, payload)
+    again = record_log(db, user, plan.id, 1, payload)
+    assert first.id == again.id
+    with pytest.raises(CarePlanConflict, match="未来日期"):
+        record_log(db, user, plan.id, 7, payload)
+    adverse_payload = AdherenceLogIn(
+        status="replaced", replacement="自行选择的其他食物", discomfort=True, note="测试不适",
+    )
+    adverse = record_log(db, user, plan.id, 1, adverse_payload)
+    assert adverse.discomfort is True
+    assert db.get(CarePlan, plan.id).status == "PAUSED"
+    assert db.get(CarePlan, plan.id).pause_reason == "adverse_feedback"
+    feedback_events = db.query(AuditLog).filter(AuditLog.event_type == "care_plan.feedback").all()
+    assert feedback_events
+    assert all("note" not in event.payload and "replacement" not in event.payload
+               for event in feedback_events)
+    assert record_log(db, user, plan.id, 1, adverse_payload).id == adverse.id
+    with pytest.raises(CarePlanConflict, match="专业评估"):
+        care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
+
+
+def test_m6_reminder_uses_explicit_basis_and_does_not_infer_period(case_db):
+    db, user = case_db
+    plan = care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
+    future = date.today() + timedelta(days=60)
+    payload = ReminderIn(remind_on=future, basis="personal", note="既定体检计划")
+    first = set_reminder(db, user, plan.id, payload)
+    assert set_reminder(db, user, plan.id, payload).id == first.id
+    assert first.remind_on == future
+    with pytest.raises(CarePlanConflict, match="依据"):
+        set_reminder(db, user, plan.id, ReminderIn(remind_on=future, basis="doctor"))
+
+
+def test_m6_two_reports_to_revision_and_superseded_snapshot(case_db):
+    db, user = case_db
+    old = care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
+    care_plan_service.activate(db, user, old.id)
+    record_log(db, user, old.id, 1, AdherenceLogIn(status="completed", note="按计划完成"))
+    _add_follow_up_report(db, user)
+    comparison = compare_reports(db, user.id, old.report_id, "qa-report-follow-up")
+    bmi = next(item for item in comparison.metrics if item.code == "bmi")
+    assert comparison.days_between == 8
+    assert bmi.pair is not None and bmi.pair.status == "numeric_only"
+    assert bmi.pair.arithmetic_change == pytest.approx(-0.3)
+    assert "不代表健康改善" in bmi.pair.limitations[0]
+    assert care_plan_service.current(db, user).pause_reason == "new_report"
+    with pytest.raises(CarePlanConflict, match="复查修订"):
+        care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
+    new = revise_plan(db, user, old.id, CarePlanRequest(selected_metric_codes=["bmi"]))
+    assert new.status == "READY" and new.version == 2
+    assert new.previous_plan_id == old.id
+    assert revise_plan(db, user, old.id, CarePlanRequest(selected_metric_codes=["bmi"])).id == new.id
+    revision = get_revision(db, user, new.id)
+    assert revision is not None and revision.changes
+    assert revision.comparison["previous_report_id"] == old.report_id
+    assert revision.comparison["adherence_summary"]["completed_days"] == 1
+    assert revision.changes[0]["subject"] == "旧方案执行背景"
+    care_plan_service.activate(db, user, new.id)
+    db.refresh(old)
+    assert old.status == "SUPERSEDED"
+    assert old.snapshot["report_id"] == "qa-report"
+    assert new.snapshot["report_id"] == "qa-report-follow-up"
+
+
+def test_m6_unconfirmed_or_incomparable_reports_cannot_claim_change(case_db):
+    db, user = case_db
+    old = care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
+    care_plan_service.activate(db, user, old.id)
+    new_report = _add_follow_up_report(db, user, confirmed=False)
+    with pytest.raises(RuntimeError, match="整份核对"):
+        compare_reports(db, user.id, old.report_id, new_report.id)
+    with pytest.raises(CarePlanConflict, match="整份核对"):
+        revise_plan(db, user, old.id, CarePlanRequest(selected_metric_codes=["bmi"]))
+    new_report.status = "confirmed"
+    for metric in db.query(HealthMetric).filter(HealthMetric.report_id == new_report.id):
+        metric.confirmed = True
+        metric.method = "不同方法"
+    new_report.created_at = db.get(HealthReport, old.report_id).created_at - timedelta(days=1)
+    db.commit()
+    comparison = compare_reports(db, user.id, old.report_id, new_report.id)
+    assert all(item.pair and item.pair.arithmetic_change is None for item in comparison.metrics)
+    assert all(item.pair and item.pair.status == "method_changed" for item in comparison.metrics)
+
+
+def test_m6_revision_returns_business_conflict_for_reverse_examined_dates(case_db):
+    db, user = case_db
+    old = care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
+    care_plan_service.activate(db, user, old.id)
+    current_report = _add_follow_up_report(db, user)
+    previous_report = db.get(HealthReport, old.report_id)
+    current_report.examined_at = previous_report.examined_at - timedelta(days=1)
+    db.commit()
+
+    with TestClient(app) as client:
+        app.dependency_overrides[get_db] = lambda: db
+        app.dependency_overrides[require_active_participant] = lambda: user
+        try:
+            response = client.post(
+                f"/api/v1/care-plans/{old.id}/revise",
+                json={"selected_metric_codes": ["bmi"]},
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+    assert response.status_code == 409
+    assert "检查日期不能早于" in response.json()["detail"]
+
+
+def test_m6_new_report_invalidates_unconfirmed_plan_draft(case_db):
+    db, user = case_db
+    old = care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
+    assert old.status == "READY"
+    _add_follow_up_report(db, user)
+    assert care_plan_service.current(db, user).pause_reason == "new_report"
+    revised = revise_plan(db, user, old.id, CarePlanRequest(selected_metric_codes=["bmi"]))
+    assert revised.version == 2
+    care_plan_service.activate(db, user, revised.id)
+    db.refresh(old)
+    assert old.status == "SUPERSEDED"
+
+
+def test_m6_api_owner_scope_and_revision_contract(case_db):
+    db, user = case_db
+    first_report = db.get(HealthReport, "qa-report")
+    first_report.examined_at = datetime.now(timezone.utc) - timedelta(days=8)
+    first_report.institution = "测试机构"
+    for metric in db.query(HealthMetric).filter(HealthMetric.report_id == first_report.id):
+        metric.method = "测试方法"
+    db.commit()
+    with TestClient(app) as client:
+        preflight = client.options(
+            "/api/v1/care-plans/example/reminder",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "PUT",
+            },
+        )
+        assert preflight.status_code == 200
+        assert "PUT" in preflight.headers["access-control-allow-methods"]
+        app.dependency_overrides[get_db] = lambda: db
+        app.dependency_overrides[require_active_participant] = lambda: user
+        try:
+            created = client.post("/api/v1/care-plans", json={"selected_metric_codes": ["bmi"]})
+            assert created.status_code == 201, created.text
+            plan_id = created.json()["id"]
+            assert client.post(f"/api/v1/care-plans/{plan_id}/activate").status_code == 200
+            feedback = client.put(f"/api/v1/care-plans/{plan_id}/logs/1", json={"status": "completed"})
+            assert feedback.status_code == 200, feedback.text
+            assert len(client.get(f"/api/v1/care-plans/{plan_id}/logs").json()) == 1
+            reminder = client.put(f"/api/v1/care-plans/{plan_id}/reminder", json={
+                "remind_on": (date.today() + timedelta(days=20)).isoformat(),
+                "basis": "personal", "note": "既定计划", "enabled": True,
+            })
+            assert reminder.status_code == 200, reminder.text
+            manual = client.post("/api/v1/reports/manual", json={
+                "title": "合成复查报告", "institution": "测试机构",
+                "measured_at": datetime.now(timezone.utc).isoformat(),
+                "metrics": [{
+                    "name": "身体质量指数", "value": 24.8, "unit": "kg/m²",
+                    "reference_range": "请核对原件", "method": "测试方法",
+                }],
+            })
+            assert manual.status_code == 200, manual.text
+            new_report_id = manual.json()["report_id"]
+            assert client.post(
+                f"/api/v1/reports/{new_report_id}/metrics/{manual.json()['metrics'][0]['id']}/confirm"
+            ).status_code == 200
+            assert client.patch(
+                f"/api/v1/reports/{new_report_id}/critical-marker", json={"status": "no"}
+            ).status_code == 200
+            assert client.post(f"/api/v1/reports/{new_report_id}/confirm").status_code == 200
+            compared = client.post("/api/v1/follow-ups/compare", json={
+                "previous_report_id": "qa-report", "current_report_id": new_report_id,
+            })
+            assert compared.status_code == 200, compared.text
+            compared_bmi = next(item for item in compared.json()["metrics"] if item["code"] == "bmi")
+            assert compared_bmi["pair"]["status"] == "numeric_only"
+            revised = client.post(f"/api/v1/care-plans/{plan_id}/revise", json={
+                "selected_metric_codes": ["bmi"],
+            })
+            assert revised.status_code == 201, revised.text
+            assert revised.json()["version"] == 2
+            assert client.get(f"/api/v1/care-plans/{revised.json()['id']}/revision").json()["changes"]
+            outsider = UserProfile(id="outsider", role="participant", screening_status="eligible")
+            db.add(outsider)
+            db.commit()
+            app.dependency_overrides[require_active_participant] = lambda: outsider
+            assert client.get(f"/api/v1/care-plans/{plan_id}/logs").status_code == 404
+            assert client.get(f"/api/v1/care-plans/{plan_id}/revision").status_code == 404
+            assert client.post("/api/v1/follow-ups/compare", json={
+                "previous_report_id": "qa-report", "current_report_id": new_report_id,
+            }).status_code == 404
         finally:
             app.dependency_overrides.clear()

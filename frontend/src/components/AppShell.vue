@@ -8,6 +8,7 @@ import {
   LibraryBig,
   ShieldCheck,
   UtensilsCrossed,
+  CalendarCheck2,
   UserRoundCog,
 } from 'lucide-vue-next'
 import { currentUser, isAuthenticated } from '@/state/auth'
@@ -17,6 +18,7 @@ const signedInNavItems = [
   { to: '/report', label: '报告确认', icon: FileScan },
   { to: '/safety', label: '安全提示', icon: ShieldCheck },
   { to: '/care-plan', label: '食养方案', icon: UtensilsCrossed },
+  { to: '/follow-up', label: '执行与复查', icon: CalendarCheck2 },
   { to: '/profile', label: '账号与档案', icon: UserRoundCog },
 ]
 const navItems = computed(() =>

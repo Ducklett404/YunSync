@@ -1,6 +1,6 @@
 from app.models.action import ActionTemplate
 from app.models.audit import AuditLog
-from app.models.care_plan import CarePlan
+from app.models.care_plan import AdherenceLog, CarePlan, FollowUpReminder, PlanRevision
 from app.models.content import ContentReview, EvidenceSource, KnowledgeItem
 from app.models.experiment import Experiment, Observation
 from app.models.food_safety import FoodSafetyProfile, SafetyRuleRelease
@@ -12,6 +12,9 @@ __all__ = [
     "ActionTemplate",
     "AuditLog",
     "CarePlan",
+    "AdherenceLog",
+    "FollowUpReminder",
+    "PlanRevision",
     "ContentReview",
     "EvidenceSource",
     "KnowledgeItem",

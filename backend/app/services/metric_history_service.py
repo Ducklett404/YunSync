@@ -44,6 +44,72 @@ def _time_key(value):
     return value.timestamp()
 
 
+def compare_metric_points(
+    previous: MetricHistoryPointOut, current: MetricHistoryPointOut, *, duplicate: bool = False
+) -> MetricPairOut:
+    """Apply the same conservative comparability gate to any two confirmed reports."""
+    projected = current.standard_value is not None and previous.standard_value is not None
+    previous_range = _range_key(previous.reference_range)
+    current_range = _range_key(current.reference_range)
+    reference_range_missing = not previous_range or not current_range
+    reference_range_changed = previous_range != current_range
+    source_unit_changed = current.unit != previous.unit
+    institution_changed = _text_key(current.institution) != _text_key(previous.institution)
+    method_changed = _text_key(current.method) != _text_key(previous.method)
+    metadata_missing = current.examined_at is None or previous.examined_at is None
+    method_missing = not _text_key(current.method) or not _text_key(previous.method)
+    limitations = ["这里只显示标准单位算术差，不代表健康改善、恶化或食养效果。"]
+    if metadata_missing:
+        limitations.append("至少一份报告未填写检查日期，无法确定检查先后。")
+    if not current.institution or not previous.institution:
+        limitations.append("至少一份报告未填写检测机构。")
+    elif institution_changed:
+        limitations.append("两份报告的检测机构不同，跨机构结果需谨慎比较。")
+    if reference_range_missing:
+        limitations.append("至少一份报告未填写参考范围，暂不计算差值。")
+    elif reference_range_changed:
+        limitations.append("两份报告的参考范围不同，暂不计算差值并需对照原件。")
+    if source_unit_changed:
+        limitations.append("原报告单位不同，已按当前规则尝试换算。")
+    if method_missing:
+        limitations.append("至少一项检测方法未填写，暂不计算差值。")
+    elif method_changed:
+        limitations.append("两次检测方法不同，暂不计算差值。")
+    if duplicate:
+        status = "duplicate_in_report"
+        limitations.append("同一报告存在多个相同标准指标，无法唯一配对。")
+    elif not projected:
+        status = "not_projected"
+        limitations.append("至少一项单位或名称尚未得到标准数值。")
+    elif metadata_missing or method_missing:
+        status = "metadata_missing"
+    elif method_changed:
+        status = "method_changed"
+    elif reference_range_missing:
+        status = "reference_range_missing"
+    elif reference_range_changed:
+        status = "reference_range_changed"
+    else:
+        status = "numeric_only"
+    change = (
+        current.standard_value - previous.standard_value
+        if status == "numeric_only" and current.standard_value is not None and previous.standard_value is not None
+        else None
+    )
+    return MetricPairOut(
+        previous_report_id=previous.report_id,
+        current_report_id=current.report_id,
+        status=status,
+        arithmetic_change=change,
+        direction=("higher" if change > 0 else "lower" if change < 0 else "same") if change is not None else None,
+        reference_range_changed=reference_range_changed,
+        source_unit_changed=source_unit_changed,
+        institution_changed=institution_changed,
+        method_changed=method_changed,
+        limitations=limitations,
+    )
+
+
 def metric_history(db: Session, user_id: str, *, report_limit: int) -> MetricHistoryOut:
     reports = list(
         db.scalars(
@@ -119,66 +185,7 @@ def metric_history(db: Session, user_id: str, *, report_limit: int) -> MetricHis
             previous = next(point for point in reversed(points) if point.report_id != current.report_id)
             counts = Counter(point.report_id for point in points)
             duplicate = counts[current.report_id] > 1 or counts[previous.report_id] > 1
-            projected = current.standard_value is not None and previous.standard_value is not None
-            previous_range = _range_key(previous.reference_range)
-            current_range = _range_key(current.reference_range)
-            reference_range_missing = not previous_range or not current_range
-            reference_range_changed = previous_range != current_range
-            source_unit_changed = current.unit != previous.unit
-            institution_changed = _text_key(current.institution) != _text_key(previous.institution)
-            method_changed = _text_key(current.method) != _text_key(previous.method)
-            metadata_missing = current.examined_at is None or previous.examined_at is None
-            method_missing = not _text_key(current.method) or not _text_key(previous.method)
-            limitations = ["这里只显示标准单位算术差，不代表健康改善、恶化或食养效果。"]
-            if metadata_missing:
-                limitations.append("至少一份报告未填写检查日期，无法确定检查先后。")
-            if not current.institution or not previous.institution:
-                limitations.append("至少一份报告未填写检测机构。")
-            elif institution_changed:
-                limitations.append("两份报告的检测机构不同，跨机构结果需谨慎比较。")
-            if reference_range_missing:
-                limitations.append("至少一份报告未填写参考范围，暂不计算差值。")
-            elif reference_range_changed:
-                limitations.append("两份报告的参考范围不同，暂不计算差值并需对照原件。")
-            if source_unit_changed:
-                limitations.append("原报告单位不同，已按当前规则尝试换算。")
-            if method_missing:
-                limitations.append("至少一项检测方法未填写，暂不计算差值。")
-            elif method_changed:
-                limitations.append("两次检测方法不同，暂不计算差值。")
-            if duplicate:
-                status = "duplicate_in_report"
-                limitations.append("同一报告存在多个相同标准指标，无法唯一配对。")
-            elif not projected:
-                status = "not_projected"
-                limitations.append("至少一项单位或名称尚未得到标准数值。")
-            elif metadata_missing or method_missing:
-                status = "metadata_missing"
-            elif method_changed:
-                status = "method_changed"
-            elif reference_range_missing:
-                status = "reference_range_missing"
-            elif reference_range_changed:
-                status = "reference_range_changed"
-            else:
-                status = "numeric_only"
-            change = (
-                current.standard_value - previous.standard_value
-                if status == "numeric_only" and current.standard_value is not None and previous.standard_value is not None
-                else None
-            )
-            latest_pair = MetricPairOut(
-                previous_report_id=previous.report_id,
-                current_report_id=current.report_id,
-                status=status,
-                arithmetic_change=change,
-                direction=("higher" if change > 0 else "lower" if change < 0 else "same") if change is not None else None,
-                reference_range_changed=reference_range_changed,
-                source_unit_changed=source_unit_changed,
-                institution_changed=institution_changed,
-                method_changed=method_changed,
-                limitations=limitations,
-            )
+            latest_pair = compare_metric_points(previous, current, duplicate=duplicate)
         series.append(
             MetricHistorySeriesOut(
                 code=code,

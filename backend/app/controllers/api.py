@@ -7,6 +7,7 @@ from app.controllers import (
     content_admin,
     dashboard,
     experiments,
+    follow_ups,
     identity,
     metrics,
     reports,
@@ -20,6 +21,7 @@ api_router = APIRouter()
 api_router.include_router(identity.router)
 api_router.include_router(catalog.router)
 api_router.include_router(care_plans.router)
+api_router.include_router(follow_ups.router)
 api_router.include_router(content_admin.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(reports.router)

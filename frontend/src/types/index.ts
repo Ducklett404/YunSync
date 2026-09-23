@@ -348,7 +348,11 @@ export interface CarePlanRequest {
 export interface CarePlan {
   id: string
   report_id: string
-  status: 'READY' | 'ACTIVE' | 'PAUSED'
+  status: 'READY' | 'ACTIVE' | 'PAUSED' | 'SUPERSEDED'
+  version: number
+  previous_plan_id: string | null
+  pause_reason: string | null
+  superseded_at: string | null
   created_at: string
   activated_at: string | null
   paused_at: string | null
@@ -380,6 +384,73 @@ export interface CarePlan {
     follow_up: string
     disclaimer: string
   }
+}
+
+export interface AdherenceLogInput {
+  status: 'completed' | 'skipped' | 'replaced'
+  replacement: string
+  discomfort: boolean
+  note: string
+}
+
+export interface AdherenceLog extends AdherenceLogInput {
+  id: string
+  plan_id: string
+  day: number
+  created_at: string
+  updated_at: string
+}
+
+export interface FollowUpReminderInput {
+  remind_on: string
+  basis: 'doctor' | 'report' | 'personal'
+  note: string
+  enabled: boolean
+}
+
+export interface FollowUpReminder extends FollowUpReminderInput {
+  id: string
+  plan_id: string
+  due: boolean
+  updated_at: string
+}
+
+export interface FollowUpComparison {
+  previous_report_id: string
+  current_report_id: string
+  previous_examined_at: string | null
+  current_examined_at: string | null
+  days_between: number | null
+  rule_version: string
+  limitation: string
+  adherence_summary?: {
+    scheduled_days: number
+    logged_days: number
+    completed_days: number
+    skipped_days: number
+    replaced_days: number
+    discomfort_recorded: boolean
+    limitation: string
+  }
+  metrics: {
+    code: string
+    name: string
+    standard_unit: string
+    previous: MetricHistoryPoint | null
+    current: MetricHistoryPoint | null
+    pair: MetricHistoryPair | null
+    status: 'paired' | 'only_previous' | 'only_current'
+  }[]
+}
+
+export interface PlanRevision {
+  id: string
+  old_plan_id: string
+  new_plan_id: string
+  new_report_id: string
+  changes: { type: 'continued' | 'reduced' | 'increased' | 'replaced' | 'paused' | 'added'; subject: string; reason: string }[]
+  comparison: FollowUpComparison
+  created_at: string
 }
 
 export interface DemoSession {

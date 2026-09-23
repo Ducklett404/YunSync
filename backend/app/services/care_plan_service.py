@@ -386,16 +386,24 @@ class CarePlanService:
         plan = db.scalar(select(CarePlan).where(CarePlan.user_id == user.id).order_by(
             CarePlan.created_at.desc(), CarePlan.id.desc()
         ).limit(1))
-        if plan is not None and plan.status == "ACTIVE":
-            try:
-                snapshot = CarePlanSnapshot.model_validate(plan.snapshot)
-                self._check_live(db, user, snapshot)
-            except (CarePlanConflict, ValueError):
-                plan.status = "PAUSED"
-                plan.paused_at = datetime.now(timezone.utc)
-                db.add(AuditLog(event_type="care_plan.paused", actor_id=user.id, payload={"plan_id": plan.id}))
-                db.commit()
-                db.refresh(plan)
+        return self.refresh_status(db, user, plan) if plan is not None else None
+
+    def refresh_status(self, db: Session, user: UserProfile, plan: CarePlan) -> CarePlan:
+        if plan.status not in {"READY", "ACTIVE"}:
+            return plan
+        try:
+            snapshot = CarePlanSnapshot.model_validate(plan.snapshot)
+            self._check_live(db, user, snapshot)
+        except (CarePlanConflict, ValueError):
+            plan.status = "PAUSED"
+            plan.paused_at = datetime.now(timezone.utc)
+            latest = health_repository.latest_report(db, user.id)
+            plan.pause_reason = "new_report" if latest and latest.id != plan.report_id else "reassessment_required"
+            db.add(AuditLog(event_type="care_plan.paused", actor_id=user.id, payload={
+                "plan_id": plan.id, "reason": plan.pause_reason,
+            }))
+            db.commit()
+            db.refresh(plan)
         return plan
 
     def _check_live(self, db: Session, user: UserProfile, snapshot: CarePlanSnapshot) -> None:
@@ -440,6 +448,12 @@ class CarePlanService:
                     raise CarePlanConflict("食材版本已变化，请重新生成方案")
 
     def create(self, db: Session, user: UserProfile, request: CarePlanRequest) -> CarePlan:
+        previous = self.current(db, user)
+        if previous is not None and previous.pause_reason == "adverse_feedback":
+            raise CarePlanConflict("曾记录不适，不能自动生成新方案；请先寻求专业评估")
+        latest = health_repository.latest_report(db, user.id)
+        if previous is not None and latest is not None and previous.report_id != latest.id:
+            raise CarePlanConflict("已有旧方案和新报告，请使用复查修订流程生成新版本")
         snapshot = self.build_snapshot(db, user, request)
         payload = snapshot.model_dump(mode="json")
         digest = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -448,10 +462,23 @@ class CarePlanService:
         ))
         if existing is not None:
             return existing
+        if previous is not None and previous.status == "READY":
+            if date.fromisoformat(previous.snapshot["schedule"][0]["date"]) >= date.today():
+                raise CarePlanConflict("已有待确认的方案草案，请先核对当前草案")
+            previous.status = "PAUSED"
+            previous.pause_reason = "expired_draft"
+            previous.paused_at = datetime.now(timezone.utc)
+            db.add(AuditLog(event_type="care_plan.paused", actor_id=user.id, payload={
+                "plan_id": previous.id, "reason": "expired_draft",
+            }))
         active = db.scalar(select(CarePlan).where(CarePlan.user_id == user.id, CarePlan.status == "ACTIVE"))
         if active is not None:
             raise CarePlanConflict("已有进行中的方案，请先处理当前方案")
-        plan = CarePlan(user_id=user.id, report_id=snapshot.report_id, request_hash=digest, snapshot=payload)
+        plan = CarePlan(
+            user_id=user.id, report_id=snapshot.report_id, request_hash=digest,
+            snapshot=payload, version=(previous.version + 1 if previous else 1),
+            previous_plan_id=(previous.id if previous else None),
+        )
         db.add(plan)
         db.flush()
         db.add(AuditLog(event_type="care_plan.ready", actor_id=user.id, payload={
@@ -481,6 +508,15 @@ class CarePlanService:
         rebuilt = self.build_snapshot(db, user, snapshot.constraints)
         if rebuilt.model_dump(mode="json") != plan.snapshot:
             raise CarePlanConflict("报告、档案或内容已变化，请重新生成方案")
+        if plan.previous_plan_id:
+            previous = db.get(CarePlan, plan.previous_plan_id)
+            if previous is None or previous.user_id != user.id:
+                raise CarePlanConflict("旧方案版本不存在，请重新生成")
+            if previous.status not in {"PAUSED", "SUPERSEDED"}:
+                raise CarePlanConflict("旧方案尚未暂停，不能确认新版本")
+            if previous.status == "PAUSED":
+                previous.status = "SUPERSEDED"
+                previous.superseded_at = datetime.now(timezone.utc)
         plan.status = "ACTIVE"
         plan.activated_at = datetime.now(timezone.utc)
         db.add(AuditLog(event_type="care_plan.activated", actor_id=user.id, payload={"plan_id": plan.id}))

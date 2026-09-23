@@ -20,6 +20,9 @@ UserProfile
   ├── AuthSession
   ├── ConsentRecord
   ├── HealthReport ── HealthMetric
+  ├── CarePlan ── AdherenceLog
+  │       ├── FollowUpReminder
+  │       └── PlanRevision（连接旧/新 CarePlan 与新报告）
   └── Experiment ── ActionTemplate
           └── Observation
 
@@ -46,6 +49,10 @@ AuditLog 独立保存报告解析、实验创建和每日记录事件。
 16. HTTP 边界采用 Host 白名单、精确 CORS、安全响应头、HTTPS 门禁和进程内滑动窗口限流；多实例共享限流仍由网关或 DCS 承担。
 17. 生产容器以固定非 root 用户和只读根文件系统运行，删除 Linux capabilities；真实镜像构建、扫描和部署必须在具备 Docker 的环境留证。
 18. 用户最近实验与报告指标排序使用组合索引；前端把 Vue 运行时和图表库拆成独立缓存块。
+19. M5–M6 方案按版本保存完整 JSON 快照；新报告、风险或内容版本变化只暂停当前方案，不覆盖历史。
+20. 执行反馈中的不适立即暂停方案并关闭自动修订；审计只保存日序号、状态和不适布尔值，不保存替换或备注正文。
+21. 两报告比较复用同一单位、方法、机构与参考范围门禁；无法比较时停止差值计算，任何算术变化均不转换为疗效结论。
+22. 复查提醒日期及依据由用户填写。服务端只计算应用内到期状态，不推断医学复查周期。
 
 ## 请求处理链路
 
