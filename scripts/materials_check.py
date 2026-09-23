@@ -18,6 +18,13 @@ REQUIRED_MARKERS = {
     "docs/DEFENSE_QA.md": ["## 产品与创新", "## 安全与合规", "## 云与工程"],
     "docs/OPEN_SOURCE_INVENTORY.md": ["## 1. Python 直接依赖", "## 2. 前端直接依赖", "## 4. 最终发布检查"],
     "docs/M12A_VERIFICATION_REPORT.md": ["## 2. 自测结果", "## 3. 未伪造的完成边界"],
+    "docs/ADMIN_GUIDE.md": ["## 1. 角色与权限", "## 2. 发布顺序"],
+    "docs/PRIVACY_NOTICE.md": ["## 1. 目的与范围", "## 3. 保留、安全与用户权利"],
+    "docs/CONTENT_OPERATIONS_RUNBOOK.md": ["## 1. 生命周期", "## 2. 变更级别"],
+    "docs/INCIDENT_RESPONSE_RUNBOOK.md": ["## 1. 分级", "## 2. 响应流程"],
+    "docs/V2_M8_ACCEPTANCE.md": ["## 1. 已完成的工程交付", "## 2. 外部门禁"],
+    "docs/V2_M8_CUSTOMER_ACCEPTANCE.md": ["## 见证用例", "## 遗留问题与签收"],
+    "docs/V2_M8_VERIFICATION_REPORT.md": ["## 2. 自动验证结果", "## 3. 正式 M8 尚需证据"],
 }
 LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 

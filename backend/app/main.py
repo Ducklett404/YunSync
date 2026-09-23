@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+import secrets
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -11,6 +12,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.controllers.api import api_router
 from app.core.config import settings
 from app.core.observability import request_context_middleware
+from app.core.monitoring import monitoring_registry
 from app.db.init_db import seed_db
 from app.db.migrations import run_migrations
 from app.db.session import SessionLocal
@@ -70,6 +72,20 @@ def readyz():
         environment=settings.environment,
         dependencies={"database": "ready", "cache": cache_health.backend},
         degraded=cache_health.degraded,
+    )
+
+
+@app.get("/internal/metrics", include_in_schema=False)
+def metrics(x_monitoring_token: str | None = Header(default=None)):
+    if not settings.monitoring_enabled:
+        raise HTTPException(status_code=404, detail="资源不存在")
+    if not x_monitoring_token or not secrets.compare_digest(
+        x_monitoring_token, settings.monitoring_token
+    ):
+        raise HTTPException(status_code=403, detail="监控凭据无效")
+    return Response(
+        content=monitoring_registry.render_prometheus(),
+        media_type="text/plain; version=0.0.4",
     )
 
 

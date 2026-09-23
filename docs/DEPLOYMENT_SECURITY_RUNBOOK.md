@@ -43,11 +43,15 @@ RATE_LIMIT_ENABLED=true
 
 应用继续输出不含请求正文和凭据的单行 JSON。建议在云日志平台建立：
 
+生产环境启用 `MONITORING_ENABLED=true`，从受控采集器通过 HTTPS 携带 `X-Monitoring-Token` 抓取 `/internal/metrics`。端点使用路由模板和状态类别，避免用户/报告 ID 形成高基数或隐私标签。令牌由秘密管理服务注入，不进入浏览器或仓库。
+
 - `event=request_failed` 或 5xx：5 分钟内连续 3 次告警；
 - `event=request_slow`：P95 超过 `SLOW_REQUEST_THRESHOLD_MS` 告警；
 - `event=request_rate_limited`：突增时检查滥用或容量；
 - `/readyz` 的 `degraded=true`：检查 DCS 连接；
 - 实例健康检查失败：触发替换或回滚。
+
+Prometheus 指标包括请求计数、固定延迟桶，以及失败、慢请求和限流事件。正式阈值须结合真实基线冻结，并完成触发、送达、恢复和责任人确认。
 
 真实日志采集、通知接收和告警恢复截图必须在 M10B 留证，本地日志事件不能替代真实告警。
 

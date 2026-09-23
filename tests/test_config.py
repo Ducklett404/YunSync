@@ -180,6 +180,8 @@ def test_production_cloud_configuration_accepts_instance_metadata_credentials():
         expose_api_docs=False,
         rate_limit_enabled=True,
         forwarded_allow_ips="10.0.0.8",
+        monitoring_enabled=True,
+        monitoring_token="synthetic-monitoring-token-12345",
     )
 
     assert settings.huawei_credential_mode == "instance_metadata"
@@ -228,9 +230,53 @@ def test_production_rejects_missing_http_hardening(overrides, message):
         "expose_api_docs": False,
         "rate_limit_enabled": True,
         "forwarded_allow_ips": "10.0.0.8",
+        "monitoring_enabled": True,
+        "monitoring_token": "synthetic-monitoring-token-12345",
         **overrides,
     }
 
+    with pytest.raises(ValidationError, match=message):
+        Settings(**values)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"monitoring_enabled": False}, "MONITORING_ENABLED"),
+        ({"monitoring_token": "short"}, "MONITORING_TOKEN"),
+    ],
+)
+def test_production_requires_protected_monitoring(overrides, message):
+    values = {
+        "_env_file": None,
+        "environment": "production",
+        "secret_key": "a-production-secret-key-value",
+        "database_url": "postgresql+psycopg://user:pass@rds.internal/yunsync",
+        "cors_origins": "https://app.example.com",
+        "allowed_hosts": "app.example.com",
+        "enable_demo_login": False,
+        "seed_demo_data": False,
+        "run_migrations_on_startup": False,
+        "use_local_storage": False,
+        "use_mock_ai": False,
+        "cache_enabled": True,
+        "redis_url": "rediss://dcs.internal:6379/0",
+        "huawei_project_id": "synthetic-project-id",
+        "huawei_credential_mode": "instance_metadata",
+        "huawei_obs_endpoint": "https://obs.example.com",
+        "huawei_obs_bucket": "synthetic-private-bucket",
+        "huawei_ocr_endpoint": "https://ocr.example.com",
+        "huawei_maas_endpoint": "https://maas.example.com",
+        "huawei_maas_api_key": "synthetic-api-key",
+        "huawei_maas_model": "synthetic-model",
+        "force_https": True,
+        "expose_api_docs": False,
+        "rate_limit_enabled": True,
+        "forwarded_allow_ips": "10.0.0.8",
+        "monitoring_enabled": True,
+        "monitoring_token": "synthetic-monitoring-token-12345",
+        **overrides,
+    }
     with pytest.raises(ValidationError, match=message):
         Settings(**values)
 

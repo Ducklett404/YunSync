@@ -14,6 +14,7 @@ from app.core.http_security import (
     rate_limit_key,
     rate_limiter,
 )
+from app.core.monitoring import monitoring_registry, normalized_route
 
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -94,6 +95,15 @@ async def request_context_middleware(request: Request, call_next):
         )
 
     duration_ms = round((perf_counter() - started_at) * 1000, 2)
+    route = normalized_route(request)
+    if settings.monitoring_enabled:
+        monitoring_registry.record(
+            method=request.method,
+            route=route,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+            slow_threshold_ms=settings.slow_request_threshold_ms,
+        )
     response.headers["X-Request-ID"] = request_id
     if rate_decision is not None:
         response.headers["X-RateLimit-Limit"] = str(rate_decision.limit)
@@ -103,7 +113,7 @@ async def request_context_middleware(request: Request, call_next):
     log_context = {
         "request_id": request_id,
         "method": request.method,
-        "path": request.url.path,
+        "path": route,
         "status_code": response.status_code,
         "duration_ms": duration_ms,
     }

@@ -160,6 +160,9 @@ def run_acceptance(rounds: int) -> dict:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(
         description="Run the YunSync RC1 synthetic main-flow acceptance check."
     )

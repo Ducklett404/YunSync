@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     rate_limit_requests: int = Field(default=120, ge=10, le=10000)
     rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     rate_limit_max_clients: int = Field(default=10000, ge=100, le=100000)
+    monitoring_enabled: bool = False
+    monitoring_token: str = ""
     enable_demo_login: bool = True
     seed_demo_data: bool = True
     run_migrations_on_startup: bool = True
@@ -62,6 +64,13 @@ class Settings(BaseSettings):
     huawei_obs_validation_ref: str = ""
     huawei_ocr_validation_ref: str = ""
     huawei_maas_validation_ref: str = ""
+    release_image_ref: str = ""
+    backup_restore_validation_ref: str = ""
+    https_validation_ref: str = ""
+    alerting_validation_ref: str = ""
+    professional_review_validation_ref: str = ""
+    user_test_validation_ref: str = ""
+    customer_acceptance_validation_ref: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -106,6 +115,12 @@ class Settings(BaseSettings):
             raise ValueError("Production 必须关闭 EXPOSE_API_DOCS")
         if self.environment == "production" and not self.rate_limit_enabled:
             raise ValueError("Production 必须启用 RATE_LIMIT_ENABLED")
+        if self.environment == "production" and not self.monitoring_enabled:
+            raise ValueError("Production 必须启用 MONITORING_ENABLED")
+        if self.environment == "production" and (
+            len(self.monitoring_token) < 24 or self._is_placeholder(self.monitoring_token)
+        ):
+            raise ValueError("Production 必须配置至少 24 位的独立 MONITORING_TOKEN")
         if self.environment == "production" and any(
             host.lower() in {"localhost", "127.0.0.1", "::1"}
             or self._is_placeholder(host)

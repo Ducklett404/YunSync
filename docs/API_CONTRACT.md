@@ -24,6 +24,7 @@
 |---|---|---|---|
 | GET | `/healthz` | 200 `HealthStatus` | 进程存活检查，不访问数据库 |
 | GET | `/readyz` | 200 `HealthStatus` | 数据库就绪检查；可选缓存故障时保持就绪并标记降级 |
+| GET | `/internal/metrics` | Prometheus text | 仅启用监控且 `X-Monitoring-Token` 正确时返回聚合运行指标；不进入 OpenAPI |
 
 `HealthStatus`：`status`、`service`、`environment`，以及可选 `dependencies` 和 `degraded`。`/readyz` 的 `dependencies.database` 为 `ready`；缓存为 `disabled`、`redis` 或 `memory_fallback`。缓存不是核心就绪依赖，Redis/DCS 不可用时返回 200、`degraded=true`。
 

@@ -50,5 +50,5 @@ def test_container_definition_runs_as_non_root_with_runtime_guards():
         assert marker in compose
     assert "pip install -r requirements-dev.txt" in linux_start
     assert "npm ci" in linux_start
-    for marker in ("ssl_protocols TLSv1.2 TLSv1.3", "limit_req", "X-Forwarded-Proto"):
+    for marker in ("ssl_protocols TLSv1.2 TLSv1.3", "limit_req", "X-Forwarded-Proto", "location = /internal/metrics"):
         assert marker in nginx

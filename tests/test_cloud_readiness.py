@@ -50,6 +50,8 @@ def _production_settings() -> Settings:
         force_https=True,
         expose_api_docs=False,
         rate_limit_enabled=True,
+        monitoring_enabled=True,
+        monitoring_token="synthetic-monitoring-token-12345",
     )
 
 

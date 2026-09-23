@@ -1,6 +1,6 @@
 # YunSync 云循 HealthLoop
 
-云循正在按 V2 开发计划转向体检后的个体化食养随访。当前已实现合成报告解析、逐项确认、结构化食养安全档案、风险分流、内容审核发布，M5–M6 个体方案闭环，以及 M7 OBS/OCR/MaaS 云适配、安全与模型输出守卫的工程流程。知识库种子均为候审草稿，未获专业批准前方案生成会安全阻断；真实云、5–10 人测试和专业内容复核仍须在目标环境留证。旧版“候选行动—14 天个人实验”代码保留作为历史原型，已退出默认导航。
+云循正在按 V2 开发计划转向体检后的个体化食养随访。当前已实现报告确认、安全档案、风险分流、内容治理、M5–M6 方案闭环、M7 云适配与安全守卫，以及 M8 监控、发布预检、双报告演示案例和交付运营基线。知识库种子均为候审草稿，未获专业批准前方案生成会安全阻断；真实云、5–10 人测试、专业复核、演示视频和客户签收仍须留证。
 
 > 本项目仅用于健康教育、自我监测和生活方式支持，不提供疾病诊断、治疗或药物调整意见。仓库中的人物与健康数据均为合成数据。
 
@@ -37,6 +37,14 @@
 - [M7 系统联调、安全与真实测试验收单](docs/V2_M7_ACCEPTANCE.md)
 - [M7 安全与模型评测记录](docs/V2_M7_SECURITY_MODEL_EVALUATION.md)
 - [M7 真实云、用户与专业验收执行手册](docs/V2_M7_QA_RUNBOOK.md)
+- [M8 部署、交付与验收清单](docs/V2_M8_ACCEPTANCE.md)
+- [M8 工程验证记录](docs/V2_M8_VERIFICATION_REPORT.md)
+- [M8 客户验收与签收单](docs/V2_M8_CUSTOMER_ACCEPTANCE.md)
+- [管理员手册](docs/ADMIN_GUIDE.md)
+- [隐私说明审阅稿](docs/PRIVACY_NOTICE.md)
+- [专业审核记录](docs/V2_PROFESSIONAL_REVIEW_RECORD.md)
+- [内容更新与运营流程](docs/CONTENT_OPERATIONS_RUNBOOK.md)
+- [事故响应手册](docs/INCIDENT_RESPONSE_RUNBOOK.md)
 - [行动模板登记表](docs/ACTION_TEMPLATE_REGISTER.md)
 - [M5A 行动模板治理、透明排序与解释安全守卫验证记录](docs/M5A_VERIFICATION_REPORT.md)
 - [M6A 14 天实验状态机与锁定日程验证记录](docs/M6A_VERIFICATION_REPORT.md)
@@ -128,7 +136,7 @@ npm run dev
 .\scripts\package.ps1
 ```
 
-生成文件位于 `release/YunSync-upload.zip`。
+生成 `release/YunSync-V2.0.zip`、清单和 SHA-256 校验文件。发布前还需完成正式镜像、真实环境预检和客户签收。
 
 ```bash
 cd /root/workspace

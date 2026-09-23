@@ -1,0 +1,49 @@
+{
+  "version": "v2-m8-demo-case-v1",
+  "synthetic": true,
+  "disclaimer": "全部数据均为合成演示数据，只验证工程流程，不代表健康效果，也不能替代专业审核。",
+  "account": {
+    "participant_id": "demo-user",
+    "reviewer_id": "demo-reviewer"
+  },
+  "reports": [
+    {
+      "id": "m8-demo-report-1",
+      "exam_date": "2026-08-15",
+      "institution": "合成演示体检中心",
+      "critical_value_status": "no",
+      "metrics": [
+        {"code": "fasting_glucose", "name": "空腹血糖", "value": 6.1, "unit": "mmol/L", "method": "己糖激酶法（合成）", "reference_range": "3.9-6.1"},
+        {"code": "triglyceride", "name": "甘油三酯", "value": 2.1, "unit": "mmol/L", "method": "酶法（合成）", "reference_range": "0.45-1.69"},
+        {"code": "hdl_c", "name": "高密度脂蛋白胆固醇", "value": 1.02, "unit": "mmol/L", "method": "直接法（合成）", "reference_range": ">=1.0"},
+        {"code": "uric_acid", "name": "尿酸", "value": 450, "unit": "μmol/L", "method": "尿酸酶法（合成）", "reference_range": "208-428"}
+      ]
+    },
+    {
+      "id": "m8-demo-report-2",
+      "exam_date": "2026-09-19",
+      "institution": "合成演示体检中心",
+      "critical_value_status": "no",
+      "metrics": [
+        {"code": "fasting_glucose", "name": "空腹血糖", "value": 5.8, "unit": "mmol/L", "method": "己糖激酶法（合成）", "reference_range": "3.9-6.1"},
+        {"code": "triglyceride", "name": "甘油三酯", "value": 1.85, "unit": "mmol/L", "method": "酶法（合成）", "reference_range": "0.45-1.69"},
+        {"code": "hdl_c", "name": "高密度脂蛋白胆固醇", "value": 1.1, "unit": "mmol/L", "method": "直接法（合成）", "reference_range": ">=1.0"},
+        {"code": "uric_acid", "name": "尿酸", "value": 430, "unit": "μmol/L", "method": "尿酸酶法（合成）", "reference_range": "208-428"}
+      ]
+    }
+  ],
+  "expected_deltas": {
+    "fasting_glucose": -0.3,
+    "triglyceride": -0.25,
+    "hdl_c": 0.08,
+    "uric_acid": -20
+  },
+  "expected_flow": [
+    "确认第一份报告",
+    "完成食养安全档案与分流",
+    "由真实审核发布内容后生成方案",
+    "记录执行反馈",
+    "确认第二份报告并保守对齐",
+    "形成修订草案和版本记录"
+  ]
+}
