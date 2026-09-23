@@ -25,7 +25,9 @@
 python scripts/cloud_preflight.py --env-file .env
 ```
 
-当前版本会如实报告 OBS/MaaS 保护性空实现，并在 OCR 完成 SDK 安装、真实调用及脱敏样本验收前保持 OCR 能力标志为 false，因此不会只凭完整的占位配置得到 `ready=true`。先完成对应适配器及验收，再以 `ready=true` 作为进入连接测试的必要条件。预检不访问云端，因此后续仍须分别验证真实资源。
+`cloud-preflight-v4` 分开报告适配器代码状态与真实云验收状态。OBS 私有读写、OCR 保守解析和 MaaS 结构化调用均已有契约测试；只有在真实环境完成三项脱敏验收，并分别填写 `HUAWEI_OBS_VALIDATION_REF`、`HUAWEI_OCR_VALIDATION_REF`、`HUAWEI_MAAS_VALIDATION_REF` 后，`provider_live_acceptance` 才会通过。预检不访问云端，记录编号也不能替代原始日志和截图。
+
+OBS 使用 `HUAWEI_OBS_ENDPOINT` 与私有桶；MaaS 使用完整的 V2 Chat Completions 端点、API Key 和 `HUAWEI_MAAS_MODEL`。环境凭据模式由部署平台注入 AK/SK，实例元数据模式使用 ECS 安全提供器。官方实现依据见[华为云 OBS Python SDK 安装](https://support.huaweicloud.com/intl/en-us/sdk-python-devg-obs/obs_22_0400.html)、[OBS 流式上传](https://support.huaweicloud.com/intl/en-us/sdk-python-devg-obs/obs_22_0902.html)、[OBS 内存读取](https://support.huaweicloud.com/intl/en-us/sdk-python-devg-obs/obs_22_0911.html)和[MaaS V2 模型调用](https://support.huaweicloud.com/model-call-maas/model-call-019.html)。
 
 ## 3. 空 RDS 迁移
 

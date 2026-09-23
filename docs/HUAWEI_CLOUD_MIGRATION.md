@@ -26,11 +26,11 @@
 |---|---|---|
 | SQLite | RDS PostgreSQL | `DATABASE_URL` |
 | 可选本地 Redis | DCS Redis | `REDIS_URL` |
-| 本地合成报告 | OBS | `HUAWEI_OBS_BUCKET` |
+| 本地合成报告 | OBS | `HUAWEI_OBS_ENDPOINT`、`HUAWEI_OBS_BUCKET` |
 | Mock OCR | OCR 智能文档解析 | `HUAWEI_OCR_ENDPOINT` |
-| Mock 文案生成 | MaaS | `HUAWEI_MAAS_ENDPOINT`、`HUAWEI_MAAS_API_KEY` |
+| Mock 文案生成 | MaaS | `HUAWEI_MAAS_ENDPOINT`、`HUAWEI_MAAS_API_KEY`、`HUAWEI_MAAS_MODEL` |
 
-M4A 已实现 `local_private` 与 `huawei_obs` 的适配器边界；本地验证使用 `USE_LOCAL_STORAGE=true`。云端切换时必须先补齐 OBS 鉴权实现并验证私有访问，再设置 `USE_LOCAL_STORAGE=false`。OCR 已实现华为云 SDK 请求和保守解析；`USE_MOCK_AI=false` 后缺配置、缺 SDK 或服务失败会返回 503，不会回退到未标记的合成结果。`cloud-preflight-v3` 在真实调用及脱敏样本验收完成前仍把 OCR 能力标志报告为未通过。
+M7 已实现 `huawei_obs` SDK 私有上传/内存读取、OCR SDK 请求与保守解析、MaaS V2 结构化调用和服务端输出守卫。本地契约测试使用替身传输，不是云端成功证据。`USE_LOCAL_STORAGE=false` 或 `USE_MOCK_AI=false` 时，缺配置、缺依赖或服务失败均关闭失败，不会回退为未标记的合成结果。`cloud-preflight-v4` 在填写三项真实验收记录编号前保持 `provider_live_acceptance=false`。
 
 Compose 的本地上传卷挂载到 `/app/uploads`，并显式传递存储、超时及华为云配置。其一次性 `migrate` 服务优先读取 `MIGRATION_DATABASE_URL`，应用服务只读取 `DATABASE_URL`；在云平台中应使用同样的身份分离流程。
 

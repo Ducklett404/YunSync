@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     ocr_max_attempts: int = Field(default=2, ge=1, le=4)
     ocr_pdf_max_pages: int = Field(default=10, ge=1, le=20)
     maas_timeout_seconds: float = Field(default=8.0, ge=0.1, le=60.0)
+    maas_max_tokens: int = Field(default=320, ge=64, le=1024)
     huawei_region: str = "cn-north-4"
     huawei_credential_mode: Literal["environment", "instance_metadata"] = "environment"
     huawei_project_id: str = ""
@@ -55,7 +56,12 @@ class Settings(BaseSettings):
     huawei_ocr_endpoint: str = ""
     huawei_maas_endpoint: str = ""
     huawei_maas_api_key: str = ""
+    huawei_maas_model: str = ""
+    huawei_obs_endpoint: str = ""
     huawei_obs_bucket: str = ""
+    huawei_obs_validation_ref: str = ""
+    huawei_ocr_validation_ref: str = ""
+    huawei_maas_validation_ref: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -115,19 +121,42 @@ class Settings(BaseSettings):
         if self.environment in {"staging", "production"}:
             if self.cache_enabled and self._is_placeholder_url(self.redis_url):
                 raise ValueError("启用云缓存时 REDIS_URL 不能指向本机或占位地址")
-            if not self.use_local_storage and self._is_placeholder(self.huawei_obs_bucket):
-                raise ValueError("关闭本地存储时必须配置 HUAWEI_OBS_BUCKET")
+            if not self.use_local_storage:
+                required_obs = {
+                    "HUAWEI_OBS_ENDPOINT": self.huawei_obs_endpoint,
+                    "HUAWEI_OBS_BUCKET": self.huawei_obs_bucket,
+                }
+                missing_obs = [
+                    name for name, value in required_obs.items() if self._is_placeholder(value)
+                ]
+                if missing_obs:
+                    raise ValueError(f"真实 OBS 模式缺少配置：{', '.join(missing_obs)}")
             if not self.use_mock_ai:
                 required_ai = {
                     "HUAWEI_OCR_ENDPOINT": self.huawei_ocr_endpoint,
                     "HUAWEI_MAAS_ENDPOINT": self.huawei_maas_endpoint,
                     "HUAWEI_MAAS_API_KEY": self.huawei_maas_api_key,
+                    "HUAWEI_MAAS_MODEL": self.huawei_maas_model,
                 }
                 missing_ai = [
                     name for name, value in required_ai.items() if self._is_placeholder(value)
                 ]
                 if missing_ai:
                     raise ValueError(f"真实 AI 模式缺少配置：{', '.join(missing_ai)}")
+            endpoints = {
+                "HUAWEI_OBS_ENDPOINT": self.huawei_obs_endpoint if not self.use_local_storage else "",
+                "HUAWEI_OCR_ENDPOINT": self.huawei_ocr_endpoint if not self.use_mock_ai else "",
+                "HUAWEI_MAAS_ENDPOINT": self.huawei_maas_endpoint if not self.use_mock_ai else "",
+            }
+            insecure_endpoints = [
+                name
+                for name, value in endpoints.items()
+                if value and not value.lower().startswith("https://")
+            ]
+            if insecure_endpoints:
+                raise ValueError(
+                    f"云服务端点必须使用 HTTPS：{', '.join(insecure_endpoints)}"
+                )
             uses_huawei_services = not self.use_local_storage or not self.use_mock_ai
             if uses_huawei_services and self._is_placeholder(self.huawei_project_id):
                 raise ValueError("启用华为云服务时必须配置 HUAWEI_PROJECT_ID")

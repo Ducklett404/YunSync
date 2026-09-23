@@ -39,6 +39,19 @@ class ResultReviewService:
                 generated,
                 metric_label=analysis["metric_label"],
                 data_insufficient=analysis["status"] == "data_insufficient",
+                allowed_numeric_sources=tuple(
+                    str(value)
+                    for value in (
+                        context.metric_label,
+                        context.metric_unit,
+                        context.message,
+                        context.valid_days,
+                        context.missing_days,
+                        context.bootstrap_ci_lower,
+                        context.bootstrap_ci_upper,
+                    )
+                    if value is not None
+                ),
             )
             source = client.provider
         except (MaaSError, ResultExplanationPolicyError, asyncio.TimeoutError):

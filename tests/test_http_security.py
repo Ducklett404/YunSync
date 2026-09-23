@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from app.core import observability
 from app.core.config import settings
 from app.core.http_security import SlidingWindowRateLimiter
-from app.core.observability import request_context_middleware
+from app.core.observability import JsonFormatter, request_context_middleware
 from app.integrations.huawei.obs import LocalPrivateStorageClient, ObjectStorageError
 
 
@@ -81,3 +81,28 @@ def test_private_storage_rejects_path_traversal(tmp_path):
         assert str(exc) == "报告源文件不可用"
     else:
         raise AssertionError("path traversal should be rejected")
+
+
+def test_json_logs_drop_headers_credentials_and_health_payloads():
+    record = observability.logging.LogRecord(
+        name="yunsync.api",
+        level=observability.logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="request_completed",
+        args=(),
+        exc_info=None,
+    )
+    record.request_id = "safe-request"
+    record.method = "POST"
+    record.path = "/api/v1/reports/analyze"
+    record.status_code = 200
+    record.authorization = "Bearer must-not-log"
+    record.huawei_secret_key = "must-not-log-secret"
+    record.health_payload = {"diagnosis": "must-not-log-health"}
+
+    rendered = JsonFormatter().format(record)
+
+    assert "safe-request" in rendered
+    assert "must-not-log" not in rendered
+    assert "diagnosis" not in rendered

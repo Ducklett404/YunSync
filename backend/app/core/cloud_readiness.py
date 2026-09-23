@@ -12,7 +12,7 @@ from app.integrations.huawei.capabilities import (
 )
 
 
-CLOUD_PREFLIGHT_VERSION = "cloud-preflight-v3"
+CLOUD_PREFLIGHT_VERSION = "cloud-preflight-v4"
 
 
 def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
@@ -55,31 +55,41 @@ def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
         ),
         _check(
             "obs_private_storage",
-            not settings.use_local_storage and bool(settings.huawei_obs_bucket),
-            "云环境必须关闭本地文件存储并配置私有 OBS 桶。",
+            not settings.use_local_storage
+            and bool(settings.huawei_obs_endpoint)
+            and bool(settings.huawei_obs_bucket),
+            "云环境必须关闭本地文件存储并配置 OBS HTTPS 端点和私有桶。",
         ),
         _check(
             "real_ai_configuration",
             not settings.use_mock_ai
             and bool(settings.huawei_ocr_endpoint)
             and bool(settings.huawei_maas_endpoint)
-            and bool(settings.huawei_maas_api_key),
-            "真实联调必须关闭 Mock 并注入 OCR/MaaS 端点和 MaaS 密钥。",
+            and bool(settings.huawei_maas_api_key)
+            and bool(settings.huawei_maas_model),
+            "真实联调必须关闭 Mock 并注入 OCR/MaaS 端点、MaaS 密钥和模型名。",
         ),
         _check(
             "obs_adapter_implemented",
             settings.use_local_storage or HUAWEI_OBS_ADAPTER_IMPLEMENTED,
-            "当前 OBS 适配器仍是保护性空实现；完成 SDK 接入和真实私有读写验收后再启用。",
+            "必须存在 OBS SDK 私有读写实现和契约测试。",
         ),
         _check(
             "ocr_adapter_implemented",
             settings.use_mock_ai or HUAWEI_OCR_ADAPTER_IMPLEMENTED,
-            "OCR 请求适配已实现；完成 SDK 安装、真实服务调用和脱敏样本验收后再启用能力标志。",
+            "必须存在 OCR 请求、保守解析实现和契约测试。",
         ),
         _check(
             "maas_adapter_implemented",
             settings.use_mock_ai or HUAWEI_MAAS_ADAPTER_IMPLEMENTED,
-            "当前 MaaS 适配器仍是保护性空实现；完成真实模型接入和输出守卫验收后再启用。",
+            "必须存在 MaaS 结构化请求、响应解析和输出守卫契约测试。",
+        ),
+        _check(
+            "provider_live_acceptance",
+            _has_validation_ref(settings.huawei_obs_validation_ref)
+            and _has_validation_ref(settings.huawei_ocr_validation_ref)
+            and _has_validation_ref(settings.huawei_maas_validation_ref),
+            "必须填写 OBS 私有读写、OCR 脱敏样本和 MaaS 安全输出的真实验收记录编号。",
         ),
         _check(
             "startup_migrations_disabled",
@@ -127,6 +137,15 @@ def build_cloud_readiness(settings: Settings) -> dict[str, Any]:
             "obs_adapter_implemented": HUAWEI_OBS_ADAPTER_IMPLEMENTED,
             "ocr_adapter_implemented": HUAWEI_OCR_ADAPTER_IMPLEMENTED,
             "maas_adapter_implemented": HUAWEI_MAAS_ADAPTER_IMPLEMENTED,
+            "obs_live_acceptance_recorded": _has_validation_ref(
+                settings.huawei_obs_validation_ref
+            ),
+            "ocr_live_acceptance_recorded": _has_validation_ref(
+                settings.huawei_ocr_validation_ref
+            ),
+            "maas_live_acceptance_recorded": _has_validation_ref(
+                settings.huawei_maas_validation_ref
+            ),
             "demo_login_enabled": settings.enable_demo_login,
             "demo_seed_enabled": settings.seed_demo_data,
             "startup_migrations_enabled": settings.run_migrations_on_startup,
@@ -158,4 +177,14 @@ def _is_local_or_placeholder(value: str) -> bool:
         not normalized
         or normalized in {"localhost", "127.0.0.1", "::1"}
         or "change_me" in normalized
+    )
+
+
+def _has_validation_ref(value: str) -> bool:
+    normalized = value.strip().lower()
+    return (
+        len(normalized) >= 8
+        and "change_me" not in normalized
+        and normalized not in {"pending", "placeholder", "unknown"}
+        and not normalized.startswith(("replace-", "replace_"))
     )

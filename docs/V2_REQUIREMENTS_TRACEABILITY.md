@@ -29,7 +29,7 @@
 | CR-07 制作食用 | 连续步骤、时长、火候、厨具、周频次上限、周期、份量和注意事项 | `test_content_knowledge.py`、`test_care_plan_service.py` | M5 工程完成；专业审核待办 |
 | CR-08 持续执行 | 7 天安排、采购和导出；逐日完成、跳过、自行替换、不适及备注；不适暂停方案 | `test_care_plan_service.py` | M6 工程完成；真实用户验证待办 |
 | CR-09 复查更新 | 用户依据设定的应用内提醒；两份已确认报告保守对比；新方案修订日志及旧版快照 | `test_metric_history.py`、`test_care_plan_service.py` | M6 工程完成；专业与客户验收待办 |
-| CR-10 安全追溯 | 规则版本发布/停用、角色权限、审计 | `test_safety_rule_release.py` | M3 工程完成；专业签署待办 |
+| CR-10 安全追溯 | 规则版本发布/停用、角色权限、最小化审计、云适配与真实验收门禁 | `test_safety_rule_release.py`、`test_http_security.py`、`test_cloud_readiness.py`、`test_m7_model_safety.py` | M7 工程测试完成；真实云与专业签署待办 |
 
 ## 3. 用户旅程与现有关键页面
 

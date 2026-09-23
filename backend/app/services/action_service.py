@@ -142,7 +142,17 @@ class ActionService:
                 try:
                     return (
                         validate_action_explanation(
-                            cached_text, action_title=action.title
+                            cached_text,
+                            action_title=action.title,
+                            allowed_numeric_sources=(
+                                action.title,
+                                action.version,
+                                action.description,
+                                action.evidence_summary,
+                                action.suitable_if,
+                                action.safety_note,
+                                action.primary_metric,
+                            ),
                         ),
                         cached_source,
                     )
@@ -163,7 +173,19 @@ class ActionService:
                 client.explain_action(context), timeout=settings.maas_timeout_seconds
             )
             result = (
-                validate_action_explanation(generated, action_title=action.title),
+                validate_action_explanation(
+                    generated,
+                    action_title=action.title,
+                    allowed_numeric_sources=(
+                        context.title,
+                        context.version,
+                        context.description,
+                        context.evidence_summary,
+                        context.suitable_if,
+                        context.safety_note,
+                        context.primary_metric,
+                    ),
+                ),
                 client.provider,
             )
         except (MaaSError, ExplanationPolicyError, asyncio.TimeoutError):

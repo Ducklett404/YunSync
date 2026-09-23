@@ -39,10 +39,12 @@ def _production_settings() -> Settings:
         use_mock_ai=False,
         huawei_project_id="synthetic-project-id",
         huawei_credential_mode="instance_metadata",
+        huawei_obs_endpoint="https://obs.example.com",
         huawei_obs_bucket="synthetic-private-bucket",
         huawei_ocr_endpoint="https://ocr.example.com",
         huawei_maas_endpoint="https://maas.example.com",
         huawei_maas_api_key="synthetic-api-key",
+        huawei_maas_model="synthetic-model",
         allowed_hosts="app.example.com",
         forwarded_allow_ips="10.0.0.8",
         force_https=True,
@@ -61,23 +63,52 @@ def test_cloud_preflight_reports_local_mode_as_incomplete_without_secrets():
     assert "redis://localhost" not in serialized
 
 
-def test_cloud_preflight_rejects_unimplemented_real_adapters_even_with_complete_shape():
+def test_cloud_preflight_requires_live_acceptance_even_with_implemented_adapters():
     report = build_cloud_readiness(_production_settings())
 
     checks = {item["code"]: item["passed"] for item in report["checks"]}
 
     assert report["ready"] is False
-    assert report["version"] == "cloud-preflight-v3"
+    assert report["version"] == "cloud-preflight-v4"
     assert checks["obs_private_storage"] is True
     assert checks["real_ai_configuration"] is True
     assert checks["startup_migrations_disabled"] is True
-    assert checks["obs_adapter_implemented"] is False
-    assert checks["ocr_adapter_implemented"] is False
-    assert checks["maas_adapter_implemented"] is False
+    assert checks["obs_adapter_implemented"] is True
+    assert checks["ocr_adapter_implemented"] is True
+    assert checks["maas_adapter_implemented"] is True
+    assert checks["provider_live_acceptance"] is False
     assert report["configuration_summary"]["credential_mode"] == "instance_metadata"
     assert report["configuration_summary"]["https_required"] is True
     assert report["configuration_summary"]["startup_migrations_enabled"] is False
     assert "synthetic_password" not in json.dumps(report)
+
+
+def test_cloud_preflight_accepts_redacted_live_validation_references():
+    settings = _production_settings()
+    settings.huawei_obs_validation_ref = "OBS-ACCEPT-20260923"
+    settings.huawei_ocr_validation_ref = "OCR-ACCEPT-20260923"
+    settings.huawei_maas_validation_ref = "MAAS-ACCEPT-20260923"
+
+    report = build_cloud_readiness(settings)
+
+    assert report["ready"] is True
+    checks = {item["code"]: item["passed"] for item in report["checks"]}
+    assert checks["provider_live_acceptance"] is True
+    assert report["configuration_summary"]["obs_live_acceptance_recorded"] is True
+    assert "OBS-ACCEPT-20260923" not in json.dumps(report)
+
+
+@pytest.mark.parametrize("placeholder", ["CHANGE_ME", "replace_this", "pending", "short"])
+def test_cloud_preflight_rejects_placeholder_validation_references(placeholder):
+    settings = _production_settings()
+    settings.huawei_obs_validation_ref = placeholder
+    settings.huawei_ocr_validation_ref = "OCR-ACCEPT-20260923"
+    settings.huawei_maas_validation_ref = "MAAS-ACCEPT-20260923"
+
+    report = build_cloud_readiness(settings)
+
+    checks = {item["code"]: item["passed"] for item in report["checks"]}
+    assert checks["provider_live_acceptance"] is False
 
 
 def test_postgres_operations_keep_credentials_out_of_commands(monkeypatch, tmp_path):

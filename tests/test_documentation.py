@@ -222,6 +222,29 @@ def test_week_seven_daily_records_reminders_and_import_are_documented():
     assert "未伪造移动端浏览器走查记录" in verification
 
 
+def test_v2_m7_cloud_security_and_external_gates_are_documented_truthfully():
+    plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+    acceptance = (PROJECT_ROOT / "docs" / "V2_M7_ACCEPTANCE.md").read_text(
+        encoding="utf-8"
+    )
+    evaluation = (
+        PROJECT_ROOT / "docs" / "V2_M7_SECURITY_MODEL_EVALUATION.md"
+    ).read_text(encoding="utf-8")
+    runbook = (PROJECT_ROOT / "docs" / "V2_M7_QA_RUNBOOK.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "工程门禁已完成" in plan
+    assert "真实云联调" in plan
+    for adapter in ("OBS", "OCR", "MaaS", "cloud-preflight-v4"):
+        assert adapter in acceptance
+    for risk in ("对象越权", "提示词攻击", "数值幻觉", "目录外材料"):
+        assert risk in evaluation
+    for external_gate in ("M7-CLOUD-06", "P01", "P10", "临床营养审核人"):
+        assert external_gate in runbook
+    assert "本地测试只使用合成数据" in acceptance
+
+
 def test_week_eight_analysis_review_and_next_step_are_documented():
     plan = (PROJECT_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
     requirements = (PROJECT_ROOT / "docs" / "PRODUCT_REQUIREMENTS.md").read_text(

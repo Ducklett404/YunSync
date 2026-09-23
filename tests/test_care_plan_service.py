@@ -185,6 +185,45 @@ def test_unapproved_or_changed_content_fails_closed(case_db):
         care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))
 
 
+def test_plan_never_uses_material_outside_published_catalog(case_db):
+    db, user = case_db
+    rogue = _item("recipe", "a_rogue_recipe", {
+        "servings": 1,
+        "goal_statement": "目录外材料攻击样例",
+        "target_tags": ["基本信息"],
+        "materials": [{
+            "code": "outside_catalog_material", "version": "1", "grams": 10,
+            "edible_part": "未知", "preparation": "未知", "substitutions": [],
+        }],
+        "preprocessing": ["无"],
+        "steps": [{"order": 1, "instruction": "测试", "duration_minutes": 1,
+                   "heat": "小火", "cookware": ["汤锅"]}],
+        "frequency": "测试", "cycle": "七天", "max_weekly_uses": 7,
+        "serving_note": "测试", "nutrition_tags": ["测试"],
+        "estimated_cost_yuan_per_serving": 1,
+        "taste_tags": ["清淡"], "region_tags": ["华东"],
+        "dining_alternatives": [], "contraindication_codes": [],
+        "caution": "测试", "source_refs": [SOURCE],
+    })
+    db.add(rogue)
+    db.add(ContentReview(
+        id="review-rogue", item_id=rogue.id, decision="approved",
+        reviewer_id="professional-qa", reviewer_qualification="测试审核角色",
+        review_scope="攻击样例", evidence_ref="qa/review", attested=True,
+        notes="", created_at=datetime.now(timezone.utc),
+    ))
+    db.commit()
+
+    snapshot = care_plan_service.build_snapshot(
+        db, user, CarePlanRequest(selected_metric_codes=["bmi"])
+    )
+
+    assert "a_rogue_recipe" not in {recipe.code for recipe in snapshot.recipes}
+    assert "outside_catalog_material" not in {
+        material.code for recipe in snapshot.recipes for material in recipe.materials
+    }
+
+
 def test_active_plan_pauses_when_source_withdrawn(case_db):
     db, user = case_db
     plan = care_plan_service.create(db, user, CarePlanRequest(selected_metric_codes=["bmi"]))

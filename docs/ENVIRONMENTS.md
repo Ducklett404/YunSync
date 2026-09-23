@@ -99,4 +99,4 @@ chmod +x start.sh scripts/verify.sh
 .\.venv\Scripts\python.exe scripts\cloud_preflight.py --env-file .env
 ```
 
-预检只读取配置，不连接或修改云资源。输出只包含布尔状态、驱动名、适配器实现状态和凭据来源，不显示数据库、Redis、AK/SK 或 MaaS 密钥内容。OBS/MaaS 仍是保护性空实现；OCR 已有请求与解析适配器，但在 SDK 安装、真实服务调用和脱敏样本验收完成前仍保持能力标志为 false。因此完整占位配置仍会得到 `ready=false`。预检通过也不能替代真实 RDS/DCS/OBS/OCR/MaaS 调用证据。
+预检只读取配置，不连接或修改云资源。输出只包含布尔状态、驱动名、适配器实现状态、真实验收记录是否存在和凭据来源，不显示数据库、Redis、AK/SK、MaaS 密钥或验收记录编号。OBS、OCR 和 MaaS 适配器代码及契约测试已完成；未填写三项真实云验收记录时，`cloud-preflight-v4` 仍得到 `ready=false`。预检通过也不能替代真实 RDS/DCS/OBS/OCR/MaaS 调用证据。
