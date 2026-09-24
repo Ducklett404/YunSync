@@ -10,6 +10,7 @@ from app.controllers import (
     follow_ups,
     identity,
     metrics,
+    privacy,
     reports,
     safety,
     safety_admin,
@@ -19,6 +20,7 @@ from app.controllers import (
 
 api_router = APIRouter()
 api_router.include_router(identity.router)
+api_router.include_router(privacy.router)
 api_router.include_router(catalog.router)
 api_router.include_router(care_plans.router)
 api_router.include_router(follow_ups.router)

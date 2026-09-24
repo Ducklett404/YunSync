@@ -362,3 +362,21 @@ knowledge_items 1 ── N content_reviews
 | `created_at` | timestamptz | UTC 当前时间, index | 事件时间 |
 
 审计 payload 不得写入报告全文、密钥、请求头、联系方式或自由文本健康备注。`experiment.next_step_selected` 只保存 `experiment_id` 和选择代码。
+
+## 11. `privacy_requests`
+
+| 字段 | 类型 | 约束/默认值 | 含义 |
+|---|---|---|---|
+| `id` | varchar(36) | PK, UUID | 删除请求 ID |
+| `user_id` | varchar(36), nullable | FK → `user_profiles.id`, SET NULL | 执行前关联账号；完成后去关联 |
+| `subject_hash` | varchar(64) | index | 单向主体摘要，用于保留最小墓碑 |
+| `request_type` | varchar(32) | check | 当前固定为 `account_deletion` |
+| `status` | varchar(16) | check | `pending` / `cancelled` / `completed` |
+| `requested_at` | timestamptz | 非空 | 请求时间 |
+| `execute_after` | timestamptz | index | 撤销期结束时间 |
+| `cancelled_at` | timestamptz, nullable | 无 | 取消时间 |
+| `completed_at` | timestamptz, nullable | 无 | 完成时间 |
+| `attempt_count` | integer | 默认 0 | 外部删除失败后的尝试次数 |
+| `last_error_code` | varchar(64), nullable | 无 | 不含提供商细节的通用失败码 |
+
+部分唯一索引保证同一主体同一类型最多一个 `pending` 请求。删除用户时 `user_id` 置空，请求状态、时间和主体摘要保留；健康正文、对象键和凭据不进入该表。

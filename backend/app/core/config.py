@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     seed_demo_data: bool = True
     run_migrations_on_startup: bool = True
     session_ttl_hours: int = Field(default=12, ge=1, le=72)
+    account_deletion_grace_hours: int = Field(default=72, ge=24, le=720)
+    expired_session_retention_days: int = Field(default=7, ge=1, le=90)
 
     database_url: str = "sqlite:///./backend/data/yunsync.db"
     database_pool_size: int = Field(default=5, ge=1, le=50)

@@ -105,3 +105,7 @@ chmod +x start.sh scripts/verify.sh
 ## 9. M8 发布预检
 
 `python scripts/release_preflight.py --env-file .env` 检查生产配置、部署资产、双报告案例、交付文档，以及不可变镜像、恢复、HTTPS、告警、专业审核、用户测试和客户签收记录。输出只显示各项是否存在，不回显令牌、密钥或记录编号。`engineering_ready` 与 `external_acceptance_ready` 必须同时为真，最终 `ready` 才会通过。
+
+## 10. M9 隐私生命周期配置
+
+`ACCOUNT_DELETION_GRACE_HOURS` 默认 72 小时，控制账号删除请求的撤销窗口；`EXPIRED_SESSION_RETENTION_DAYS` 默认 7 天，控制过期或已撤销会话的清理阈值。生产值须与正式隐私政策一致。任务不由 Web 进程隐式执行，应按 `PRIVACY_OPERATIONS_RUNBOOK.md` 通过受控调度器运行。

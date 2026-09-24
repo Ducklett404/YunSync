@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.audit import AuditLog
+from app.models.care_plan import CarePlan
 from app.models.experiment import Experiment
 from app.models.identity import AuthSession, ConsentRecord
+from app.models.privacy import PrivacyRequest
 from app.models.user import UserProfile
 from app.schemas.identity import ProfileUpdateIn, SafetyScreeningIn
 
@@ -67,6 +69,15 @@ class IdentityService:
     def accept_consent(self, db: Session, user_id: str, version: str) -> ConsentRecord:
         if version != CURRENT_CONSENT_VERSION:
             raise ValueError("授权版本已更新，请重新阅读当前说明")
+        pending_deletion = db.scalar(
+            select(PrivacyRequest.id).where(
+                PrivacyRequest.user_id == user_id,
+                PrivacyRequest.request_type == "account_deletion",
+                PrivacyRequest.status == "pending",
+            )
+        )
+        if pending_deletion is not None:
+            raise ValueError("账号删除请求待执行，请先取消删除请求再重新授权")
         active = self.active_consent(db, user_id)
         if active is not None:
             return active
@@ -90,13 +101,16 @@ class IdentityService:
         db.refresh(consent)
         return consent
 
-    def withdraw_consent(self, db: Session, user_id: str) -> bool:
+    def withdraw_consent(self, db: Session, user_id: str, *, commit: bool = True) -> bool:
         active = self.active_consent(db, user_id)
         if active is None:
             return False
         active.status = "withdrawn"
         active.withdrawn_at = datetime.now(timezone.utc)
         paused_count = self._pause_active_experiments(
+            db, user_id, reason="consent_withdrawn"
+        )
+        paused_plan_count = self._pause_active_care_plans(
             db, user_id, reason="consent_withdrawn"
         )
         db.add(
@@ -106,10 +120,12 @@ class IdentityService:
                 payload={
                     "version": active.version,
                     "active_experiments_paused": paused_count,
+                    "active_care_plans_paused": paused_plan_count,
                 },
             )
         )
-        db.commit()
+        if commit:
+            db.commit()
         return True
 
     def update_profile(
@@ -183,6 +199,30 @@ class IdentityService:
                 )
             )
         return len(experiments)
+
+    @staticmethod
+    def _pause_active_care_plans(db: Session, user_id: str, reason: str) -> int:
+        plans = list(
+            db.scalars(
+                select(CarePlan).where(
+                    CarePlan.user_id == user_id,
+                    CarePlan.status == "ACTIVE",
+                )
+            )
+        )
+        now = datetime.now(timezone.utc)
+        for plan in plans:
+            plan.status = "PAUSED"
+            plan.paused_at = now
+            plan.pause_reason = reason
+            db.add(
+                AuditLog(
+                    event_type="care_plan.paused",
+                    actor_id=user_id,
+                    payload={"plan_id": plan.id, "reason": reason},
+                )
+            )
+        return len(plans)
 
 
 identity_service = IdentityService()

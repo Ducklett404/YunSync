@@ -34,4 +34,6 @@
 
 数据库操作使用 `scripts/postgres_ops.py`。恢复前确认目标数据库名，先在隔离环境验证，并记录备份时间、恢复点、迁移版本、数据校验和执行人。发布回滚应同时检查镜像、迁移兼容性、知识内容和安全规则版本，不删除审计或历史方案快照。
 
+隐私生命周期任务使用 `scripts/privacy_ops.py`。所有命令默认 dry-run；实际删除必须同时提供 `--apply` 和对应确认短语。按 `PRIVACY_OPERATIONS_RUNBOOK.md` 配置受控调度、最小权限、失败告警和执行证据，不在日志中记录用户 ID、文件名、对象键或健康正文。
+
 详见 `DEPLOYMENT_SECURITY_RUNBOOK.md`、`CLOUD_OPERATIONS_RUNBOOK.md`、`CONTENT_OPERATIONS_RUNBOOK.md` 和 `INCIDENT_RESPONSE_RUNBOOK.md`。

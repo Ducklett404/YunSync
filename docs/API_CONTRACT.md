@@ -273,3 +273,13 @@
 | 429 | 超过当前进程或上游网关的请求频率限制 |
 | 500 | 未处理错误，返回通用信息与 request ID |
 | 503 | OCR 等外部依赖暂时不可用 |
+
+## 8. M9 隐私数据生命周期接口
+
+以下接口要求有效参与者会话，但不要求当前授权，以保证用户撤回授权后仍能行使数据权利。审核角色返回 `403`。
+
+- `GET /api/v1/account/export`：下载 `yunsync-account-export-v1` JSON，返回 `Cache-Control: private, no-store`；不包含会话令牌、对象存储键、内容摘要或部署秘密，报告源文件需单独下载。
+- `GET /api/v1/account/privacy-status`：返回当前授权状态、待执行删除请求和撤销期小时数。
+- `POST /api/v1/account/deletion-request`：请求体必须为 `{ "confirmation": "删除我的云循数据" }`；重复请求幂等，立即撤回授权并暂停活动方案/实验。请求处于 `pending` 时拒绝重新授权，须先取消删除请求。
+- `DELETE /api/v1/account/deletion-request`：在到期执行前取消待处理请求；没有待处理请求返回 `404`。
+- `DELETE /api/v1/reports/{report_id}`：请求体必须重复同一 `confirm_report_id`；先删除私有源文件，再删除报告及数据库级联数据。确认不一致返回 `400`，对象存储失败返回 `503` 且数据库数据保留。

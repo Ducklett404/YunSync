@@ -20,6 +20,8 @@ import type {
   FollowUpReminder,
   FollowUpReminderInput,
   PlanRevision,
+  PrivacyRequest,
+  PrivacyStatus,
   DashboardData,
   DemoSession,
   Experiment,
@@ -110,6 +112,28 @@ export async function updateFoodSafetyProfile(payload: FoodSafetyProfileInput): 
 
 export async function fetchSafetyDecision(): Promise<SafetyDecision> {
   const { data } = await client.get<SafetyDecision>('/safety/decision')
+  return data
+}
+
+export async function fetchPrivacyStatus(): Promise<PrivacyStatus> {
+  const { data } = await client.get<PrivacyStatus>('/account/privacy-status')
+  return data
+}
+
+export async function downloadAccountExport(): Promise<Blob> {
+  const { data } = await client.get<Blob>('/account/export', { responseType: 'blob' })
+  return data
+}
+
+export async function requestAccountDeletion(): Promise<PrivacyRequest> {
+  const { data } = await client.post<PrivacyRequest>('/account/deletion-request', {
+    confirmation: '删除我的云循数据',
+  })
+  return data
+}
+
+export async function cancelAccountDeletion(): Promise<PrivacyRequest> {
+  const { data } = await client.delete<PrivacyRequest>('/account/deletion-request')
   return data
 }
 
@@ -270,6 +294,10 @@ export async function downloadReportSource(reportId: string): Promise<Blob> {
     responseType: 'blob',
   })
   return data
+}
+
+export async function deleteReport(reportId: string): Promise<void> {
+  await client.delete(`/reports/${reportId}`, { data: { confirm_report_id: reportId } })
 }
 
 export async function confirmReport(reportId: string): Promise<void> {

@@ -16,6 +16,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY alembic.ini ./
 COPY backend/ ./backend/
+COPY scripts/ ./scripts/
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 RUN addgroup --system --gid 10001 yunsync \
     && adduser --system --uid 10001 --ingroup yunsync --home /home/yunsync yunsync \

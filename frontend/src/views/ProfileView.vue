@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { LogOut, Save, ShieldOff, UserRoundCog } from 'lucide-vue-next'
+import { Download, LogOut, Save, ShieldOff, Trash2, UserRoundCog, XCircle } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   fetchAccountStatus,
+  fetchPrivacyStatus,
   fetchFoodSafetyProfile,
+  downloadAccountExport,
   getApiErrorMessage,
   logoutDemo,
+  requestAccountDeletion,
+  cancelAccountDeletion,
   updateProfile,
   updateFoodSafetyProfile,
   withdrawConsent,
@@ -15,7 +19,7 @@ import {
 import { clearAuthSession, currentUser, setCurrentUser } from '@/state/auth'
 import { resetOnboardingAccess } from '@/state/onboarding'
 import { useWorkspaceStore } from '@/stores/workspace'
-import type { FoodSafetyAnswerStatus, FoodSafetyProfile, FoodSafetyProfileInput, FoodSafetySpecialStatus } from '@/types'
+import type { FoodSafetyAnswerStatus, FoodSafetyProfile, FoodSafetyProfileInput, FoodSafetySpecialStatus, PrivacyStatus } from '@/types'
 
 
 const router = useRouter()
@@ -26,6 +30,10 @@ const savingSafety = ref(false)
 const error = ref('')
 const success = ref('')
 const consentVersion = ref('')
+const hasActiveConsent = ref(false)
+const privacyStatus = ref<PrivacyStatus | null>(null)
+const privacyBusy = ref(false)
+const exporting = ref(false)
 const safetyReadiness = ref<FoodSafetyProfile['readiness']>('needs_information')
 const safetyForm = reactive({
   allergy_status: 'unknown' as FoodSafetyAnswerStatus,
@@ -117,11 +125,13 @@ async function loadProfile() {
   loading.value = true
   error.value = ''
   try {
-    const [status, safety] = await Promise.all([fetchAccountStatus(), fetchFoodSafetyProfile()])
+    const [status, privacy] = await Promise.all([fetchAccountStatus(), fetchPrivacyStatus()])
     setCurrentUser(status.user)
     consentVersion.value = status.consent?.version || ''
+    hasActiveConsent.value = privacy.active_consent
+    privacyStatus.value = privacy
     fillForm()
-    fillSafetyForm(safety)
+    if (privacy.active_consent) fillSafetyForm(await fetchFoodSafetyProfile())
   } catch (caught) {
     error.value = getApiErrorMessage(caught)
   } finally {
@@ -153,9 +163,59 @@ async function withdraw() {
     await withdrawConsent()
     resetOnboardingAccess()
     workspace.$reset()
-    await router.push('/start')
+    await loadProfile()
+    success.value = '授权已撤回；你仍可导出数据、取消待执行删除或退出账号。'
   } catch (caught) {
     error.value = getApiErrorMessage(caught)
+  }
+}
+
+async function exportAccount() {
+  exporting.value = true
+  error.value = ''
+  try {
+    const blob = await downloadAccountExport()
+    const href = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = href
+    link.download = `yunsync-account-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(href)
+  } catch (caught) {
+    error.value = getApiErrorMessage(caught)
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function requestDeletion() {
+  if (!window.confirm('账号数据将在撤销期结束后永久删除，当前授权和进行中的计划会立即暂停。是否继续？')) return
+  privacyBusy.value = true
+  error.value = ''
+  try {
+    await requestAccountDeletion()
+    resetOnboardingAccess()
+    workspace.$reset()
+    await loadProfile()
+    success.value = '删除请求已登记；在执行时间前可在本页取消。'
+  } catch (caught) {
+    error.value = getApiErrorMessage(caught)
+  } finally {
+    privacyBusy.value = false
+  }
+}
+
+async function cancelDeletion() {
+  privacyBusy.value = true
+  error.value = ''
+  try {
+    await cancelAccountDeletion()
+    await loadProfile()
+    success.value = '账号删除请求已取消。如需继续健康功能，请重新接受当前知情说明。'
+  } catch (caught) {
+    error.value = getApiErrorMessage(caught)
+  } finally {
+    privacyBusy.value = false
   }
 }
 
@@ -187,7 +247,8 @@ onMounted(loadProfile)
     <div v-if="loading" class="loading-block">正在读取演示档案…</div>
     <div v-else class="content-grid profile-grid">
       <div class="page-stack">
-      <form class="panel profile-form" @submit.prevent="saveProfile">
+      <div v-if="!hasActiveConsent" class="message warning-message">当前未授权，健康档案编辑和分析已停止；数据权利操作仍可使用。</div>
+      <form v-if="hasActiveConsent" class="panel profile-form" @submit.prevent="saveProfile">
         <div class="panel-heading">
           <div>
             <span class="section-kicker">合成健康档案</span>
@@ -241,7 +302,7 @@ onMounted(loadProfile)
         </button>
       </form>
 
-      <form class="panel profile-form" @submit.prevent="saveSafetyProfile">
+      <form v-if="hasActiveConsent" class="panel profile-form" @submit.prevent="saveSafetyProfile">
         <div class="panel-heading">
           <div>
             <span class="section-kicker">V2 · 食养安全信息</span>
@@ -348,14 +409,33 @@ onMounted(loadProfile)
         </dl>
 
         <div class="account-actions">
-          <button class="button danger-outline full-width" type="button" @click="withdraw">
+          <button v-if="hasActiveConsent" class="button danger-outline full-width" type="button" @click="withdraw">
             <ShieldOff :size="17" />撤回授权
           </button>
           <button class="button secondary full-width" type="button" @click="signOut">
             <LogOut :size="17" />退出演示账号
           </button>
         </div>
-        <p class="panel-note">撤回授权后，服务端会拒绝新的报告分析和健康数据操作，并暂停当前实验。</p>
+        <p class="panel-note">撤回授权后，服务端会拒绝新的报告分析和健康数据操作，并暂停当前照护方案与实验。</p>
+
+        <div class="panel-heading privacy-heading">
+          <div><span class="section-kicker">M9 · 数据权利</span><h3>导出与删除</h3></div>
+        </div>
+        <div class="account-actions">
+          <button class="button secondary full-width" type="button" :disabled="exporting" @click="exportAccount">
+            <Download :size="17" />{{ exporting ? '正在导出…' : '导出账号数据' }}
+          </button>
+          <template v-if="privacyStatus?.pending_deletion">
+            <p class="panel-note">计划执行：{{ new Date(privacyStatus.pending_deletion.execute_after).toLocaleString('zh-CN') }}</p>
+            <button class="button secondary full-width" type="button" :disabled="privacyBusy" @click="cancelDeletion">
+              <XCircle :size="17" />取消账号删除
+            </button>
+          </template>
+          <button v-else class="button danger-outline full-width" type="button" :disabled="privacyBusy" @click="requestDeletion">
+            <Trash2 :size="17" />请求删除账号数据
+          </button>
+        </div>
+        <p class="panel-note">导出文件不包含登录令牌和存储密钥。账号删除有 {{ privacyStatus?.deletion_grace_hours ?? 72 }} 小时撤销期。</p>
       </aside>
     </div>
   </div>

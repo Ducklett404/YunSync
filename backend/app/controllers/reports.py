@@ -3,7 +3,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.security import require_active_participant
+from app.core.security import require_active_participant, require_permission
 from app.db.session import get_db
 from app.integrations.huawei.obs import ObjectStorageError
 from app.models.health import HealthReport
@@ -20,6 +20,8 @@ from app.schemas.health import (
     ReportMetadataIn,
     ReportSummaryOut,
 )
+from app.schemas.privacy import ReportDeletionIn
+from app.services.privacy_service import privacy_service
 from app.services.report_service import (
     ReportConflictError,
     ReportProcessingError,
@@ -112,6 +114,24 @@ def get_report(
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return _serialize_report(db, report)
+
+
+@router.delete("/{report_id}", response_model=ApiMessage)
+def delete_report(
+    report_id: str,
+    payload: ReportDeletionIn,
+    user: UserProfile = Depends(require_permission("health:use")),
+    db: Session = Depends(get_db),
+):
+    if payload.confirm_report_id != report_id:
+        raise HTTPException(status_code=400, detail="删除确认中的报告编号不一致")
+    try:
+        privacy_service.delete_report(db, user.id, report_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return ApiMessage(message="报告及其关联数据已删除")
 
 
 @router.post("/analyze", response_model=ReportAnalysisOut)

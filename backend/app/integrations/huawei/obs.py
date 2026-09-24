@@ -57,6 +57,15 @@ class LocalPrivateStorageClient:
         except OSError as exc:
             raise ObjectStorageError("报告源文件暂时不可读取") from exc
 
+    def delete_private(self, key: str) -> None:
+        target = (self.root / key).resolve()
+        if not target.is_relative_to(self.root):
+            raise ObjectStorageError("存储路径校验失败")
+        try:
+            target.unlink(missing_ok=True)
+        except OSError as exc:
+            raise ObjectStorageError("报告源文件暂时不可删除") from exc
+
 
 class HuaweiObsClient:
     provider = "huawei_obs"
@@ -112,6 +121,20 @@ class HuaweiObsClient:
             raise
         except Exception as exc:
             raise ObjectStorageError("报告源文件暂时不可读取") from exc
+        finally:
+            self._close(client)
+
+    def delete_private(self, key: str) -> None:
+        self._validate_key(key)
+        client = self._build_client()
+        try:
+            response = client.deleteObject(self._config.huawei_obs_bucket, key)
+            if getattr(response, "status", None) != 404:
+                self._ensure_success(response, operation="删除")
+        except ObjectStorageError:
+            raise
+        except Exception as exc:
+            raise ObjectStorageError("报告源文件暂时不可删除") from exc
         finally:
             self._close(client)
 

@@ -24,6 +24,7 @@ class FakeObsClient:
         self.content = content
         self.put_calls = []
         self.get_calls = []
+        self.delete_calls = []
         self.closed = False
 
     def putContent(self, bucket, key, content):
@@ -36,6 +37,10 @@ class FakeObsClient:
             status=self.status,
             body=SimpleNamespace(buffer=self.content),
         )
+
+    def deleteObject(self, bucket, key):
+        self.delete_calls.append((bucket, key))
+        return SimpleNamespace(status=self.status)
 
     def close(self):
         self.closed = True
@@ -77,6 +82,17 @@ def test_obs_read_loads_content_in_memory_and_closes_client():
 
     assert client.read_private(key) == b"downloaded"
     assert fake.get_calls == [("synthetic-private-bucket", key, True)]
+    assert fake.closed is True
+
+
+def test_obs_delete_is_idempotent_for_missing_objects_and_closes_client():
+    fake = FakeObsClient(status=404)
+    key = "reports/user-01/0123456789abcdef0123456789abcdef.pdf"
+    client = HuaweiObsClient(client_factory=lambda **_kwargs: fake, config=_config())
+
+    client.delete_private(key)
+
+    assert fake.delete_calls == [("synthetic-private-bucket", key)]
     assert fake.closed is True
 
 

@@ -480,6 +480,23 @@ export interface AccountStatus {
   required_consent_version: string
 }
 
+export interface PrivacyRequest {
+  id: string
+  request_type: 'account_deletion'
+  status: 'pending' | 'cancelled' | 'completed'
+  requested_at: string
+  execute_after: string
+  cancelled_at: string | null
+  completed_at: string | null
+  attempt_count: number
+}
+
+export interface PrivacyStatus {
+  active_consent: boolean
+  pending_deletion: PrivacyRequest | null
+  deletion_grace_hours: number
+}
+
 export type ContentType = 'ingredient' | 'recipe' | 'contraindication'
 export type ContentStatus = 'draft' | 'reviewed' | 'published' | 'retired'
 

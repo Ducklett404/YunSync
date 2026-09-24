@@ -20,6 +20,7 @@ import {
   confirmReportMetric,
   correctReportMetric,
   createManualReport,
+  deleteReport,
   downloadReportSource,
   fetchLatestReport,
   fetchMetricHistory,
@@ -79,6 +80,7 @@ const error = ref('')
 const success = ref('')
 const sourcePreviewUrl = ref('')
 const sourcePreviewLoading = ref(false)
+const deletingReport = ref(false)
 const sourcePreviewError = ref('')
 const sourcePreviewElement = ref<HTMLElement | null>(null)
 const focusedMetricId = ref('')
@@ -520,6 +522,27 @@ async function downloadSource() {
   }
 }
 
+async function removeCurrentReport() {
+  if (!report.value) return
+  const reportId = report.value.report_id
+  if (!window.confirm('永久删除这份报告、指标和关联照护方案/反馈记录？此操作无法撤销。')) return
+  deletingReport.value = true
+  error.value = ''
+  success.value = ''
+  try {
+    await deleteReport(reportId)
+    clearSourcePreview()
+    report.value = null
+    await Promise.all([loadReports(), loadMetricHistory()])
+    if (reportEntries.value.length) setReport(await fetchReport(reportEntries.value[0].report_id))
+    success.value = '报告及其关联数据已删除。'
+  } catch (requestError) {
+    error.value = getApiErrorMessage(requestError)
+  } finally {
+    deletingReport.value = false
+  }
+}
+
 function sourcePosition(metric: HealthMetric) {
   if (report.value?.source === 'manual') {
     return `手工录入 · 检查日期 ${new Date(metric.measured_at).toLocaleDateString('zh-CN')}`
@@ -732,14 +755,19 @@ function formatArithmeticChange(change: number) {
         <template v-else-if="report">
           <div class="report-notice">
             <span>{{ report.synthetic_notice }}</span>
-            <button
-              v-if="report.source_available"
-              class="text-link button-reset"
-              type="button"
-              @click="downloadSource"
-            >
-              <Download :size="15" /> 下载源文件核对
-            </button>
+            <div class="inline-actions">
+              <button
+                v-if="report.source_available"
+                class="text-link button-reset"
+                type="button"
+                @click="downloadSource"
+              >
+                <Download :size="15" /> 下载源文件核对
+              </button>
+              <button class="text-link button-reset danger-text" type="button" :disabled="deletingReport" @click="removeCurrentReport">
+                <Trash2 :size="15" /> {{ deletingReport ? '删除中…' : '删除本报告' }}
+              </button>
+            </div>
           </div>
 
           <section v-if="report.source_available" ref="sourcePreviewElement" class="source-preview-panel" aria-labelledby="source-preview-title">
