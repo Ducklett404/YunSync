@@ -14,6 +14,7 @@ class CriticalMarkerIn(BaseModel):
 class MetricCorrectionIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     value: float = Field(ge=-100000, le=100000, allow_inf_nan=False)
+    reported_precision: int | None = Field(default=None, ge=0, le=6)
     unit: str = Field(min_length=1, max_length=32)
     reference_range: str = Field(max_length=64)
     method: str | None = Field(default=None, max_length=120)
@@ -107,6 +108,7 @@ class HealthMetricOut(BaseModel):
     code: str
     name: str
     value: float
+    reported_precision: int | None
     unit: str
     reference_range: str
     method: str

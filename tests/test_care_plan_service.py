@@ -74,6 +74,7 @@ def case_db():
             db.add(HealthMetric(
                 id=f"qa-metric-{code}", report_id=report.id, user_id=user.id,
                 code=code, name=name, value=value, unit=unit,
+                reported_precision=1,
                 reference_range="请核对原件", flag="attention", confirmed=True,
             ))
         db.add(EvidenceSource(
@@ -300,6 +301,7 @@ def _add_follow_up_report(db: Session, user: UserProfile, *, confirmed: bool = T
     old.institution = "测试机构"
     for metric in db.query(HealthMetric).filter(HealthMetric.report_id == old.id):
         metric.method = "测试方法"
+        metric.reported_precision = 1
     new = HealthReport(
         id="qa-report-follow-up", user_id=user.id, filename="合成复查报告",
         status="confirmed" if confirmed else "needs_confirmation",
@@ -316,6 +318,7 @@ def _add_follow_up_report(db: Session, user: UserProfile, *, confirmed: bool = T
         db.add(HealthMetric(
             id=f"qa-follow-up-{code}", report_id=new.id, user_id=user.id,
             code=code, name=name, value=value, unit=unit,
+            reported_precision=1,
             reference_range="请核对原件", method="测试方法",
             flag="attention", confirmed=confirmed,
         ))
@@ -487,6 +490,7 @@ def test_m6_api_owner_scope_and_revision_contract(case_db):
                 "measured_at": datetime.now(timezone.utc).isoformat(),
                 "metrics": [{
                     "name": "身体质量指数", "value": 24.8, "unit": "kg/m²",
+                    "reported_precision": 1,
                     "reference_range": "请核对原件", "method": "测试方法",
                 }],
             })

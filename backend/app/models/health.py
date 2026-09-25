@@ -56,6 +56,7 @@ class HealthMetric(Base):
     code: Mapped[str] = mapped_column(String(64), index=True)
     name: Mapped[str] = mapped_column(String(80))
     value: Mapped[float] = mapped_column(Float)
+    reported_precision: Mapped[int | None] = mapped_column(Integer, nullable=True)
     unit: Mapped[str] = mapped_column(String(32))
     reference_range: Mapped[str] = mapped_column(String(64), default="")
     method: Mapped[str] = mapped_column(String(120), default="")

@@ -24,7 +24,8 @@ def _point(report: HealthReport, metric: HealthMetric) -> MetricHistoryPointOut:
         report_id=report.id, metric_id=metric.id,
         report_created_at=report.created_at, examined_at=report.examined_at,
         institution=report.institution, measured_at=metric.measured_at,
-        value=metric.value, unit=metric.unit, reference_range=metric.reference_range,
+        value=metric.value, reported_precision=metric.reported_precision,
+        unit=metric.unit, reference_range=metric.reference_range,
         method=metric.method, standard_value=projection.standard_value,
         projection_status=projection.status,
     )

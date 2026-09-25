@@ -20,6 +20,18 @@ SECRET_PATTERNS = {
         r"['\"]([A-Za-z0-9+/=_-]{32,})['\"]"
     ),
 }
+FALLBACK_IGNORED_DIRS = {
+    ".git",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "dist",
+    "node_modules",
+    "release",
+    "uploads",
+    "venv",
+}
+FALLBACK_IGNORED_SUFFIXES = {".pyc", ".pyo", ".tsbuildinfo"}
 
 
 @dataclass(frozen=True)
@@ -37,10 +49,25 @@ def repository_files(root: Path = PROJECT_ROOT) -> list[Path]:
     result = subprocess.run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
         cwd=root,
-        check=True,
+        check=False,
         capture_output=True,
     )
-    return [root / item.decode("utf-8") for item in result.stdout.split(b"\0") if item]
+    if result.returncode == 0:
+        return [root / item.decode("utf-8") for item in result.stdout.split(b"\0") if item]
+
+    files = []
+    for path in root.rglob("*"):
+        relative = path.relative_to(root)
+        if any(part in FALLBACK_IGNORED_DIRS for part in relative.parts):
+            continue
+        if path.is_symlink() or not path.is_file():
+            continue
+        if path.suffix.lower() in FALLBACK_IGNORED_SUFFIXES:
+            continue
+        if relative.parts[:2] == ("backend", "data"):
+            continue
+        files.append(path)
+    return sorted(files, key=lambda path: path.relative_to(root).as_posix())
 
 
 def scan_text(path: str, text: str) -> list[Finding]:

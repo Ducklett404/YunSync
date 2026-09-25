@@ -19,11 +19,11 @@ YunSync 项目自身采用 [MIT License](../LICENSE)；本清单中的第三方�
 | redis-py | `>=5.2,<7.0` | 6.4.0 | MIT |
 | HTTPX | `>=0.28,<1.0` | 0.28.1 | BSD-3-Clause |
 | Alembic | `>=1.14,<2.0` | 1.19.2 | MIT |
-| huaweicloudsdkcore | `>=3.1,<4.0` | 当前环境待安装 | Apache-2.0 |
-| huaweicloudsdkocr | `>=3.1,<4.0` | 当前环境待安装 | Apache-2.0 |
-| esdk-obs-python | `>=3.26,<4.0` | 当前环境待安装 | Apache-2.0 |
-
 版本与许可值来自当前安装包的 Core Metadata；它们不是对未来解析版本的承诺。
+
+### 1.1 暂停启用的云 SDK 候选
+
+华为云 `huaweicloudsdkcore`、`huaweicloudsdkocr` 与 `esdk-obs-python` 仍是适配器候选依赖，但不进入当前默认运行环境和生产镜像。2026-09-25 审计时，最新版 `huaweicloudsdkcore 3.1.216` 要求 `pyasn1<=0.6.3`，而漏洞修复版为 `pyasn1 0.6.4`；在上游解除冲突并重新通过依赖审计前，不允许通过忽略漏洞或强制覆盖依赖的方式启用。适配器使用延迟导入，配置为真实华为云服务但缺少 SDK 时会关闭失败。
 
 ## 2. 前端直接依赖
 

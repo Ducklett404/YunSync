@@ -240,7 +240,7 @@ export async function createManualReport(payload: {
   title: string
   institution: string
   measured_at: string
-  metrics: { name: string; value: number; unit: string; reference_range: string; method: string }[]
+  metrics: { name: string; value: number; reported_precision: number | null; unit: string; reference_range: string; method: string }[]
 }): Promise<ReportAnalysis> {
   const { data } = await client.post<ReportAnalysis>('/reports/manual', payload)
   return data
@@ -280,7 +280,7 @@ export async function confirmReportMetric(
 export async function correctReportMetric(
   reportId: string,
   metricId: string,
-  payload: { name: string; value: number; unit: string; reference_range: string; method: string },
+  payload: { name: string; value: number; reported_precision: number | null; unit: string; reference_range: string; method: string },
 ): Promise<ReportAnalysis['metrics'][number]> {
   const { data } = await client.patch<ReportAnalysis['metrics'][number]>(
     `/reports/${reportId}/metrics/${metricId}`,

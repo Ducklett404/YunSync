@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from scripts.performance_smoke import percentile_nearest_rank
-from scripts.repository_security_scan import scan_text
+from scripts.repository_security_scan import repository_files, scan_text
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +21,20 @@ def test_secret_scanner_reports_location_without_echoing_secret():
 
 def test_secret_scanner_allows_documented_placeholders():
     assert scan_text(".env.example", "SECRET_KEY=replace-this-before-deployment") == []
+
+
+def test_repository_file_fallback_supports_source_snapshot_without_git(tmp_path):
+    source = tmp_path / "backend" / "app.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("print('safe')", encoding="utf-8")
+    ignored = tmp_path / "frontend" / "node_modules" / "package.js"
+    ignored.parent.mkdir(parents=True)
+    ignored.write_text("secret", encoding="utf-8")
+    runtime = tmp_path / "backend" / "data" / "runtime.db"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_bytes(b"runtime")
+
+    assert repository_files(tmp_path) == [source]
 
 
 def test_percentile_uses_nearest_rank_and_rejects_empty_input():

@@ -36,6 +36,7 @@ import type { HealthMetric, MetricHistory, ReportAnalysis, ReportSummary } from 
 interface MetricDraft {
   name: string
   value: number
+  reported_precision: number | null
   unit: string
   reference_range: string
   method: string
@@ -44,6 +45,7 @@ interface MetricDraft {
 interface ManualMetricDraft {
   name: string
   value: number | null
+  reported_precision: number | null
   unit: string
   reference_range: string
   method: string
@@ -51,7 +53,7 @@ interface ManualMetricDraft {
 
 const now = new Date()
 const localToday = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
-const emptyManualMetric = (): ManualMetricDraft => ({ name: '', value: null, unit: '', reference_range: '', method: '' })
+const emptyManualMetric = (): ManualMetricDraft => ({ name: '', value: null, reported_precision: null, unit: '', reference_range: '', method: '' })
 
 const report = ref<ReportAnalysis | null>(null)
 const reportEntries = ref<ReportSummary[]>([])
@@ -205,6 +207,7 @@ function setReport(value: ReportAnalysis) {
       {
         name: metric.name,
         value: metric.value,
+        reported_precision: metric.reported_precision,
         unit: metric.unit,
         reference_range: metric.reference_range,
         method: metric.method,
@@ -314,6 +317,7 @@ function replaceMetric(updated: HealthMetric) {
   drafts.value[updated.id] = {
     name: updated.name,
     value: updated.value,
+    reported_precision: updated.reported_precision,
     unit: updated.unit,
     reference_range: updated.reference_range,
     method: updated.method,
@@ -361,6 +365,10 @@ function removeManualMetric(index: number) {
   if (manualMetrics.value.length > 1) manualMetrics.value.splice(index, 1)
 }
 
+function normalizedPrecision(value: number | null): number | null {
+  return Number.isInteger(value) && value !== null && value >= 0 && value <= 6 ? value : null
+}
+
 async function saveManualReport() {
   if (!manualTitle.value.trim() || !manualMeasuredOn.value) {
     error.value = '请填写批次名称和检查日期。'
@@ -386,6 +394,7 @@ async function saveManualReport() {
       metrics: manualMetrics.value.map((metric) => ({
         name: metric.name.trim(),
         value: Number(metric.value),
+        reported_precision: normalizedPrecision(metric.reported_precision),
         unit: metric.unit.trim(),
         reference_range: metric.reference_range.trim(),
         method: metric.method.trim(),
@@ -445,6 +454,7 @@ function draftChanged(metric: HealthMetric) {
     draft &&
       (draft.name !== metric.name ||
         Number(draft.value) !== metric.value ||
+        draft.reported_precision !== metric.reported_precision ||
         draft.unit !== metric.unit ||
         draft.reference_range !== metric.reference_range ||
         draft.method !== metric.method),
@@ -471,6 +481,7 @@ async function saveCorrection(metric: HealthMetric) {
       await correctReportMetric(report.value.report_id, metric.id, {
         name: draft.name.trim(),
         value: Number(draft.value),
+        reported_precision: normalizedPrecision(draft.reported_precision),
         unit: draft.unit.trim(),
         reference_range: draft.reference_range.trim(),
         method: draft.method.trim(),
@@ -629,6 +640,10 @@ function formatArithmeticChange(change: number) {
                   <input v-model.trim="metric.unit" maxlength="32" placeholder="例如：mmol/L" />
                 </label>
               </div>
+              <label class="inline-field">
+                <span>报告显示小数位（可不填）</span>
+                <input v-model.number="metric.reported_precision" type="number" min="0" max="6" step="1" placeholder="例如：1" />
+              </label>
               <label class="inline-field">
                 <span>参考范围（可不填）</span>
                 <input v-model.trim="metric.reference_range" maxlength="64" placeholder="例如：3.9-6.1" />
@@ -832,6 +847,10 @@ function formatArithmeticChange(change: number) {
                       <span>结果数值</span>
                       <input v-model.number="drafts[metric.id].value" type="number" step="any" :disabled="!canEditMetricContent(metric)" />
                     </label>
+                    <label class="inline-field compact">
+                      <span>报告显示小数位</span>
+                      <input v-model.number="drafts[metric.id].reported_precision" type="number" min="0" max="6" step="1" placeholder="未记录" />
+                    </label>
                   </td>
                   <td>
                     <label class="inline-field compact">
@@ -911,7 +930,7 @@ function formatArithmeticChange(change: number) {
           <h2>同指标历史对齐</h2>
         </div>
       </div>
-      <p class="panel-note">仅统计最近 {{ metricHistory?.report_limit ?? 20 }} 份已确认报告。标准指标唯一、单位可投影、检查日期明确、检测方法一致，且参考范围已填写并一致时才显示算术差；该差值不能用于判断健康趋势或食养效果。</p>
+      <p class="panel-note">仅统计最近 {{ metricHistory?.report_limit ?? 20 }} 份已确认报告。标准指标唯一、单位可投影，检查日期、检测机构、检测方法和报告显示精度均明确且一致，参考范围已填写并一致时才显示算术差；该差值不能用于判断健康趋势或食养效果。</p>
       <p v-if="metricHistoryError" class="message error-message">历史指标读取失败：{{ metricHistoryError }}</p>
       <div v-else-if="!historyRows.length" class="empty-state">确认报告后，这里会显示同一指标的历次记录。</div>
       <div v-else class="action-table-wrap metric-history-table">

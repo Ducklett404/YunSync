@@ -3,6 +3,7 @@ export interface HealthMetric {
   code: string
   name: string
   value: number
+  reported_precision: number | null
   unit: string
   reference_range: string
   method: string
@@ -250,6 +251,7 @@ export interface MetricHistoryPoint {
   institution: string
   measured_at: string
   value: number
+  reported_precision: number | null
   unit: string
   reference_range: string
   method: string
@@ -260,13 +262,15 @@ export interface MetricHistoryPoint {
 export interface MetricHistoryPair {
   previous_report_id: string
   current_report_id: string
-  status: 'numeric_only' | 'not_projected' | 'duplicate_in_report' | 'metadata_missing' | 'method_changed' | 'reference_range_missing' | 'reference_range_changed'
+  status: 'numeric_only' | 'not_projected' | 'duplicate_in_report' | 'metadata_missing' | 'institution_changed' | 'method_changed' | 'precision_changed' | 'reference_range_missing' | 'reference_range_changed'
   arithmetic_change: number | null
   direction: 'higher' | 'lower' | 'same' | null
   reference_range_changed: boolean
   source_unit_changed: boolean
   institution_changed: boolean
   method_changed: boolean
+  precision_missing: boolean
+  precision_changed: boolean
   limitations: string[]
 }
 

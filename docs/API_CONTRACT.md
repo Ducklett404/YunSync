@@ -109,11 +109,11 @@
 
 `ReportList` 返回 `items`、`total`、`limit`、`offset`。每项仅含报告 ID、文件名、状态、OCR 状态、用户确认的危急标记状态和创建时间；按创建时间、ID 降序排列。该接口用于切换已上传的报告批次。安全分流只以最新报告为准。
 
-`MetricHistory` 仅读取当前用户最近 `report_limit` 份**整份已确认**报告中的逐项已确认 P0 指标。已填写检查日期的记录按检查日期排序；缺少日期的历史记录排在已知日期之前。按标准代码合并别名，保留报告 ID、检查日期、机构、检测方法、原值、原单位、参考范围和单位投影。只有标准指标唯一、单位可投影、检查日期明确、两次检测方法填写并一致，且参考范围填写并经文本规范化后一致时，`latest_pair` 才返回标准单位下的算术差和方向。检测方法缺失或变化、参考范围缺失或不同、单位无法投影、同批次重复指标时差值为 `null`；机构和原单位变化以限制说明返回。参考范围规范化仅统一空白和常见标点写法，不推断区间的医学等价性。算术差不得被解释为临床趋势或食养效果。未知代码不进入此接口。历史规则版本为 `v2-history-draft-3`。
+`MetricHistory` 仅读取当前用户最近 `report_limit` 份**整份已确认**报告中的逐项已确认 P0 指标。已填写检查日期的记录按检查日期排序；缺少日期的历史记录排在已知日期之前。按标准代码合并别名，保留报告 ID、检查日期、机构、检测方法、原值、报告显示小数位、原单位、参考范围和单位投影。只有标准指标唯一、单位可投影，检查日期、检测机构、检测方法和显示精度均填写并一致，且参考范围填写并经文本规范化后一致时，`latest_pair` 才返回标准单位下的算术差和方向。上述元数据缺失或变化、单位无法投影、同批次重复指标时差值均为 `null`。单位书写中的大小写、`μ/µ/u` 和全角斜线差异只做形式归一，不改变数值。参考范围规范化仅统一空白和常见标点写法，不推断区间的医学等价性。算术差不得被解释为临床趋势或食养效果。未知代码不进入此接口。历史规则版本为 `v2-history-draft-4`。
 
 ### `ManualReport`
 
-手工批次包含 1—30 个指标、批次名称、带时区的检查时间和可选检测机构。每项包含名称、数值、单位、可选参考范围、可选检测方法和可选标准代码；普通用户页面不要求填写标准代码，后端按名称别名匹配，未知名称生成稳定的 `manual_*` 内部代码并保留原名称。同一批次映射到相同标准代码的重复项会整体拒绝。创建后所有指标仍为 `pending`，必须走逐项确认和报告最终确认；手工批次没有可下载源文件，源文件接口返回 409。
+手工批次包含 1—30 个指标、批次名称、带时区的检查时间和可选检测机构。每项包含名称、数值、单位、可选的报告显示小数位（0–6）、参考范围、检测方法和标准代码；普通用户页面不要求填写标准代码，后端按名称别名匹配，未知名称生成稳定的 `manual_*` 内部代码并保留原名称。同一批次映射到相同标准代码的重复项会整体拒绝。创建后所有指标仍为 `pending`，必须走逐项确认和报告最终确认；手工批次没有可下载源文件，源文件接口返回 409。
 
 `GET /actions` 只返回当前环境可发布的活动低风险模板。Development/Test 可使用 `prototype_approved`，Production 只接受 `professionally_approved`。同一行动代码最多一个活动版本。
 
@@ -130,12 +130,12 @@
 }
 ```
 
-修正请求必须同时提交名称、数值、单位和参考范围，并可提交检测方法。成功后 `review_status` 为 `corrected`；原始 `raw_text`、`extracted_value`、`extracted_unit` 和 `extracted_reference_range` 保持不变。没有实际变化时按普通确认处理。整份报告确认后只能补充或更正检测方法，不能借此同时改变已锁定数值；单位/名称冲突的受限恢复路径除外。
+修正请求必须同时提交名称、数值、单位和参考范围，并可提交检测方法与报告显示小数位。成功后 `review_status` 为 `corrected`；原始 `raw_text`、`extracted_value`、`extracted_unit` 和 `extracted_reference_range` 保持不变。没有实际变化时按普通确认处理。整份报告确认后只能补充或更正检测方法、显示小数位，不能借此同时改变已锁定数值；单位/名称冲突的受限恢复路径除外。
 
 ### `ReportAnalysis`
 
 - 报告级状态：`status`、`ocr_status`、`ocr_attempts`、`ocr_error_code`、`ocr_provider`、`processed_at`；
-- 检查元数据：`examined_at`、`institution`；指标另含用户核对的 `method`。修改已确认报告的检查元数据或检测方法会将报告恢复为待确认状态，并记录不含具体内容的审计事件；
+- 检查元数据：`examined_at`、`institution`；指标另含用户核对的 `method` 和 `reported_precision`。修改已确认报告的检查元数据、检测方法或显示小数位会将报告恢复为待确认状态，并记录不含具体内容的审计事件；
 - 用户对照原件确认的 `critical_marker_status`（`unknown` / `no` / `yes`）及 `critical_marker_reviewed_at`。默认 `unknown`；`yes` 触发初步 C 层安全提示，系统不从 OCR 数值或颜色推断危急值；
 - 非敏感存储元数据：`storage_provider`、`source_available`、`content_type`、`file_size`，不暴露内部对象键或磁盘路径；`source_available=false` 时前端不请求或展示源文件预览；
 - 每个指标包含结构化值、原始文本、0–1 置信度、从 1 开始的页码、四项归一化坐标及 `pending` / `confirmed` / `corrected` 校对状态；
@@ -256,7 +256,7 @@
 - `GET /care-plans`、`GET /care-plans/{id}`：按本人权限读取最近 20 个方案或指定历史快照；方案含 `version`、`previous_plan_id`、`pause_reason` 和 `SUPERSEDED` 状态。
 - `GET /care-plans/{id}/logs`、`PUT /care-plans/{id}/logs/{day}`：读取或记录 1–7 天的执行情况。`status` 为 `completed`、`skipped` 或 `replaced`；替换必须填写 `replacement`，只作为用户事实记录；`discomfort=true` 立即将活动方案暂停且不可自行撤销。
 - `GET /care-plans/{id}/reminder`、`PUT /care-plans/{id}/reminder`：用户提供 `remind_on`、`basis`（`doctor` / `report` / `personal`）、`note` 和 `enabled`。医生或报告依据须说明日期来源。服务端只提供应用内 `due` 状态，不推断医学周期或发送外部通知。
-- `POST /follow-ups/compare`：提交 `previous_report_id` 与 `current_report_id`，仅对两份本人已确认报告中的 P0 指标进行配对；返回检查时间间隔、原值/单位、按现有单位规则得到的算术差和可比性限制。缺少检查日期、方法或参考范围等情况停止差值计算；任何变化均不解释为食谱疗效。
+- `POST /follow-ups/compare`：提交 `previous_report_id` 与 `current_report_id`，仅对两份本人已确认报告中的 P0 指标进行配对；返回检查时间间隔、原值/单位、按现有单位规则得到的算术差和可比性限制。缺少或改变检查日期、机构、方法、显示精度或参考范围等情况停止差值计算；任何变化均不解释为食谱疗效。
 - `POST /care-plans/{id}/revise`：以已因新报告暂停的旧方案为基线，重跑 M5 安全与内容校验，生成 `READY` 新版本和变更日志。重复相同输入返回同一版本；不适反馈后禁止自动修订。
 - `GET /care-plans/{id}/revision`：返回旧/新方案、第二份报告、保守对比快照，以及 `continued` / `reduced` / `increased` / `replaced` / `paused` / `added` 模板变更记录；相同食谱会记录新旧周安排次数。新版本经用户确认后旧版本转为只读 `SUPERSEDED`。
 
