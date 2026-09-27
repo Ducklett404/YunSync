@@ -17,7 +17,7 @@
 | 统计复盘 | `DATA_DICTIONARY.md` | 金标准、缺失、异常值、区间测试 | `M8A_VERIFICATION_REPORT.md` | `96c05af` |
 | 云就绪基线 | `HUAWEI_CLOUD_MIGRATION.md` | 配置门禁、缓存降级、迁移工具 | `M9A_VERIFICATION_REPORT.md` | `ca1740b` |
 | 部署与安全 | `DEPLOYMENT_SECURITY_RUNBOOK.md` | HTTP、路径、扫描、性能测试 | `M10A_VERIFICATION_REPORT.md` | `b76a4b7` |
-| 持续交付与 Staging 验收 | `V2_M10_ACCEPTANCE.md` | CI、CycloneDX SBOM、告警规则、HTTPS 验收、分位延迟 | `V2_M10_VERIFICATION_REPORT.md` | 待本次提交 |
+| 持续交付与 Staging 验收 | `V2_M10_ACCEPTANCE.md` | CI、CycloneDX SBOM、告警规则、HTTPS 验收、分位延迟 | `V2_M10_VERIFICATION_REPORT.md` | `c5bf77d` |
 | RC1 验收 | `DEFECT_REGISTER.md` | 三轮主流程、Edge 与断线烟测 | `M11A_VERIFICATION_REPORT.md` | `eaf0526` |
 
 文件名均相对于 `docs/`，代码路径相对于仓库根目录。
