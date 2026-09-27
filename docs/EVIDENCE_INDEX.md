@@ -19,6 +19,7 @@
 | 部署与安全 | `DEPLOYMENT_SECURITY_RUNBOOK.md` | HTTP、路径、扫描、性能测试 | `M10A_VERIFICATION_REPORT.md` | `b76a4b7` |
 | 持续交付与 Staging 验收 | `V2_M10_ACCEPTANCE.md` | CI、CycloneDX SBOM、告警规则、HTTPS 验收、分位延迟 | `V2_M10_VERIFICATION_REPORT.md` | `c5bf77d` |
 | RC1 验收 | `DEFECT_REGISTER.md` | 三轮主流程、Edge 与断线烟测 | `M11A_VERIFICATION_REPORT.md` | `eaf0526` |
+| V2 可比性收口 | `API_CONTRACT.md`、`DATA_DICTIONARY.md` | 精度、机构、方法、范围与单位形式合成矩阵 | `V2_M10_VERIFICATION_REPORT.md` | 当前源码快照 |
 
 文件名均相对于 `docs/`，代码路径相对于仓库根目录。
 

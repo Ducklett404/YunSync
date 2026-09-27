@@ -175,6 +175,7 @@ def seed_db() -> None:
                         code=code,
                         name=name,
                         value=value,
+                        reported_precision=(len(str(value).partition(".")[2]) if "." in str(value) else 0),
                         unit=unit,
                         reference_range=reference,
                         flag=flag,

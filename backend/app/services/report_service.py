@@ -141,6 +141,7 @@ class ReportService:
                     code=result.code,
                     name=result.name,
                     value=result.value,
+                    reported_precision=source.reported_precision,
                     unit=result.unit,
                     reference_range=result.reference_range,
                     method=source.method or "",
@@ -325,6 +326,7 @@ class ReportService:
                     code=item.code,
                     name=item.name,
                     value=item.value,
+                    reported_precision=item.reported_precision,
                     unit=item.unit,
                     reference_range=item.reference_range,
                     flag=item.flag,
@@ -421,12 +423,18 @@ class ReportService:
             raise ReportConflictError("OCR 未完成，不能修正字段")
         metric = self._owned_metric(db, user_id, report_id, metric_id)
         requested_method = metric.method if payload.method is None else payload.method
+        requested_precision = (
+            payload.reported_precision
+            if "reported_precision" in payload.model_fields_set
+            else metric.reported_precision
+        )
         content_changed_fields = [
             field
             for field in ("name", "value", "unit", "reference_range")
             if getattr(metric, field) != getattr(payload, field)
         ]
         method_changed = metric.method != requested_method
+        precision_changed = metric.reported_precision != requested_precision
         if report.status == "confirmed":
             current_projection = project_metric_unit(
                 code=metric.code,
@@ -436,8 +444,8 @@ class ReportService:
                 confirmed=metric.confirmed,
             )
             unit_recovery = current_projection.status in BLOCKING_UNIT_STATUSES
-            method_only = method_changed and not content_changed_fields
-            if not unit_recovery and not method_only:
+            metadata_only = (method_changed or precision_changed) and not content_changed_fields
+            if not unit_recovery and not metadata_only:
                 raise ReportConflictError("已完成确认的报告不能继续修改")
             report.status = "needs_confirmation"
             db.add(
@@ -445,7 +453,7 @@ class ReportService:
                     event_type=(
                         "report.reopened_for_unit_review"
                         if unit_recovery
-                        else "report.reopened_for_method_review"
+                        else "report.reopened_for_comparability_review"
                     ),
                     actor_id=user_id,
                     payload={"report_id": report_id, "metric_id": metric_id},
@@ -454,8 +462,11 @@ class ReportService:
         changed_fields = [*content_changed_fields]
         if method_changed:
             changed_fields.append("method")
+        if precision_changed:
+            changed_fields.append("reported_precision")
         metric.name = payload.name
         metric.value = payload.value
+        metric.reported_precision = requested_precision
         metric.unit = payload.unit
         metric.reference_range = payload.reference_range
         metric.method = requested_method

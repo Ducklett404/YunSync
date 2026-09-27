@@ -43,7 +43,8 @@ class UnitProjection:
     rule_version: str = UNIT_POLICY_VERSION
 
 
-def _unit_key(unit: str) -> str:
+def unit_key(unit: str) -> str:
+    """Normalize presentation-only unit spelling without converting its magnitude."""
     return (
         "".join(unit.strip().casefold().split())
         .replace("／", "/")
@@ -68,9 +69,9 @@ def project_metric_unit(
         return UnitProjection("unconfirmed", definition.unit, None)
     if not isfinite(value):
         return UnitProjection("invalid_value", definition.unit, None)
-    if _unit_key(unit) == _unit_key(definition.unit):
+    if unit_key(unit) == unit_key(definition.unit):
         return UnitProjection("as_reported", definition.unit, float(value))
-    if _unit_key(unit) == "mg/dl" and definition.code in CONVERSION_FACTORS:
+    if unit_key(unit) == "mg/dl" and definition.code in CONVERSION_FACTORS:
         return UnitProjection(
             "converted", definition.unit, float(value) * CONVERSION_FACTORS[definition.code]
         )

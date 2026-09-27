@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from math import isfinite
+import re
 
 from app.integrations.huawei.ocr import ExtractedMetric
 from app.services.metric_catalog import resolve_metric
@@ -21,6 +23,7 @@ class NormalizedMetric:
     code: str
     name: str
     value: float
+    reported_precision: int | None
     unit: str
     reference_range: str
     flag: str
@@ -28,6 +31,24 @@ class NormalizedMetric:
     confidence: float
     source_page: int
     source_bbox: list[float]
+
+
+NUMBER_TOKEN = re.compile(r"(?<![\w.])[-+]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?![\w.])")
+
+
+def infer_reported_precision(raw_text: str, value: float) -> int | None:
+    """Return displayed decimal places only when the original text preserves them."""
+    expected = Decimal(str(value))
+    for match in NUMBER_TOKEN.finditer(raw_text):
+        token = match.group(0).replace(",", ".")
+        try:
+            if Decimal(token) != expected:
+                continue
+        except InvalidOperation:
+            continue
+        precision = len(token.partition(".")[2]) if "." in token else 0
+        return precision if precision <= 6 else None
+    return None
 
 
 def normalize_metric(item: ExtractedMetric) -> NormalizedMetric:
@@ -50,6 +71,7 @@ def normalize_metric(item: ExtractedMetric) -> NormalizedMetric:
         code=definition.code if definition else item.code.strip().lower(),
         name=definition.name if definition else item.name.strip(),
         value=float(item.value),
+        reported_precision=infer_reported_precision(item.raw_text, float(item.value)),
         unit=unit,
         reference_range=item.reference_range.strip(),
         flag=derive_flag(float(item.value), item.reference_range),

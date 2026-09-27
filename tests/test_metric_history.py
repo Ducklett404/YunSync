@@ -27,7 +27,7 @@ def test_history_aligns_confirmed_reports_and_marks_comparison_limits():
             db.add_all(
                 [
                     HealthReport(id=old_id, user_id="demo-user", filename="旧报告.pdf", institution="机构甲", examined_at=now - timedelta(days=60), status="confirmed", created_at=now + timedelta(days=20)),
-                    HealthReport(id=new_id, user_id="demo-user", filename="新报告.pdf", institution="机构乙", examined_at=now - timedelta(days=1), status="confirmed", created_at=now + timedelta(days=21)),
+                    HealthReport(id=new_id, user_id="demo-user", filename="新报告.pdf", institution="机构甲", examined_at=now - timedelta(days=1), status="confirmed", created_at=now + timedelta(days=21)),
                     HealthReport(id=pending_id, user_id="demo-user", filename="待确认报告.pdf", status="needs_confirmation", created_at=now + timedelta(days=22)),
                     HealthReport(id=foreign_id, user_id="demo-reviewer", filename="他人报告.pdf", status="confirmed", created_at=now + timedelta(days=23)),
                 ]
@@ -48,8 +48,8 @@ def test_history_aligns_confirmed_reports_and_marks_comparison_limits():
                     HealthMetric(report_id=new_id, user_id="demo-user", code="hba1c", name="HbA1c", value=5.8, unit="%", confirmed=True),
                     HealthMetric(report_id=old_id, user_id="demo-user", code="total_cholesterol", name="总胆固醇", value=4.8, unit="mmol/L", method="CHOD-PAP", confirmed=True),
                     HealthMetric(report_id=new_id, user_id="demo-user", code="total_cholesterol", name="总胆固醇", value=5.0, unit="mmol/L", method="氧化酶法", confirmed=True),
-                    HealthMetric(report_id=old_id, user_id="demo-user", code="uric_acid", name="尿酸", value=360, unit="μmol/L", reference_range="208-428", method="尿酸酶法", confirmed=True),
-                    HealthMetric(report_id=new_id, user_id="demo-user", code="uric_acid", name="尿酸", value=380, unit="μmol/L", reference_range="208 – 428", method="尿酸酶法", confirmed=True),
+                    HealthMetric(report_id=old_id, user_id="demo-user", code="uric_acid", name="尿酸", value=360, reported_precision=0, unit="μmol/L", reference_range="208-428", method="尿酸酶法", confirmed=True),
+                    HealthMetric(report_id=new_id, user_id="demo-user", code="uric_acid", name="尿酸", value=380, reported_precision=0, unit="μmol/L", reference_range="208 – 428", method="尿酸酶法", confirmed=True),
                     HealthMetric(report_id=old_id, user_id="demo-user", code="bmi", name="BMI", value=23, unit="kg/m²", method="计算值", confirmed=True),
                     HealthMetric(report_id=new_id, user_id="demo-user", code="bmi", name="BMI", value=24, unit="kg/m²", method="计算值", confirmed=True),
                     HealthMetric(report_id=new_id, user_id="demo-user", code="bun", name="BUN", value=20, unit="mg/dL", confirmed=True),
@@ -63,7 +63,7 @@ def test_history_aligns_confirmed_reports_and_marks_comparison_limits():
             assert response.status_code == 200
             result = response.json()
             series = {item["code"]: item for item in result["series"]}
-            assert result["rule_version"] == "v2-history-draft-3"
+            assert result["rule_version"] == "v2-history-draft-4"
             assert "bun" not in series
             assert "height" not in series
             glucose = series["fasting_glucose"]
@@ -78,9 +78,8 @@ def test_history_aligns_confirmed_reports_and_marks_comparison_limits():
             assert glucose["latest_pair"]["status"] == "reference_range_changed"
             assert glucose["latest_pair"]["reference_range_changed"] is True
             assert glucose["latest_pair"]["source_unit_changed"] is True
-            assert glucose["latest_pair"]["institution_changed"] is True
+            assert glucose["latest_pair"]["institution_changed"] is False
             assert glucose["latest_pair"]["method_changed"] is False
-            assert any("检测机构不同" in note for note in glucose["latest_pair"]["limitations"])
             assert any("参考范围不同" in note for note in glucose["latest_pair"]["limitations"])
             uric_acid = series["uric_acid"]
             assert uric_acid["latest_pair"]["status"] == "numeric_only"

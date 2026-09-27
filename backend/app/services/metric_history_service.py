@@ -13,10 +13,10 @@ from app.schemas.metric_history import (
     MetricPairOut,
 )
 from app.services.metric_catalog import resolve_metric_code
-from app.services.unit_policy import project_metric_unit
+from app.services.unit_policy import project_metric_unit, unit_key
 
 
-HISTORY_RULE_VERSION = "v2-history-draft-3"
+HISTORY_RULE_VERSION = "v2-history-draft-4"
 
 
 def _text_key(value: str) -> str:
@@ -53,18 +53,26 @@ def compare_metric_points(
     current_range = _range_key(current.reference_range)
     reference_range_missing = not previous_range or not current_range
     reference_range_changed = previous_range != current_range
-    source_unit_changed = current.unit != previous.unit
+    source_unit_changed = unit_key(current.unit) != unit_key(previous.unit)
     institution_changed = _text_key(current.institution) != _text_key(previous.institution)
     method_changed = _text_key(current.method) != _text_key(previous.method)
     metadata_missing = current.examined_at is None or previous.examined_at is None
+    institution_missing = not _text_key(current.institution) or not _text_key(previous.institution)
     method_missing = not _text_key(current.method) or not _text_key(previous.method)
+    precision_missing = (
+        current.reported_precision is None or previous.reported_precision is None
+    )
+    precision_changed = (
+        not precision_missing
+        and current.reported_precision != previous.reported_precision
+    )
     limitations = ["这里只显示标准单位算术差，不代表健康改善、恶化或食养效果。"]
     if metadata_missing:
         limitations.append("至少一份报告未填写检查日期，无法确定检查先后。")
-    if not current.institution or not previous.institution:
-        limitations.append("至少一份报告未填写检测机构。")
+    if institution_missing:
+        limitations.append("至少一份报告未填写检测机构，暂不计算差值。")
     elif institution_changed:
-        limitations.append("两份报告的检测机构不同，跨机构结果需谨慎比较。")
+        limitations.append("两份报告的检测机构不同，暂不计算差值并需人工复核。")
     if reference_range_missing:
         limitations.append("至少一份报告未填写参考范围，暂不计算差值。")
     elif reference_range_changed:
@@ -75,20 +83,30 @@ def compare_metric_points(
         limitations.append("至少一项检测方法未填写，暂不计算差值。")
     elif method_changed:
         limitations.append("两次检测方法不同，暂不计算差值。")
+    if precision_missing:
+        limitations.append("至少一项未记录报告显示小数位，暂不计算差值。")
+    elif precision_changed:
+        limitations.append("两次报告显示精度不同，暂不计算差值。")
     if duplicate:
         status = "duplicate_in_report"
         limitations.append("同一报告存在多个相同标准指标，无法唯一配对。")
     elif not projected:
         status = "not_projected"
         limitations.append("至少一项单位或名称尚未得到标准数值。")
-    elif metadata_missing or method_missing:
+    elif metadata_missing or institution_missing or method_missing:
         status = "metadata_missing"
+    elif institution_changed:
+        status = "institution_changed"
     elif method_changed:
         status = "method_changed"
     elif reference_range_missing:
         status = "reference_range_missing"
     elif reference_range_changed:
         status = "reference_range_changed"
+    elif precision_missing:
+        status = "metadata_missing"
+    elif precision_changed:
+        status = "precision_changed"
     else:
         status = "numeric_only"
     change = (
@@ -106,6 +124,8 @@ def compare_metric_points(
         source_unit_changed=source_unit_changed,
         institution_changed=institution_changed,
         method_changed=method_changed,
+        precision_missing=precision_missing,
+        precision_changed=precision_changed,
         limitations=limitations,
     )
 
@@ -158,6 +178,7 @@ def metric_history(db: Session, user_id: str, *, report_limit: int) -> MetricHis
                 institution=by_report[metric.report_id].institution,
                 measured_at=metric.measured_at,
                 value=metric.value,
+                reported_precision=metric.reported_precision,
                 unit=metric.unit,
                 reference_range=metric.reference_range,
                 method=metric.method,

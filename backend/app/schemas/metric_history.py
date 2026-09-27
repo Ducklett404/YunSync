@@ -16,6 +16,7 @@ class MetricHistoryPointOut(BaseModel):
     institution: str
     measured_at: datetime
     value: float
+    reported_precision: int | None
     unit: str
     reference_range: str
     method: str
@@ -32,6 +33,8 @@ class MetricPairOut(BaseModel):
         "duplicate_in_report",
         "metadata_missing",
         "method_changed",
+        "institution_changed",
+        "precision_changed",
         "reference_range_missing",
         "reference_range_changed",
     ]
@@ -41,6 +44,8 @@ class MetricPairOut(BaseModel):
     source_unit_changed: bool
     institution_changed: bool
     method_changed: bool
+    precision_missing: bool
+    precision_changed: bool
     limitations: list[str]
 
 

@@ -196,6 +196,7 @@ knowledge_items 1 ── N content_reviews
 | `code` | varchar(64) | index | 标准指标代码 |
 | `name` | varchar(80) | 非空 | 中文展示名 |
 | `value` | float | 非空 | 结构化数值 |
+| `reported_precision` | integer nullable | 0–6 或空 | 原报告数值显示的小数位；缺失或跨报告变化时停止计算差值 |
 | `unit` | varchar(32) | 非空 | 单位 |
 | `reference_range` | varchar(64) | 默认空字符串 | 报告原参考范围 |
 | `method` | varchar(120) | 默认空字符串 | 用户按原件核对的检测方法；用于可比性门禁，不用于诊断 |
@@ -213,7 +214,7 @@ knowledge_items 1 ── N content_reviews
 
 报告只有在全部指标 `confirmed=true` 后才能转为 `confirmed`。唯一索引 `uq_health_metrics_report_code(report_id, code)` 防止同一报告用重复标准代码伪增指标数量；排序和实验服务按不同代码计数，并再次检查每条指标，避免绕过校对。
 
-`unit_projection` 是 API 根据已确认的 `code`、`name`、`value` 和 `unit` 动态生成的派生字段，不入库。已知 P0 指标的名称或单位冲突会阻止报告最终确认；原 `value`、`unit`、`reference_range` 与 `extracted_*` 字段不被换算覆盖。投影规则版本为 `v2-unit-draft-1`，不能替代检测方法和参考范围可比性审核。
+`unit_projection` 是 API 根据已确认的 `code`、`name`、`value` 和 `unit` 动态生成的派生字段，不入库。已知 P0 指标的名称或单位冲突会阻止报告最终确认；原 `value`、`unit`、`reference_range` 与 `extracted_*` 字段不被换算覆盖。`reported_precision` 只记录原件显示精度，不改变数值。投影规则版本为 `v2-unit-draft-1`，不能替代检测机构、检测方法、显示精度和参考范围可比性审核。
 
 组合索引 `idx_health_metrics_report_name(report_id, name)` 支持报告指标列表的过滤与稳定排序。
 
