@@ -20,6 +20,8 @@ REQUIRED_DOCUMENTS = (
     "docs/V2_PROFESSIONAL_REVIEW_RECORD.md",
     "docs/V2_M8_ACCEPTANCE.md",
     "docs/V2_M8_CUSTOMER_ACCEPTANCE.md",
+    "docs/V2_M10_ACCEPTANCE.md",
+    "docs/V2_M10_VERIFICATION_REPORT.md",
 )
 
 
@@ -70,10 +72,14 @@ def build_release_readiness(settings: Settings, project_root: Path) -> dict[str,
                     "deploy/nginx.conf.example",
                     "scripts/postgres_ops.py",
                     "scripts/build_release_package.py",
+                    "scripts/staging_acceptance.py",
+                    "scripts/generate_sbom.py",
+                    "deploy/prometheus-alerts.yml",
+                    ".github/workflows/ci.yml",
                 )
             ),
             "engineering",
-            "镜像、迁移/备份、HTTPS 和发布包工具必须存在。",
+            "镜像、迁移/备份、HTTPS、告警、SBOM、CI 和发布包工具必须存在。",
         ),
         _check(
             "v2_demo_case",

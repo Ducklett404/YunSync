@@ -15,7 +15,7 @@ docker build --tag yunsync:m10a .
 docker run --rm --entrypoint python yunsync:m10a -c "import sys; sys.path.insert(0, 'backend'); import app.main; print('import-ok')"
 ```
 
-正式部署必须使用镜像摘要或不可变标签；镜像构建成功后还要执行镜像漏洞与密钥扫描。当前本机没有 Docker，这两项保留给 M10B。
+镜像内置 `/app/SBOM.cdx.json`。正式部署必须使用镜像摘要或不可变标签；镜像构建成功后还要执行镜像漏洞与密钥扫描。当前本机没有 Docker，这些真实结果保留给目标环境验收。
 
 ## 2. HTTPS 与反向代理
 
@@ -53,6 +53,14 @@ RATE_LIMIT_ENABLED=true
 
 Prometheus 指标包括请求计数、固定延迟桶，以及失败、慢请求和限流事件。正式阈值须结合真实基线冻结，并完成触发、送达、恢复和责任人确认。
 
+仓库提供 `deploy/prometheus-alerts.yml` 作为初始规则，并通过下列命令校验规则名称、表达式、级别、持续时间和高基数标签：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\alert_rules_check.py
+```
+
+部署到 Prometheus 或兼容平台后，必须按照组织基线重新评估阈值，并逐条见证触发、送达和恢复。
+
 真实日志采集、通知接收和告警恢复截图必须在 M10B 留证，本地日志事件不能替代真实告警。
 
 ## 5. 安全审计
@@ -64,7 +72,15 @@ Prometheus 指标包括请求计数、固定延迟桶，以及失败、慢请求
 
 脚本依次扫描仓库高置信密钥、审计 Python 生产依赖和 npm 生产依赖。扫描结果只输出文件、行号与规则名，不回显疑似密钥。漏洞数据库会持续更新，发布前必须重新执行。
 
-## 6. 本地性能烟测
+## 6. SBOM 与持续集成
+
+```powershell
+.\.venv\Scripts\python.exe scripts\generate_sbom.py --version <release-version>
+```
+
+脚本生成 `release/sbom.cdx.json`，直接依赖无法从当前 Python 环境或前端锁文件解析时默认失败。GitHub Actions 对每个拉取请求和 `main` 提交执行迁移、后端测试、仓库与 Python/npm 生产依赖安全检查、材料检查、告警校验、SBOM、前端类型检查和生产构建，并保存 14 天 SBOM 构建产物。正式发布仍须从最终镜像执行完整传递依赖与漏洞扫描。
+
+## 7. 本地性能烟测
 
 启动使用合成数据的本地服务后执行：
 
@@ -72,9 +88,23 @@ Prometheus 指标包括请求计数、固定延迟桶，以及失败、慢请求
 .\.venv\Scripts\python.exe scripts\performance_smoke.py --base-url http://127.0.0.1:8000 --concurrency 20 --requests 100 --p95-limit-ms 500
 ```
 
-脚本创建 20 个短期合成会话，接受当前演示知情说明，对非 AI 的 `/api/v1/account/status` 测量 100 次请求 P95，并让 20 个会话并发访问 Dashboard。令牌和响应正文不会写入报告。本地结果不能替代公网网络、RDS/DCS 和多实例条件下的压测。
+脚本创建 20 个短期合成会话，接受当前演示知情说明，对非 AI 的 `/api/v1/account/status` 测量 100 次请求，并让 20 个会话并发访问 Dashboard。输出包含 P50/P95/P99、最大延迟、错误率和吞吐量；令牌和响应正文不会写入报告。本地结果不能替代公网网络、RDS/DCS 和多实例条件下的压测。
 
-## 7. M10B 证据清单
+真实 Staging 应创建至少 20 个独立短期测试账号，把每行一个 bearer token 的文件存放在仓库外，然后执行：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\performance_smoke.py --base-url https://staging.example.com --tokens-file C:\secure\yunsync.tokens --concurrency 20 --requests 200 --p95-limit-ms 500 --core-p95-limit-ms 2500 --max-error-rate 0
+```
+
+## 8. Staging 只读验收
+
+```powershell
+.\.venv\Scripts\python.exe scripts\staging_acceptance.py --base-url https://staging.example.com --output release\staging-acceptance.json
+```
+
+工具检查证书剩余至少 14 天、HTTP 跳转到同一 HTTPS origin、健康与数据库就绪、匿名账号状态为 401、请求 ID 及安全响应头。输出不包含目标主机名、令牌和响应正文。失败后先修复部署，再重新生成证据；不得手工修改结果文件。
+
+## 9. M10B 证据清单
 
 - [ ] 生产镜像构建日志、摘要、SBOM、漏洞和密钥扫描结果；
 - [ ] 公网 Staging 地址、有效 HTTPS 证书与 HTTP 重定向记录；

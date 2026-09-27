@@ -2,7 +2,7 @@
 
 YunSync 项目自身采用 [MIT License](../LICENSE)；本清单中的第三方组件继续分别适用其原始许可证与通知要求。
 
-> 生成基线：2026-09-13 本地锁文件与虚拟环境
+> 生成基线：2026-09-27 本地锁文件与虚拟环境
 >
 > 范围：当前直接生产依赖。正式归档前应从最终镜像和前端锁文件重新生成完整传递依赖 notices，并复核各项目原始许可证文本。
 
@@ -11,19 +11,20 @@ YunSync 项目自身采用 [MIT License](../LICENSE)；本清单中的第三方�
 | 包 | 声明范围 | 本地版本 | 许可元数据 |
 |---|---|---:|---|
 | FastAPI | `>=0.115,<1.0` | 0.141.1 | MIT |
-| Uvicorn | `>=0.34,<1.0` | 0.52.4 | BSD-3-Clause |
-| SQLAlchemy | `>=2.0,<3.0` | 2.0.52 | MIT |
+| Uvicorn | `>=0.34,<1.0` | 0.53.0 | BSD-3-Clause |
+| SQLAlchemy | `>=2.0,<3.0` | 2.0.54 | MIT |
 | pydantic-settings | `>=2.7,<3.0` | 2.15.0 | MIT |
 | python-multipart | `>=0.0.20,<1.0` | 0.0.32 | Apache-2.0 |
-| psycopg | `>=3.2,<4.0` | 3.3.5 | LGPL-3.0-only |
+| psycopg | `>=3.2,<4.0` | 3.3.6 | LGPL-3.0-only |
 | redis-py | `>=5.2,<7.0` | 6.4.0 | MIT |
 | HTTPX | `>=0.28,<1.0` | 0.28.1 | BSD-3-Clause |
-| Alembic | `>=1.14,<2.0` | 1.19.2 | MIT |
-| huaweicloudsdkcore | `>=3.1,<4.0` | 当前环境待安装 | Apache-2.0 |
-| huaweicloudsdkocr | `>=3.1,<4.0` | 当前环境待安装 | Apache-2.0 |
-| esdk-obs-python | `>=3.26,<4.0` | 当前环境待安装 | Apache-2.0 |
+| Alembic | `>=1.14,<2.0` | 1.20.0 | MIT |
+| huaweicloudsdkcore | `>=3.1,<4.0` | 3.1.205（与 pyasn1 安全下限兼容的当前解析结果） | Apache-2.0 |
+| huaweicloudsdkocr | `>=3.1,<4.0` | 3.1.205（与 core 同步） | Apache-2.0 |
+| esdk-obs-python | `>=3.26,<4.0` | 3.26.6 | Apache-2.0 |
+| pyasn1 | `>=0.6.4,<0.7` | 0.6.4 | BSD-2-Clause |
 
-版本与许可值来自当前安装包的 Core Metadata；它们不是对未来解析版本的承诺。
+版本与许可值来自当前安装包的 Core Metadata；它们不是对未来解析版本的承诺。较新的华为 SDK 当前声明 `pyasn1<=0.6.3`，因此依赖解析器选择仍满足项目范围、且与 0.6.4 安全下限兼容的 3.1.205；升级前须同时复核这一约束和云契约测试。
 
 ## 2. 前端直接依赖
 
@@ -46,6 +47,8 @@ YunSync 项目自身采用 [MIT License](../LICENSE)；本清单中的第三方�
 - 方法参考文献列于 `DEVELOPMENT_PLAN.md`，引用不表示其作者认可本项目。
 
 ## 4. 最终发布检查
+
+执行 `python scripts/generate_sbom.py --version <release-version>` 会从当前 Python 环境与前端锁文件生成 CycloneDX 1.5 SBOM；CI 将其作为构建产物，容器和正式发布包也会携带 `SBOM.cdx.json`。任何直接依赖未安装或未锁定时，脚本默认失败。
 
 - 从最终 Python 环境、前端锁文件和容器镜像导出完整依赖清单；
 - 收集需随分发附带的 LICENSE/NOTICE 文本，特别复核 LGPL 与 Apache-2.0 条款；

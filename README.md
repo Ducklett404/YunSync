@@ -1,6 +1,6 @@
 # YunSync 云循 HealthLoop
 
-云循正在按 V2 开发计划转向体检后的个体化食养随访。当前已实现报告确认、安全档案、风险分流、内容治理、M5–M6 方案闭环、M7 云适配与安全守卫、M8 交付运营基线，以及 M9 数据导出、报告删除、延迟账号删除和留存清理。知识库种子均为候审草稿，未获专业批准前方案生成会安全阻断；真实云、正式保留政策、5–10 人测试、专业复核、演示视频和客户签收仍须留证。
+云循正在按 V2 开发计划转向体检后的个体化食养随访。当前已实现报告确认、安全档案、风险分流、内容治理、M5–M6 方案闭环、M7 云适配与安全守卫、M8 交付运营基线、M9 隐私数据生命周期，以及 M10 持续交付、SBOM、告警规则和 Staging 验收工具。知识库种子均为候审草稿，未获专业批准前方案生成会安全阻断；真实云、正式保留政策、5–10 人测试、专业复核、演示视频和客户签收仍须留证。
 
 > 本项目仅用于健康教育、自我监测和生活方式支持，不提供疾病诊断、治疗或药物调整意见。仓库中的人物与健康数据均为合成数据。
 
@@ -43,6 +43,8 @@
 - [M9 隐私生命周期验收清单](docs/V2_M9_ACCEPTANCE.md)
 - [隐私数据运维手册](docs/PRIVACY_OPERATIONS_RUNBOOK.md)
 - [M9 工程验证记录](docs/V2_M9_VERIFICATION_REPORT.md)
+- [M10 持续交付与 Staging 验收清单](docs/V2_M10_ACCEPTANCE.md)
+- [M10 工程验证记录](docs/V2_M10_VERIFICATION_REPORT.md)
 - [管理员手册](docs/ADMIN_GUIDE.md)
 - [隐私说明审阅稿](docs/PRIVACY_NOTICE.md)
 - [专业审核记录](docs/V2_PROFESSIONAL_REVIEW_RECORD.md)
@@ -169,6 +171,20 @@ Windows 下也可在项目根目录执行 `.\scripts\verify.ps1` 完成上述全
 ```powershell
 .\scripts\security_audit.ps1
 .\.venv\Scripts\python.exe scripts\performance_smoke.py --base-url http://127.0.0.1:8000
+```
+
+M10 告警、SBOM 与公网 Staging 只读验收分别执行：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\alert_rules_check.py
+.\.venv\Scripts\python.exe scripts\generate_sbom.py --version <release-version>
+.\.venv\Scripts\python.exe scripts\staging_acceptance.py --base-url https://staging.example.com --output release\staging-acceptance.json
+```
+
+真实并发验收使用仓库外的独立短期令牌文件：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\performance_smoke.py --base-url https://staging.example.com --tokens-file C:\secure\yunsync.tokens --concurrency 20 --requests 200
 ```
 
 RC1 合成主流程连续验收和本机 Edge 分辨率烟测分别执行：

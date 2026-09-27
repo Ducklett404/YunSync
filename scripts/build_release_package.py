@@ -8,6 +8,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
+try:
+    from scripts.generate_sbom import build_sbom
+except ModuleNotFoundError:  # Direct execution adds scripts/, rather than the repo root, to sys.path.
+    from generate_sbom import build_sbom
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED_DIRECTORIES = {
@@ -73,6 +78,12 @@ def build_package(output: Path, version: str, *, require_clean: bool = True) -> 
     if require_clean and working_tree_status:
         raise ValueError("正式发布包只能从干净的 Git 工作区生成")
     files = included_files(PROJECT_ROOT)
+    sbom = None
+    sbom_unresolved: list[str] = []
+    if (PROJECT_ROOT / "requirements.txt").is_file() and (
+        PROJECT_ROOT / "frontend" / "package-lock.json"
+    ).is_file():
+        sbom, sbom_unresolved = build_sbom(PROJECT_ROOT, version)
     manifest = {
         "format": "yunsync-release-manifest-v1",
         "version": version,
@@ -81,6 +92,8 @@ def build_package(output: Path, version: str, *, require_clean: bool = True) -> 
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "working_tree_clean": working_tree_status == "",
         "file_count": len(files),
+        "sbom_included": sbom is not None,
+        "sbom_unresolved_count": len(sbom_unresolved),
         "exclusions": {
             "secret_env": True,
             "database_files": True,
@@ -98,6 +111,14 @@ def build_package(output: Path, version: str, *, require_clean: bool = True) -> 
             (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8"),
         )
         archive.writestr(info, content)
+        if sbom is not None:
+            info, content = archive_entry(
+                "SBOM.cdx.json",
+                (json.dumps(sbom, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode(
+                    "utf-8"
+                ),
+            )
+            archive.writestr(info, content)
 
     digest = hashlib.sha256(output.read_bytes()).hexdigest()
     sidecar = output.with_suffix(output.suffix + ".manifest.json")

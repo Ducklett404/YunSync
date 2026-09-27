@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-tmp*/
 .venv/
 venv/
 
@@ -24,6 +25,8 @@ release/
 .env.*
 !.env.example
 !.env.*.example
+*.tokens
+tokens.txt
 .idea/
 .vscode/
 .DS_Store

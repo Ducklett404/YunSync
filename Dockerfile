@@ -6,6 +6,7 @@ COPY frontend/ ./
 RUN npm run build
 
 FROM python:3.11-slim AS runtime
+ARG RELEASE_VERSION=v2-development
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8000 \
@@ -18,6 +19,9 @@ COPY alembic.ini ./
 COPY backend/ ./backend/
 COPY scripts/ ./scripts/
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
+COPY frontend/package-lock.json ./frontend/package-lock.json
+RUN python scripts/generate_sbom.py --output /app/SBOM.cdx.json --version "$RELEASE_VERSION" \
+    && rm ./frontend/package-lock.json
 RUN addgroup --system --gid 10001 yunsync \
     && adduser --system --uid 10001 --ingroup yunsync --home /home/yunsync yunsync \
     && mkdir -p /app/backend/data /app/uploads \

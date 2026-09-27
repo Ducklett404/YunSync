@@ -11,6 +11,12 @@ if ($LASTEXITCODE -ne 0) { throw "Database migration failed." }
 & ".\.venv\Scripts\python.exe" -m alembic check
 if ($LASTEXITCODE -ne 0) { throw "Database schema check failed." }
 
+& ".\.venv\Scripts\python.exe" scripts\alert_rules_check.py
+if ($LASTEXITCODE -ne 0) { throw "Alert rules check failed." }
+
+& ".\.venv\Scripts\python.exe" scripts\generate_sbom.py --version "local-verification"
+if ($LASTEXITCODE -ne 0) { throw "SBOM generation failed." }
+
 Push-Location frontend
 try {
     npm run typecheck

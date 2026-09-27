@@ -25,6 +25,8 @@ REQUIRED_MARKERS = {
     "docs/V2_M8_ACCEPTANCE.md": ["## 1. 已完成的工程交付", "## 2. 外部门禁"],
     "docs/V2_M8_CUSTOMER_ACCEPTANCE.md": ["## 见证用例", "## 遗留问题与签收"],
     "docs/V2_M8_VERIFICATION_REPORT.md": ["## 2. 自动验证结果", "## 3. 正式 M8 尚需证据"],
+    "docs/V2_M10_ACCEPTANCE.md": ["## 1. 已完成的工程交付", "## 2. 自动验收", "## 3. 外部门禁"],
+    "docs/V2_M10_VERIFICATION_REPORT.md": ["## 2. 自动验证结果", "## 3. 正式 M10 尚需证据"],
 }
 LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
