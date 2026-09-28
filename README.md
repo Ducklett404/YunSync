@@ -6,6 +6,7 @@
 
 ## 项目文档
 
+- [V3 轻量养生小程序改版计划书（评审稿）](docs/V3_MINI_PROGRAM_REDESIGN_PLAN.md)
 - [从 0 开始的详细开发计划书](docs/DEVELOPMENT_PLAN.md)
 - [V2 首版指标字典技术草案](docs/V2_METRIC_CATALOG.md)
 - [V2 初步安全分流规则](docs/V2_SAFETY_RULES.md)
