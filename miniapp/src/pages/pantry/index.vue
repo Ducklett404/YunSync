@@ -45,7 +45,7 @@
         <view v-for="item in additionalOptions" :key="item.value" class="choice" :class="{ active: session.maxAdditionalIngredients === item.value }" :data-value="item.value" @tap="onAdditionalTap">{{ item.label }}</view>
       </view>
 
-      <button class="primary-button" @tap="runMatch">开始匹配</button>
+      <button class="primary-button" tabindex="0" @click="runMatch" @keydown.enter="runMatch">开始匹配</button>
     </view>
 
     <view v-if="result" class="results">

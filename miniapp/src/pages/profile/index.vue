@@ -39,7 +39,7 @@
         <switch :checked="form.constitutionSurveyInterest" color="#123d35" @change="onSurveyInterestChange" />
       </view>
 
-      <button class="primary-button" @tap="save">保存本机档案</button>
+      <button class="primary-button" tabindex="0" @click="save" @keydown.enter="save">保存本机档案</button>
     </view>
 
     <view class="safety-note">高热、胸痛、呼吸困难等情况不适合使用日常饮食推荐，应及时就医。儿童、孕哺期、复杂慢病、肿瘤治疗期、透析期和进食障碍人群当前均在服务范围外。</view>
