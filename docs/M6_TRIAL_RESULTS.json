@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "m6-trial-v1",
+  "buildCommit": "",
+  "walkthrough": { "status": "not-started", "date": "", "participants": [] },
+  "closedTrial": { "status": "not-started", "date": "", "participants": [] },
+  "defectAuditCompleted": false,
+  "defects": [],
+  "deviceChecks": [],
+  "signoffs": []
+}

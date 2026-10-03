@@ -5,6 +5,8 @@ node_modules/
 
 # Generated build output and local runtime files
 miniapp/dist/
+miniapp/test-results/
+miniapp/playwright-report/
 *.log
 *.tmp
 

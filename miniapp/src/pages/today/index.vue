@@ -64,7 +64,7 @@
 
     <template v-else>
       <view v-if="model.contentBundle" class="context-card">
-        <text class="context-kicker">{{ model.contentBundle.kind === 'festival' ? '节庆内容包' : '节气内容包' }} · DEMO</text>
+        <text class="context-kicker">{{ model.contentBundle.kind === 'festival' ? '节庆内容包' : '节气内容包' }}{{ model.contentBundle.isDemo ? ' · DEMO' : '' }}</text>
         <text class="context-name">{{ model.contentBundle.name }}</text>
         <text class="context-copy">{{ model.contentBundle.cultureNote }}</text>
       </view>
@@ -127,6 +127,7 @@ const error = ref(false)
 const safety = ref<SafetyDecision>()
 const model = ref<TodayViewModel>()
 const showReasons = ref(false)
+let loadVersion = 0
 
 const selectedDateKey = computed(() => m2AcceptanceDates[dateScenario.value] || currentDateKey())
 const weatherLine = computed(() => {
@@ -149,6 +150,7 @@ function loadCheckInForSelectedDate() {
 }
 
 async function loadToday() {
+  const version = ++loadVersion
   loading.value = true
   error.value = false
   safety.value = undefined
@@ -162,14 +164,20 @@ async function loadToday() {
       date: m2AcceptanceDates[dateScenario.value],
       recentMainRecipeIds: loadRecentMainRecipeIds(selectedDateKey.value),
     })
+    if (version !== loadVersion) return
     safety.value = result.safety
     model.value = result.model
-    if (result.model) saveMainRecommendation(result.model.calendar.dateKey, result.model.main.id)
+    if (result.model) {
+      try { saveMainRecommendation(result.model.calendar.dateKey, result.model.main.id) }
+      catch { uni.showToast({ title: '推荐可用，历史记录未保存', icon: 'none' }) }
+    }
   } catch {
-    error.value = true
+    if (version === loadVersion) error.value = true
   } finally {
-    loading.value = false
-    uni.stopPullDownRefresh()
+    if (version === loadVersion) {
+      loading.value = false
+      uni.stopPullDownRefresh()
+    }
   }
 }
 

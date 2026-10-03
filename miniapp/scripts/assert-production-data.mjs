@@ -1,17 +1,13 @@
-const required = [
-  'YUNSYNC_MINIAPP_APPID',
-  'YUNSYNC_LEGAL_ENTITY',
-  'YUNSYNC_PRIVACY_CONTACT',
-  'YUNSYNC_WEATHER_PROVIDER',
-  'YUNSYNC_CONTENT_SIGNOFF_VERSION',
-]
+import { readFile } from 'node:fs/promises'
+import { parse } from 'jsonc-parser'
+import { checkProductionData } from './release-checks.mjs'
 
-const missing = required.filter((name) => !process.env[name])
-if (process.env.VITE_DATA_MODE !== 'real') missing.push('VITE_DATA_MODE=real')
-
-if (missing.length) {
-  console.error(`Release blocked: missing real-data configuration: ${missing.join(', ')}`)
-  process.exit(1)
+const content = JSON.parse(await readFile(new URL('../src/data/m2-content.json', import.meta.url), 'utf8'))
+const manifest = parse(await readFile(new URL('../src/manifest.json', import.meta.url), 'utf8'))
+const report = checkProductionData({ env: process.env, content, manifest })
+if (!report.passed) {
+  console.error('Release blocked:\n' + report.errors.map(error => `- ${error}`).join('\n'))
+  process.exitCode = 1
+} else {
+  console.log('Real-data configuration and signed content checks passed.')
 }
-
-console.log('Real-data release configuration present.')

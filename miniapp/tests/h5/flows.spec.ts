@@ -1,0 +1,113 @@
+import { test, expect } from '@playwright/test'
+
+const recipe = '/#/pages/recipe/detail?id=demo-yam-millet'
+const profile = '/#/pages/profile/index'
+const today = '/#/pages/today/index'
+const pantry = '/#/pages/pantry/index'
+
+test('收藏、反馈、浏览记录持久化及清除确认', async ({ page }) => {
+  await page.goto(recipe)
+  await expect(page.locator('.title')).toHaveText('山药小米粥')
+  await page.locator('.favorite-button').click()
+  await expect(page.locator('.favorite-button')).toHaveText('已收藏 · 取消收藏')
+  await page.locator('.feedback-button').filter({ hasText: '步骤不清楚' }).click()
+  await expect(page.locator('.feedback-button.selected')).toHaveText('步骤不清楚')
+  await page.reload()
+  await expect(page.locator('.favorite-button')).toHaveText('已收藏 · 取消收藏')
+  await expect(page.locator('.feedback-button.selected')).toHaveText('步骤不清楚')
+  await page.goto(profile)
+  await expect(page.locator('.section-title').filter({ hasText: '我的收藏' })).toHaveText('我的收藏（1）')
+  await expect(page.locator('.section-title').filter({ hasText: '最近浏览' })).toHaveText('最近浏览（1）')
+  await page.locator('.clear-button').click()
+  await expect(page.getByText('清除本机记录？', { exact: true })).toBeVisible()
+  await page.getByText('取消', { exact: true }).click()
+  await expect(page.locator('.section-title').filter({ hasText: '我的收藏' })).toHaveText('我的收藏（1）')
+  await page.locator('.clear-button').click()
+  await page.getByText('清除', { exact: true }).click()
+  await expect(page.locator('.section-title').filter({ hasText: '我的收藏' })).toHaveText('我的收藏（0）')
+  await expect(page.locator('.section-title').filter({ hasText: '最近浏览' })).toHaveText('最近浏览（0）')
+  await page.goto(recipe)
+  await expect(page.locator('.favorite-button')).toHaveText('收藏这道食谱')
+  await expect(page.locator('.feedback-button.selected')).toHaveCount(0)
+  await expect(page.getByText('记录已清除', { exact: true })).toBeHidden()
+  await page.screenshot({ path: 'test-results/m5-detail.png', fullPage: true })
+})
+
+test('取消收藏与无效链接', async ({ page }) => {
+  await page.goto(recipe)
+  await page.locator('.favorite-button').click()
+  await page.locator('.favorite-button').click()
+  await expect(page.locator('.favorite-button')).toHaveText('收藏这道食谱')
+  await page.goto('/#/pages/recipe/detail?id=removed-recipe')
+  await page.reload()
+  await expect(page.getByText('这条食谱暂不可用')).toBeVisible()
+  await expect(page.locator('.favorite-button')).toHaveCount(0)
+  await page.goto('/#/pages/recipe/detail?id=%E0%A4%A')
+  await page.reload()
+  await expect(page.getByText('这条食谱暂不可用')).toBeVisible()
+})
+
+test('首页慢请求不能覆盖之后的天气降级结果', async ({ page }) => {
+  await page.goto(today)
+  await expect(page.locator('.recipe-name')).toBeVisible()
+  await page.locator('.scenario-button').filter({ hasText: /^加载中$/ }).click()
+  await page.locator('.scenario-button').filter({ hasText: /^无天气$/ }).click()
+  await expect(page.locator('.weather')).toContainText('实时天气暂不可用')
+  await page.waitForTimeout(2300)
+  await expect(page.locator('.weather')).toContainText('实时天气暂不可用')
+  await expect(page.locator('.recipe-name')).toBeVisible()
+})
+
+test('食材条件改变后清除旧结果', async ({ page }) => {
+  await page.goto(pantry)
+  await page.locator('.search-input input').fill('番茄,豆腐,食用油')
+  await page.locator('.add-action').click()
+  await page.locator('.primary-button').click()
+  await expect(page.locator('.result-name').filter({ hasText: '番茄豆腐汤' })).toBeVisible()
+  await page.locator('.selected-chip').filter({ hasText: '豆腐' }).click()
+  await expect(page.locator('.results')).toHaveCount(0)
+})
+
+test('返回食材页时过敏档案改变使旧结果失效', async ({ page }) => {
+  await page.goto(pantry)
+  await page.locator('.search-input input').fill('番茄,豆腐,食用油')
+  await page.locator('.add-action').click()
+  await page.locator('.primary-button').click()
+  await expect(page.locator('.result-name').filter({ hasText: '番茄豆腐汤' })).toBeVisible()
+  await page.locator('.uni-tabbar__label').filter({ hasText: /^我的$/ }).click()
+  await page.locator('.input input').first().fill('大豆')
+  await page.locator('.primary-button').click()
+  await page.locator('.uni-tabbar__label').filter({ hasText: /^食材$/ }).click()
+  await expect(page.locator('.results')).toHaveCount(0)
+  await page.locator('.primary-button').click()
+  await expect(page.locator('.result-name').filter({ hasText: '番茄豆腐汤' })).toHaveCount(0)
+  await expect(page.locator('.message-title')).toHaveText('没有可安全展示的结果')
+  await page.locator('.uni-tabbar__label').filter({ hasText: /^我的$/ }).click()
+  await expect(page.getByText('已保存在本机', { exact: true })).toBeHidden()
+  await page.screenshot({ path: 'test-results/m5-profile.png', fullPage: true })
+})
+
+test('无定位权限和离线时仍能打开食谱', async ({ page, context }) => {
+  await context.clearPermissions()
+  await page.goto(recipe)
+  await expect(page.locator('.title')).toHaveText('山药小米粥')
+  await context.setOffline(true)
+  await page.locator('.favorite-button').click()
+  await expect(page.locator('.favorite-button')).toHaveText('已收藏 · 取消收藏')
+  await expect(page.locator('.step')).toHaveCount(4)
+})
+
+test('本地资源延迟500毫秒时首页仍能进入食谱详情', async ({ page }, testInfo) => {
+  await page.route('http://127.0.0.1:5186/**', async route => {
+    await new Promise(resolve => setTimeout(resolve, 500))
+    await route.continue()
+  })
+  const started = Date.now()
+  await page.goto(today)
+  await expect(page.locator('.recipe-name')).toBeVisible()
+  const elapsed = Date.now() - started
+  expect(elapsed).toBeLessThan(5000)
+  await testInfo.attach('simulated-latency', { body: JSON.stringify({ resourceDelayMs: 500, firstRecommendationMs: elapsed, dataMode: 'demo', realDeviceMeasurement: false }), contentType: 'application/json' })
+  await page.locator('.primary-button').click()
+  await expect(page.locator('.step')).not.toHaveCount(0)
+})

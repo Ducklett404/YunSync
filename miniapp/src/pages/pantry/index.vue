@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { runtimeConfig } from '../../config/runtime'
 import { loadProfile } from '../../services/profile'
@@ -117,6 +117,7 @@ const result = ref<PantryMatchResult>()
 const session = reactive<PantrySession>({
   ingredients: [], maxMinutes: 45, tools: ['汤锅', '菜刀', '炒锅', '锅铲', '电饭锅'], targetServings: 2, maxAdditionalIngredients: 1,
 })
+watch(session, () => { result.value = undefined }, { deep: true, flush: 'sync' })
 
 type DatasetTapEvent = { currentTarget: { dataset: { value?: string | number } } }
 function eventValue(event: DatasetTapEvent): string | number { return event.currentTarget.dataset.value ?? '' }
@@ -153,7 +154,11 @@ function runMatch() {
 }
 function openRecipe(recipeId: string, servings: number) { uni.navigateTo({ url: `/pages/recipe/detail?id=${encodeURIComponent(recipeId)}&servings=${servings}` }) }
 function openProfile() { uni.switchTab({ url: '/pages/profile/index' }) }
-onShow(() => { profile = loadProfile() })
+onShow(() => {
+  const next = loadProfile()
+  if (JSON.stringify(next) !== JSON.stringify(profile)) result.value = undefined
+  profile = next
+})
 </script>
 
 <style scoped>

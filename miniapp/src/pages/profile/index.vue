@@ -112,6 +112,7 @@ function removeFavorite(id: string) {
 function confirmClearRecords() {
   uni.showModal({
     title: '清除本机记录？', content: '将删除收藏、最近浏览和食谱反馈，无法恢复。轻量档案和体感会保留。',
+    cancelText: '取消', confirmText: '清除',
     success(result) {
       if (!result.confirm) return
       try { clearEngagement(); refreshRecords(); uni.showToast({ title: '记录已清除', icon: 'success' }) }
@@ -169,7 +170,7 @@ function save() {
 .section-title.spaced { margin-top: 42rpx; }
 .label { margin: 28rpx 0 12rpx; color: #52625b; font-size: 25rpx; }
 .field { padding: 22rpx 24rpx; background: #f1f4f1; border-radius: 18rpx; font-size: 28rpx; }
-.input { box-sizing: border-box; width: 100%; }
+.input { box-sizing: border-box; width: 100%; height: 92rpx; }
 .helper { margin-top: 10rpx; color: #718078; font-size: 21rpx; line-height: 1.55; }
 .warning-copy { margin-top: 10rpx; color: #9a4d2f; font-size: 22rpx; }
 .chips { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 18rpx; }
