@@ -1,0 +1,29 @@
+{
+  "version": "m3-demo-1",
+  "urgentTriggers": [
+    { "id": "high-fever", "label": "高热", "terms": ["高热", "高烧", "39度", "39℃", "体温39"] },
+    { "id": "breathing-difficulty", "label": "呼吸困难", "terms": ["呼吸困难", "喘不上气", "无法呼吸", "气短加重"] },
+    { "id": "chest-pain", "label": "胸痛", "terms": ["胸痛", "胸口痛", "胸部疼痛"] },
+    { "id": "altered-consciousness", "label": "意识异常", "terms": ["意识异常", "意识不清", "昏迷", "叫不醒"] },
+    { "id": "persistent-vomiting", "label": "持续呕吐", "terms": ["持续呕吐", "一直吐", "反复呕吐"] },
+    { "id": "dehydration", "label": "明显脱水", "terms": ["明显脱水", "无法喝水", "喝不下水", "尿量明显减少"] },
+    { "id": "worsening", "label": "症状持续加重", "terms": ["持续加重", "越来越严重", "明显恶化"] }
+  ],
+  "outOfScopeLabels": {
+    "child": "儿童",
+    "pregnant-or-breastfeeding": "孕哺期",
+    "complex-chronic": "复杂慢病",
+    "oncology-treatment": "肿瘤治疗期",
+    "dialysis": "透析期",
+    "eating-disorder": "进食障碍"
+  },
+  "unsupportedDoctorRestrictions": ["低盐", "限盐", "低钠", "限钠", "限钾", "低钾", "限磷", "低磷", "限糖", "糖尿病饮食", "流质", "半流质", "低嘌呤", "低蛋白"],
+  "messages": {
+    "urgentTitle": "请先处理当前不适",
+    "urgent": "已停止食谱个性化。高热、胸痛、呼吸困难、意识异常、持续呕吐、明显脱水或症状持续加重时，请及时就医；情况紧急时联系当地急救服务。",
+    "outOfScopeTitle": "当前不在自动个体化范围内",
+    "outOfScope": "该人群需要由合格专业人员结合具体情况提供建议。当前仅保留通用食谱浏览，不生成个体化推荐。",
+    "medicalReviewTitle": "请先遵循医生或药师建议",
+    "medicalReview": "检测到疾病或用药信息。当前演示规则不能安全判断与食谱的关系，已停止个体化推荐；请以医生、药师或临床营养专业人员给出的限制为准。"
+  }
+}

@@ -1,0 +1,38 @@
+{
+	"pages": [
+		{
+			"path": "pages/today/index",
+			"style": { "navigationBarTitleText": "今日", "enablePullDownRefresh": true }
+		},
+		{
+			"path": "pages/recipe/detail",
+			"style": { "navigationBarTitleText": "食谱详情" }
+		},
+		{
+			"path": "pages/pantry/index",
+			"style": { "navigationBarTitleText": "食材" }
+		},
+		{
+			"path": "pages/profile/index",
+			"style": { "navigationBarTitleText": "我的" }
+		}
+	],
+	"tabBar": {
+		"color": "#7B8983",
+		"selectedColor": "#123D35",
+		"backgroundColor": "#FFFEF9",
+		"borderStyle": "white",
+		"list": [
+			{ "pagePath": "pages/today/index", "text": "今日" },
+			{ "pagePath": "pages/pantry/index", "text": "食材" },
+			{ "pagePath": "pages/profile/index", "text": "我的" }
+		]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "云循",
+		"navigationBarBackgroundColor": "#123D35",
+		"backgroundColor": "#F7F5ED",
+		"backgroundTextStyle": "dark"
+	}
+}

@@ -1,34 +1,26 @@
-# Python
+# Dependencies and package-manager caches
+node_modules/
+.npm-cache*/
+**/.npm-cache/
+
+# Generated build output and local runtime files
+miniapp/dist/
+*.log
+*.tmp
+
+# Local Python packages and caches
+.site-packages/
 __pycache__/
 *.py[cod]
-.pytest_cache/
-.pytest-tmp*/
-.venv/
-venv/
 
-# Runtime data
-backend/data/*.db
-backend/backend/data/
-backend/data/uploads/
-backend/data/test-uploads/
-backend/data/*.sqlite*
-uploads/
+# Local development tools and installers
+tools/wechat-devtools/
+.local-backups/
 
-# Node
-frontend/node_modules/
-frontend/.npm-cache/
-frontend/dist/
-*.tsbuildinfo
-release/
+# Developer-specific mini-program settings
+project.private.config.json
 
-# Secrets and editors
+# Local secrets
 .env
 .env.*
 !.env.example
-!.env.*.example
-*.tokens
-tokens.txt
-.idea/
-.vscode/
-.DS_Store
-Thumbs.db

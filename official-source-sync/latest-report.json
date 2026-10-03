@@ -1,0 +1,330 @@
+{
+  "schemaVersion": "1.0.0",
+  "startedAt": "2026-09-29T13:14:47.645Z",
+  "completedAt": "2026-09-29T13:15:16.016Z",
+  "sampleDate": "2026-09-29",
+  "overallStatus": "partial",
+  "summary": {
+    "total": 13,
+    "verified": 12,
+    "failed": 1
+  },
+  "results": [
+    {
+      "id": "gbt-46939-2025",
+      "requestUrl": "https://openstd.samr.gov.cn/bzgk/std/newGbInfo?hcno=827D6D266BA52A2983F93638DA871028",
+      "finalUrl": "https://openstd.samr.gov.cn/bzgk/std/newGbInfo?hcno=827D6D266BA52A2983F93638DA871028",
+      "httpStatus": 200,
+      "contentType": "text/html;charset=utf-8",
+      "contentLength": 22718,
+      "contentHash": "6a78025744b6a9ba45142e8bbb4f93a235561036141d27845bf78f6ceee73737",
+      "indicatorChecks": [
+        {
+          "indicator": "GB/T 46939-2025",
+          "matched": true
+        },
+        {
+          "indicator": "中医体质分类与判定",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "qweather-current-v1",
+      "requestUrl": "https://dev.qweather.com/docs/api/weather/weather-current/",
+      "finalUrl": "https://dev.qweather.com/docs/api/weather/weather-current/",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "contentLength": 66264,
+      "contentHash": "8b90eda9eee2367ac061038c12898917a5e33e771cade8d5346c91ab5f53cd15",
+      "indicatorChecks": [
+        {
+          "indicator": "weather/v1/current",
+          "matched": true
+        },
+        {
+          "indicator": "体感温度",
+          "matched": true
+        },
+        {
+          "indicator": "相对湿度",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "qweather-daily-v1",
+      "requestUrl": "https://dev.qweather.com/docs/api/weather/weather-daily-forecast/",
+      "finalUrl": "https://dev.qweather.com/docs/api/weather/weather-daily-forecast/",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "contentLength": 119721,
+      "contentHash": "d03d22c32f46f0580e7123f7ff6ed4324e18c2fdd54422f4fc2a0564e830325d",
+      "indicatorChecks": [
+        {
+          "indicator": "weather/v1/daily",
+          "matched": true
+        },
+        {
+          "indicator": "最高温度",
+          "matched": true
+        },
+        {
+          "indicator": "最低温度",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "qweather-pricing",
+      "requestUrl": "https://dev.qweather.com/docs/finance/pricing/",
+      "finalUrl": "https://dev.qweather.com/docs/finance/pricing/",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "contentLength": 33135,
+      "contentHash": "d43334fa9ed5df8810a05e20b1f42aedbcf84e9008c8c0dc89e34de06c8e2c3f",
+      "indicatorChecks": [
+        {
+          "indicator": "0–50000",
+          "matched": true
+        },
+        {
+          "indicator": "CNY 0",
+          "matched": true
+        },
+        {
+          "indicator": "CNY 0.0007",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "qweather-cache",
+      "requestUrl": "https://dev.qweather.com/docs/best-practices/cache/",
+      "finalUrl": "https://dev.qweather.com/docs/best-practices/cache/",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "contentLength": 33256,
+      "contentHash": "02e488ed4ed92649203096bfdb057b39307443ea9bd8803a18adce5feff374f1",
+      "indicatorChecks": [
+        {
+          "indicator": "实时天气",
+          "matched": true
+        },
+        {
+          "indicator": "10-30分钟",
+          "matched": true
+        },
+        {
+          "indicator": "逐天天气预报",
+          "matched": true
+        },
+        {
+          "indicator": "1-6小时",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "hko-calendar-2026-text",
+      "requestUrl": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2026c.txt",
+      "finalUrl": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2026c.txt",
+      "httpStatus": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": 17539,
+      "contentHash": "5401798499f2ac270ba56011607785670837008f8836484a180562df92e826a9",
+      "indicatorChecks": [
+        {
+          "indicator": "2026",
+          "matched": true
+        },
+        {
+          "indicator": "公曆與農曆日期對照表",
+          "matched": true
+        },
+        {
+          "indicator": "2026年9月29日",
+          "matched": true
+        },
+        {
+          "indicator": "十九",
+          "matched": true
+        },
+        {
+          "indicator": "白露",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "hko-solar-terms-2026",
+      "requestUrl": "https://www.hko.gov.hk/tc/gts/astronomy/data/files/24SolarTerms_2026.xml",
+      "finalUrl": "https://www.hko.gov.hk/tc/gts/astronomy/data/files/24SolarTerms_2026.xml",
+      "httpStatus": 200,
+      "contentType": "text/xml; charset=utf-8",
+      "contentLength": 1180,
+      "contentHash": "3af98679f43d4d689941c55ba2a19f146ff111a6dff681235dc2b7110974ac74",
+      "indicatorChecks": [
+        {
+          "indicator": "SolarTerms_2026",
+          "matched": true
+        },
+        {
+          "indicator": "<M>02</M><D>04</D><hm>04:02</hm>",
+          "matched": true
+        },
+        {
+          "indicator": "<M>12</M><D>22</D><hm>04:50</hm>",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "hko-lunar-date",
+      "requestUrl": "https://data.weather.gov.hk/weatherAPI/opendata/lunardate.php?date=2026-09-29",
+      "finalUrl": "https://data.weather.gov.hk/weatherAPI/opendata/lunardate.php?date=2026-09-29",
+      "httpStatus": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "contentLength": 40,
+      "contentHash": "54bac837e3aafd4ef6e7e6a011ad54603d1f8d2b8e66129c766135e6d905a01b",
+      "indicatorChecks": [],
+      "sampleData": {
+        "LunarYear": "丙午年，馬",
+        "LunarDate": "八月十九"
+      },
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "wechat-privacy",
+      "requestUrl": "https://cloud.tencent.com/document/product/1301/97930",
+      "finalUrl": "https://cloud.tencent.com/document/product/1301/97930",
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": 435795,
+      "contentHash": "02b69d547e521cbff6188feb1d84f24b375b32a9b327102b4f7c87eabcddde18",
+      "indicatorChecks": [
+        {
+          "indicator": "隐私保护指引",
+          "matched": true
+        },
+        {
+          "indicator": "隐私授权",
+          "matched": true
+        },
+        {
+          "indicator": "2023年10月17日",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "wechat-fuzzy-location",
+      "requestUrl": "https://intl.cloud.tencent.com/zh/document/product/1219/68054",
+      "finalUrl": "https://intl.cloud.tencent.com/zh/document/product/1219/68054",
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": 478997,
+      "contentHash": "9e33c2eba9b077bc7ccb5cc21352c996742acaa12cd71de840d14374563d0266",
+      "indicatorChecks": [
+        {
+          "indicator": "wx.getFuzzyLocation",
+          "matched": true
+        },
+        {
+          "indicator": "模糊地理位置",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "pipl",
+      "requestUrl": "https://www.cac.gov.cn/2021-08/20/c_1631050028355286.htm",
+      "finalUrl": "https://www.cac.gov.cn/2021-08/20/c_1631050028355286.htm",
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": 41101,
+      "contentHash": "50b62bb9868648fe0417d8757a8cff62641eba6d879403f363d771f8c6d3acff",
+      "indicatorChecks": [
+        {
+          "indicator": "个人信息保护法",
+          "matched": true
+        },
+        {
+          "indicator": "敏感个人信息",
+          "matched": true
+        },
+        {
+          "indicator": "医疗健康",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "advertising-law",
+      "requestUrl": "https://www.npc.gov.cn/npc/c1773/c1848/c21114/c25274/c25277/201905/t20190521_207459.html",
+      "finalUrl": null,
+      "httpStatus": null,
+      "contentType": null,
+      "contentLength": 0,
+      "contentHash": null,
+      "indicatorChecks": [],
+      "sampleData": null,
+      "ok": false,
+      "error": "fetch failed"
+    },
+    {
+      "id": "internet-advertising-measures",
+      "requestUrl": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_d93a579afd45413e8576e4623fab348f.html",
+      "finalUrl": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_d93a579afd45413e8576e4623fab348f.html",
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": 22419,
+      "contentHash": "3523b44ee052f61bf4c7a9161b2254966a9a78d49948f919ebfd6a59184a98d5",
+      "indicatorChecks": [
+        {
+          "indicator": "互联网广告管理办法",
+          "matched": true
+        },
+        {
+          "indicator": "医疗",
+          "matched": true
+        },
+        {
+          "indicator": "药品",
+          "matched": true
+        }
+      ],
+      "ok": true,
+      "error": null
+    }
+  ],
+  "humanOnlyReleaseInputs": [
+    "微信小程序注册主体法定名称、统一社会信用代码和隐私联系人",
+    "GB/T 46939-2025标准文本及问卷产品化使用授权证明",
+    "营养、中医药、法规、安全和最终内容责任人的真实身份与签名",
+    "正式食谱逐条来源、授权和专业审核签字",
+    "5人测试逐人用时、通过结果、安全误解和问题记录",
+    "和风天气正式账号凭据、合同或服务协议"
+  ]
+}

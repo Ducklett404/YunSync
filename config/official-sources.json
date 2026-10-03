@@ -1,0 +1,210 @@
+{
+  "schemaVersion": "1.0.0",
+  "updatedAt": "2026-09-29",
+  "policy": {
+    "officialOnly": true,
+    "noThirdPartyReprints": true,
+    "doNotCopyFullLicensedStandards": true,
+    "productionSecretsInClient": false,
+    "notes": "自动同步只获取公开事实、接口状态和内容指纹；不把网页公开信息当作授权书、合同或专业签名。"
+  },
+  "sources": [
+    {
+      "id": "gbt-46939-2025",
+      "category": "standard",
+      "authority": "国家市场监督管理总局、国家标准化管理委员会",
+      "officialUrl": "https://openstd.samr.gov.cn/bzgk/std/newGbInfo?hcno=827D6D266BA52A2983F93638DA871028",
+      "syncMode": "release_check",
+      "cadence": "monthly_and_before_release",
+      "expectedIndicators": ["GB/T 46939-2025", "中医体质分类与判定"],
+      "verifiedFacts": [
+        "标准状态为现行",
+        "发布日期为2025-12-31，实施日期为2026-04-01",
+        "主管部门和归口部门均为国家中医药局"
+      ],
+      "usageBoundary": "只校验标准状态和元数据；不得自动复制标准全文，也不代表已取得问卷产品化授权。"
+    },
+    {
+      "id": "qweather-current-v1",
+      "category": "weather",
+      "authority": "和风天气开发者服务",
+      "officialUrl": "https://dev.qweather.com/docs/api/weather/weather-current/",
+      "syncMode": "runtime_api_configuration",
+      "cadence": "before_integration_and_before_release",
+      "expectedIndicators": ["weather/v1/current", "体感温度", "相对湿度"],
+      "verifiedFacts": [
+        "当前接口模板为 /weather/v1/current/{latitude}/{longitude}",
+        "正式接入必须由服务端保存凭据并代理请求",
+        "旧版城市实时天气 WebAPI v7 已提示即将弃用"
+      ],
+      "usageBoundary": "当前M1只保留适配器；取得正式凭据和服务协议后再启用真实请求。"
+    },
+    {
+      "id": "qweather-daily-v1",
+      "category": "weather",
+      "authority": "和风天气开发者服务",
+      "officialUrl": "https://dev.qweather.com/docs/api/weather/weather-daily-forecast/",
+      "syncMode": "runtime_api_configuration",
+      "cadence": "before_integration_and_before_release",
+      "expectedIndicators": ["weather/v1/daily", "最高温度", "最低温度"],
+      "verifiedFacts": [
+        "当前接口模板为 /weather/v1/daily/{latitude}/{longitude}",
+        "可按需要请求1至10天预报"
+      ],
+      "usageBoundary": "只提取计划书需要的最高/最低温度、降水和湿度等最小字段。"
+    },
+    {
+      "id": "qweather-pricing",
+      "category": "weather_commercial",
+      "authority": "和风天气开发者服务",
+      "officialUrl": "https://dev.qweather.com/docs/finance/pricing/",
+      "syncMode": "scheduled_verification",
+      "cadence": "monthly_and_before_release",
+      "expectedIndicators": ["0–50000", "CNY 0", "CNY 0.0007"],
+      "verifiedFacts": [
+        "天气和基础服务每月前50000次请求当前价格为0元",
+        "之后950000次当前价格为每次0.0007元",
+        "价格可能变化，正式发布前必须重新核对"
+      ],
+      "usageBoundary": "预算仍按计划书冻结值执行：月上限100元，累计50元告警。"
+    },
+    {
+      "id": "qweather-cache",
+      "category": "weather_license",
+      "authority": "和风天气开发者服务",
+      "officialUrl": "https://dev.qweather.com/docs/best-practices/cache/",
+      "syncMode": "scheduled_verification",
+      "cadence": "quarterly_and_before_release",
+      "expectedIndicators": ["实时天气", "10-30分钟", "逐天天气预报", "1-6小时"],
+      "verifiedFacts": [
+        "官方建议实时天气缓存10至30分钟",
+        "官方建议逐天天气预报缓存1至6小时",
+        "GeoAPI数据不得批量存储或缓存"
+      ],
+      "usageBoundary": "项目采用实时天气30分钟、每日预报6小时缓存；只保存城市级天气结果，不保存GeoAPI城市库。"
+    },
+    {
+      "id": "hko-calendar-2026-text",
+      "category": "calendar",
+      "authority": "香港天文台",
+      "officialUrl": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2026c.txt",
+      "syncMode": "versioned_offline_fixture",
+      "cadence": "before_m2_acceptance_and_annually",
+      "expectedIndicators": ["2026", "公曆與農曆日期對照表", "2026年9月29日", "十九", "白露"],
+      "verifiedFacts": [
+        "2026年腊八、春节、端午和中秋对应公历日期已从官方对照表核验",
+        "2026年农历月起点和每日星期可从官方纯文字表复核"
+      ],
+      "usageBoundary": "本地仅保存2026演示验收所需的派生日期结构；跨年度正式服务仍以官方API或年度表为准。"
+    },
+    {
+      "id": "hko-solar-terms-2026",
+      "category": "calendar",
+      "authority": "香港天文台",
+      "officialUrl": "https://www.hko.gov.hk/tc/gts/astronomy/data/files/24SolarTerms_2026.xml",
+      "syncMode": "versioned_offline_fixture",
+      "cadence": "before_m2_acceptance_and_annually",
+      "expectedIndicators": ["SolarTerms_2026", "<M>02</M><D>04</D><hm>04:02</hm>", "<M>12</M><D>22</D><hm>04:50</hm>"],
+      "verifiedFacts": [
+        "2026年24个节气日期和香港时间由官方XML提供",
+        "立春、清明、白露、冬至示例分别命中2月4日、4月5日、9月7日、12月22日"
+      ],
+      "usageBoundary": "节气时刻采用香港时间（UTC+8）；内容包文案与食谱仍须独立专业审核。"
+    },
+    {
+      "id": "hko-lunar-date",
+      "category": "calendar",
+      "authority": "香港天文台",
+      "officialUrl": "https://www.hko.gov.hk/tc/weatherAPI/doc/files/HKO_Open_Data_API_Documentation_sc.pdf",
+      "checkUrlTemplate": "https://data.weather.gov.hk/weatherAPI/opendata/lunardate.php?date={today}",
+      "syncMode": "runtime_public_api",
+      "cadence": "daily_when_m2_is_enabled",
+      "responseType": "json",
+      "expectedJsonKeys": ["LunarYear", "LunarDate"],
+      "verifiedFacts": [
+        "官方开放接口以GET方式返回JSON格式的农历年份和农历日期",
+        "接口文档说明支持本年至未来两年的日期"
+      ],
+      "usageBoundary": "M1验收通过进入M2后才接入；年度节气和传统节日内容仍需版本化校验。"
+    },
+    {
+      "id": "wechat-privacy",
+      "category": "platform_privacy",
+      "authority": "微信开放平台/腾讯云",
+      "officialUrl": "https://developers.weixin.qq.com/miniprogram/dev/framework/user-privacy/PrivacyAuthorize.html",
+      "checkUrl": "https://cloud.tencent.com/document/product/1301/97930",
+      "syncMode": "release_check",
+      "cadence": "monthly_and_before_each_submission",
+      "expectedIndicators": ["隐私保护指引", "隐私授权", "2023年10月17日"],
+      "verifiedFacts": [
+        "涉及处理个人信息时应配置并同步用户隐私保护指引",
+        "只有声明了所处理的个人信息后才能调用相应隐私接口"
+      ],
+      "usageBoundary": "开发者站点可能阻止自动读取，自动校验使用腾讯官方文档镜像；提审时仍以微信公众平台现场规则为准。"
+    },
+    {
+      "id": "wechat-fuzzy-location",
+      "category": "platform_location",
+      "authority": "微信开放平台/腾讯云",
+      "officialUrl": "https://developers.weixin.qq.com/miniprogram/dev/api/location/wx.getFuzzyLocation.html",
+      "checkUrl": "https://intl.cloud.tencent.com/zh/document/product/1219/68054",
+      "syncMode": "release_check",
+      "cadence": "monthly_and_before_each_submission",
+      "expectedIndicators": ["wx.getFuzzyLocation", "模糊地理位置"],
+      "verifiedFacts": [
+        "wx.getFuzzyLocation用于获取当前模糊地理位置",
+        "项目仅映射到城市后立即丢弃原始坐标",
+        "用户拒绝时必须立即提供手动城市选择"
+      ],
+      "usageBoundary": "不启用后台持续定位，不建立轨迹。"
+    },
+    {
+      "id": "pipl",
+      "category": "law_privacy",
+      "authority": "国家互联网信息办公室",
+      "officialUrl": "https://www.cac.gov.cn/2021-08/20/c_1631050028355286.htm",
+      "syncMode": "release_check",
+      "cadence": "quarterly_and_before_release",
+      "expectedIndicators": ["个人信息保护法", "敏感个人信息", "医疗健康"],
+      "verifiedFacts": [
+        "医疗健康和行踪轨迹属于敏感个人信息",
+        "处理敏感个人信息应具有特定目的和充分必要性，并取得单独同意"
+      ],
+      "usageBoundary": "公开法律文本不能替代项目隐私负责人和法律审查签字。"
+    },
+    {
+      "id": "advertising-law",
+      "category": "law_content",
+      "authority": "中国人大网",
+      "officialUrl": "https://www.npc.gov.cn/npc/c1773/c1848/c21114/c25274/c25277/201905/t20190521_207459.html",
+      "syncMode": "release_check",
+      "cadence": "quarterly_and_before_release",
+      "expectedIndicators": ["中华人民共和国广告法", "医疗"],
+      "verifiedFacts": [
+        "项目不得使用诊断、治疗承诺、治愈率或替代就医表述"
+      ],
+      "usageBoundary": "正式文案仍须法规责任人逐条审核。"
+    },
+    {
+      "id": "internet-advertising-measures",
+      "category": "law_content",
+      "authority": "国家市场监督管理总局",
+      "officialUrl": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_d93a579afd45413e8576e4623fab348f.html",
+      "syncMode": "release_check",
+      "cadence": "quarterly_and_before_release",
+      "expectedIndicators": ["互联网广告管理办法", "医疗", "药品"],
+      "verifiedFacts": [
+        "不得以介绍健康养生知识等形式变相发布医疗、药品、医疗器械、保健食品或特殊医学用途配方食品广告"
+      ],
+      "usageBoundary": "养生内容页不放置上述商品的购买链接、经营者地址或联系方式。"
+    }
+  ],
+  "humanOnlyReleaseInputs": [
+    "微信小程序注册主体法定名称、统一社会信用代码和隐私联系人",
+    "GB/T 46939-2025标准文本及问卷产品化使用授权证明",
+    "营养、中医药、法规、安全和最终内容责任人的真实身份与签名",
+    "正式食谱逐条来源、授权和专业审核签字",
+    "5人测试逐人用时、通过结果、安全误解和问题记录",
+    "和风天气正式账号凭据、合同或服务协议"
+  ]
+}

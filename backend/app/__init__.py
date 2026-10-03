@@ -1,1 +1,0 @@
-"""YunSync backend application."""
