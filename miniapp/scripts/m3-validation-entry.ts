@@ -1,10 +1,14 @@
 import safetyRules from '../src/data/m3-safety-rules.json'
 import { m2AcceptanceDates, m2RecipeLibrary, recipeConflictsWith, resolveDemoCalendar } from '../src/data/m2'
-import { rankM3Recommendations } from '../src/services/recommendation'
+import { rankM3Recommendations as rankRecommendations } from '../src/services/recommendation'
 import { screenSafety } from '../src/services/safety'
 import type { DailyCheckIn, FeelingOption, ServiceScope, WeatherSnapshot, WellnessProfile } from '../src/types/domain'
 
 interface CheckResult { name: string; passed: boolean; detail: string }
+
+function rankM3Recommendations(...args: Parameters<typeof rankRecommendations>) {
+  return rankRecommendations(args[0], args[1], args[2], args[3], args[4], { allowDemoContent: true })
+}
 
 const results: CheckResult[] = []
 

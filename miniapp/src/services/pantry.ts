@@ -1,5 +1,6 @@
 import { m2RecipeLibrary, recipeConflictsWith } from '../data/m2'
 import { screenSafety } from './safety'
+import { isContentAvailable } from './content'
 import type {
   DailyCheckIn,
   PantryMatchKind,
@@ -132,9 +133,7 @@ export function matchPantryRecipes(
     return { safety, matches: [], safetyFilteredCount: 0, contentFilteredCount: 0, constraintFilteredCount: 0, message: '请先录入至少 1 种现有食材。' }
   }
 
-  const contentEligible = m2RecipeLibrary.filter((recipe) =>
-    recipe.reviewStatus === 'approved' || (options.allowDemoContent && recipe.reviewStatus === 'demo'),
-  )
+  const contentEligible = m2RecipeLibrary.filter((recipe) => isContentAvailable(recipe, options))
   const contentFilteredCount = m2RecipeLibrary.length - contentEligible.length
   const restrictions = [...profile.allergens, ...profile.doctorDietRestrictions]
   const safeRecipes = contentEligible.filter((recipe) => !recipeConflictsWith(recipe, restrictions))

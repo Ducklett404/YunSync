@@ -2,6 +2,7 @@ import { createCalendarAdapter } from '../adapters/calendar'
 import { createWeatherAdapter } from '../adapters/weather'
 import { rankM3Recommendations } from './recommendation'
 import { screenSafety } from './safety'
+import { runtimeConfig } from '../config/runtime'
 import type {
   DailyCheckIn,
   M1AcceptanceScenario,
@@ -62,7 +63,9 @@ export async function getTodayExperience({
       : createWeatherAdapter().getCityWeather(profile.city),
   ])
 
-  const selection = rankM3Recommendations(calendar, weather, profile, checkIn, recentMainRecipeIds)
+  const selection = rankM3Recommendations(calendar, weather, profile, checkIn, recentMainRecipeIds, {
+    allowDemoContent: runtimeConfig.dataMode === 'demo',
+  })
   if (!selection.recipes.length) return { safety }
 
   return {

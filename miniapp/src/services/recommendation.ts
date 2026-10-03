@@ -1,4 +1,6 @@
 import { getCityRegion, getContentBundle, m2RecipeLibrary, recipeConflictsWith } from '../data/m2'
+import { isContentAvailable } from './content'
+import type { ContentOptions } from './content'
 import type {
   CalendarContext,
   DailyCheckIn,
@@ -71,11 +73,13 @@ export function rankM3Recommendations(
   profile: WellnessProfile,
   checkIn: DailyCheckIn,
   recentMainRecipeIds: string[] = [],
+  options: ContentOptions = {},
 ): RecommendationSelection {
-  const bundle = getContentBundle(calendar, profile.city)
+  const bundle = getContentBundle(calendar, profile.city, options)
   const restrictions = [...profile.allergens, ...profile.doctorDietRestrictions]
-  const safeRecipes = m2RecipeLibrary.filter((recipe) => !recipeConflictsWith(recipe, restrictions))
-  const filteredCount = m2RecipeLibrary.length - safeRecipes.length
+  const eligibleRecipes = m2RecipeLibrary.filter((recipe) => isContentAvailable(recipe, options))
+  const safeRecipes = eligibleRecipes.filter((recipe) => !recipeConflictsWith(recipe, restrictions))
+  const filteredCount = eligibleRecipes.length - safeRecipes.length
   const region = getCityRegion(profile.city)
   const bundleIds = new Set(bundle?.recipeIds || [])
 

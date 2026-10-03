@@ -1,4 +1,6 @@
 import rawContent from './m2-content.json'
+import { isContentAvailable } from '../services/content'
+import type { ContentOptions } from '../services/content'
 import type {
   CalendarContext,
   FestivalContentBundle,
@@ -142,9 +144,10 @@ export function getRecipeById(recipeId: string): RecipeTemplate | undefined {
   return m2RecipeLibrary.find((recipe) => recipe.id === recipeId)
 }
 
-export function getContentBundle(calendar: CalendarContext, city?: string): FestivalContentBundle | undefined {
+export function getContentBundle(calendar: CalendarContext, city?: string, options: ContentOptions = {}): FestivalContentBundle | undefined {
   const region = city ? cityRegions[city] : undefined
   return festivalContentBundles.find((bundle) => {
+    if (!isContentAvailable(bundle, options)) return false
     const rule = bundle.dateRule
     const dateMatches = rule.kind === 'lunar'
       ? calendar.lunarMonth === rule.lunarMonth && calendar.lunarDay === rule.lunarDay
@@ -176,7 +179,7 @@ export function selectM2Recommendations(
   city: string,
   restrictions: string[] = [],
 ) {
-  const bundle = getContentBundle(calendar, city)
+  const bundle = getContentBundle(calendar, city, { allowDemoContent: true })
   const preferredIds = bundle?.recipeIds || []
   const fallbackIds = ['demo-yam-millet', 'demo-tomato-tofu', 'demo-greens']
   const orderedIds = [...preferredIds, ...fallbackIds]
@@ -184,6 +187,7 @@ export function selectM2Recommendations(
     .filter((id, index) => orderedIds.indexOf(id) === index)
     .map(getRecipeById)
     .filter((recipe): recipe is RecipeTemplate => Boolean(recipe))
+    .filter((recipe) => isContentAvailable(recipe, { allowDemoContent: true }))
     .filter((recipe) => !recipeConflictsWith(recipe, restrictions))
     .slice(0, 3)
   return { bundle, recipes }
