@@ -2,7 +2,7 @@
 
 更新时间：2026-10-05
 
-当前里程碑：**M5/M6 可由代码完成的缺口已收口；正式数据、微信/真机、真人验收与签署待外部输入**
+当前里程碑：**M5/M6 可由代码完成的缺口已收口；M11—M14 华为云赛题扩展计划已建立、开发待执行**
 
 总体状态：**已授权在 DEMO_MODE 下开发，禁止正式发布**
 
@@ -75,10 +75,21 @@
 
 ## 下一步
 
-1. 用最新微信构建补齐 M4 五项人工确认及 M5 微信/Android/iOS 真机、弱网和权限验证，记录设备、版本、结果和证据。
-2. 按 `M6_TRIAL_PLAN.md` 执行真人走查和封闭试用，填写实际结果；`check:m6` 应在真实证据完整后通过。
-3. 将签署后的 48 道正式内容写入 `miniapp/src/data/official-content.json`，配置真实主体、隐私联系人和无密钥 HTTPS 天气代理，提供体质问卷授权版本及五类共同签署，再运行正式发布检查。
-4. 每月及每次提审/发布前执行 `node scripts/sync-official-sources.mjs --strict`；若官方站点阻止自动访问，则依据失败报告做官方网页人工复核并留档。
+1. 按 `HUAWEI_CLOUD_M11_M14_PLAN.md` 开展 M11：在 CodeArts 中建立项目级 Agent/Skills，并开始填写真实使用证据。
+2. 开展 M12：实现华为云后端，接入 RDS PostgreSQL、DCS Redis 和正式天气代理。
+3. 开展 M13：接入 MaaS 自然语言结构化和受控推荐说明，保留确定性安全过滤与无模型降级。
+4. 开展 M14：建立 CodeArts Pipeline/Deploy，将 H5 和 API 部署到华为云并完成 HTTPS、健康检查和回滚验收。
+5. 并行补齐 M4/M5 微信与真机证据、M6 真人试用、48 道正式内容、问卷授权、主体与共同签署。
+6. 每月及每次提审/发布前执行 `node scripts/sync-official-sources.mjs --strict`；若官方站点阻止自动访问，则依据失败报告做官方网页人工复核并留档。
+
+## 华为云赛题扩展状态
+
+- M11：计划与证据模板已提交，CodeArts 实际执行待开始。
+- M12：计划已提交，云端后端、RDS 与 DCS Redis 尚未实现。
+- M13：计划已提交，MaaS 尚未接入。
+- M14：计划已提交，华为云在线 Demo 与 CodeArts 部署流水线尚未建立。
+
+详细任务、交付物和验收条件见 `HUAWEI_CLOUD_M11_M14_PLAN.md`；发布核对使用 `competition/CLOUD_RELEASE_CHECKLIST.md`。
 
 ## 发布状态
 
