@@ -1,6 +1,6 @@
 # 云循微信小程序
 
-技术栈：uni-app、Vue 3、TypeScript、Vite。M2—M5 工程验证通过，M6 试用与发布准备已建立，默认仍运行在 `DEMO_MODE`。
+技术栈：uni-app、Vue 3、TypeScript、Vite。M2—M5 工程验证通过，M6 正式天气、隐私与发布门禁工程已建立，默认仍运行在 `DEMO_MODE`。
 
 推荐使用 Node.js 20 与 npm 10。当前官方模板未声明支持 Node.js 24。
 
@@ -21,6 +21,10 @@
 - 食材、厨具、份数、时间和补购条件匹配；
 - 收藏、最近浏览、四种本机反馈、内容停用与版本更新提示；
 - H5 页面回归、实际内容发布检查与真实用户验收记录检查。
+- 可配置 HTTPS 天气代理、30 分钟缓存、6 小时故障缓存与季节通用降级；天气指标参与排序。
+- 本机数据 JSON 导出、主体/隐私联系人展示、撤回并删除全部云循本机数据。
+- 独立正式内容文件；没有签署内容时保持为空并阻断正式发布。
+- 授权问卷的通用渲染、结构化计分和谨慎结果页；空白正式题库时入口隐藏并阻断发布。
 
 ## 命令
 
@@ -36,7 +40,7 @@ npm run validate:m6
 npm run build:mp-weixin
 ```
 
-`npm run release:check` 和 `npm run build:mp-weixin:release` 会检查真实配置、AppID 一致性、实际内容状态、字段、审核人与冻结配额，并拒绝当前 DEMO 天气适配器。当前正式构建应失败。
+`npm run release:check` 和 `npm run build:mp-weixin:release` 会读取 `src/data/official-content.json`，检查真实配置、AppID 一致性、HTTPS 天气代理、问卷授权版本、内容状态、字段、审核人、签署版本与冻结配额。当前正式内容和外部资料未交付，因此正式构建应失败。接入契约见 `../docs/FORMAL_RELEASE_INPUTS.md`。
 
 ## H5 自动化交互回归
 

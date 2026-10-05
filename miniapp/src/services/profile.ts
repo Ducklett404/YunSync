@@ -30,6 +30,7 @@ function cloneDefaultProfile(): WellnessProfile {
 function normalizeProfile(stored?: Partial<WellnessProfile>): WellnessProfile {
   const fallback = cloneDefaultProfile()
   const source = stored || {}
+  const reference = source.constitutionReference
   return {
     ...fallback,
     ...source,
@@ -38,6 +39,16 @@ function normalizeProfile(stored?: Partial<WellnessProfile>): WellnessProfile {
     medicalConditions: Array.isArray(source.medicalConditions) ? source.medicalConditions : [],
     medications: Array.isArray(source.medications) ? source.medications : [],
     doctorDietRestrictions: Array.isArray(source.doctorDietRestrictions) ? source.doctorDietRestrictions : [],
+    constitutionReference: reference
+      && Array.isArray(reference.labels)
+      && Array.isArray(reference.recommendationTags)
+      && typeof reference.surveyVersion === 'string'
+      ? {
+          labels: reference.labels.filter(item => typeof item === 'string'),
+          recommendationTags: reference.recommendationTags.filter(item => typeof item === 'string'),
+          surveyVersion: reference.surveyVersion,
+        }
+      : undefined,
   }
 }
 

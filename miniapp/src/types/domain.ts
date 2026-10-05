@@ -18,6 +18,7 @@ export interface WeatherSnapshot extends TraceableData {
   maxTemperature?: number
   text: string
   available: boolean
+  delivery?: 'live' | 'fresh-cache' | 'stale-cache' | 'fallback' | 'demo'
 }
 
 export interface CalendarContext extends TraceableData {
@@ -105,6 +106,11 @@ export interface WellnessProfile {
   doctorDietRestrictions: string[]
   serviceScope: ServiceScope
   constitutionSurveyInterest: boolean
+  constitutionReference?: {
+    labels: string[]
+    recommendationTags: string[]
+    surveyVersion: string
+  }
   updatedAt: string
 }
 

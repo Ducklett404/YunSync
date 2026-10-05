@@ -50,10 +50,12 @@
       <view class="interest-row">
         <view>
           <text class="interest-title">愿意稍后填写体质参考问卷</text>
-          <text class="helper">仅记录意愿；问卷尚未授权，当前不会启用。</text>
+          <text class="helper">{{ constitutionSurveyAvailable ? '问卷已配置；开启意愿后可进入填写。' : '仅记录意愿；问卷尚未授权，当前不会启用。' }}</text>
         </view>
         <switch :checked="form.constitutionSurveyInterest" color="#123d35" @change="onSurveyInterestChange" />
       </view>
+      <button v-if="constitutionSurveyAvailable && form.constitutionSurveyInterest" class="small-button survey-button" tabindex="0" @click="openSurvey" @keydown.enter="openSurvey">{{ constitutionResult ? '查看或重做体质参考' : '填写体质参考问卷' }}</button>
+      <text v-if="constitutionResult" class="helper">已保存参考：{{ constitutionResult.labels.join('、') }}（{{ constitutionResult.surveyVersion }}）</text>
 
       <button class="primary-button" tabindex="0" @click="save" @keydown.enter="save">保存本机档案</button>
     </view>
@@ -62,8 +64,15 @@
     <view class="form-card">
       <text class="section-title">本机记录与隐私</text>
       <text class="helper">档案和体感用于安全筛查；收藏、浏览记录和食谱反馈只保存在当前设备，不跨设备同步。当前无需定位权限，可手动选择城市。反馈只记录所选选项和食谱版本，请勿填写个人健康信息。</text>
+      <text class="identity-line">运营主体：{{ runtimeConfig.legalEntity || '尚未配置（演示环境）' }}</text>
+      <text class="identity-line">隐私联系人：{{ runtimeConfig.privacyContact || '尚未配置（演示环境）' }}</text>
+      <text v-if="runtimeConfig.privacyNoticeVersion" class="helper">隐私说明版本：{{ runtimeConfig.privacyNoticeVersion }}</text>
+      <text class="helper">“导出”会把当前设备内由云循保存的数据复制为 JSON；请自行妥善保管，其中可能包含你填写的健康相关信息。</text>
+      <button class="small-button privacy-button" tabindex="0" @click="exportLocalData" @keydown.enter="exportLocalData">导出我的本机数据</button>
       <text class="helper">以下操作清除收藏、最近浏览和食谱反馈，保留用于安全筛查的档案与体感。</text>
       <button class="small-button clear-button" tabindex="0" @click="confirmClearRecords" @keydown.enter="confirmClearRecords">清除收藏、浏览与反馈</button>
+      <text class="helper danger-helper">撤回本机数据使用会删除档案、每日体感、推荐历史、天气缓存、收藏、浏览和反馈。删除后无法恢复。</text>
+      <button class="small-button danger-button" tabindex="0" @click="confirmDeleteAllData" @keydown.enter="confirmDeleteAllData">撤回并删除全部本机数据</button>
     </view>
   </view>
 </template>
@@ -74,6 +83,9 @@ import { onShow } from '@dcloudio/uni-app'
 import { loadProfile, saveProfile } from '../../services/profile'
 import { runtimeConfig } from '../../config/runtime'
 import { clearEngagement, loadSavedRecipes, setFavorite } from '../../services/engagement'
+import { buildLocalDataExport, deleteAllLocalData } from '../../services/privacy'
+import { isConstitutionSurveyAvailable, loadConstitutionSurveyResult } from '../../services/constitution'
+import type { ConstitutionSurveyResult } from '../../services/constitution'
 import type { SavedRecipeView } from '../../services/engagement'
 import type { ServiceScope } from '../../types/domain'
 
@@ -93,6 +105,8 @@ const scopes: Array<{ key: ServiceScope; label: string }> = [
 const form = reactive(loadProfile())
 const favorites = ref<SavedRecipeView[]>([])
 const recent = ref<SavedRecipeView[]>([])
+const constitutionSurveyAvailable = isConstitutionSurveyAvailable()
+const constitutionResult = ref<ConstitutionSurveyResult>()
 const contentOptions = { allowDemoContent: runtimeConfig.dataMode === 'demo' }
 const savedSections = computed(() => [
   { kind: 'favorites', title: '我的收藏', items: favorites.value },
@@ -105,6 +119,7 @@ function refreshRecords() {
 function openRecipe(id: string) {
   uni.navigateTo({ url: `/pages/recipe/detail?id=${encodeURIComponent(id)}` })
 }
+function openSurvey() { uni.navigateTo({ url: '/pages/survey/index' }) }
 function removeFavorite(id: string) {
   try { setFavorite(id, false); refreshRecords() }
   catch { uni.showToast({ title: '移除失败，请重试', icon: 'none' }) }
@@ -120,7 +135,47 @@ function confirmClearRecords() {
     },
   })
 }
-onShow(refreshRecords)
+function exportLocalData() {
+  try {
+    const payload = JSON.stringify(buildLocalDataExport(), null, 2)
+    uni.setClipboardData({
+      data: payload,
+      success: () => uni.showToast({ title: '数据已复制', icon: 'success' }),
+      fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }),
+    })
+  } catch {
+    uni.showToast({ title: '导出失败，请重试', icon: 'none' })
+  }
+}
+function resetFormFromStorage() {
+  Object.assign(form, loadProfile())
+  allergenText.value = form.allergens.join('、')
+  conditionText.value = form.medicalConditions.join('、')
+  medicationText.value = form.medications.join('、')
+  restrictionText.value = form.doctorDietRestrictions.join('、')
+  refreshRecords()
+}
+function confirmDeleteAllData() {
+  uni.showModal({
+    title: '撤回并删除全部数据？',
+    content: '将删除当前设备内的档案、体感、推荐历史、天气缓存和收藏反馈，无法恢复。',
+    cancelText: '取消', confirmText: '全部删除',
+    success(result) {
+      if (!result.confirm) return
+      try {
+        deleteAllLocalData()
+        resetFormFromStorage()
+        uni.showToast({ title: '本机数据已删除', icon: 'success' })
+      } catch {
+        uni.showToast({ title: '仍有数据未删除', icon: 'none' })
+      }
+    },
+  })
+}
+onShow(() => {
+  refreshRecords()
+  constitutionResult.value = loadConstitutionSurveyResult()
+})
 const allergenText = ref(form.allergens.join('、'))
 const conditionText = ref(form.medicalConditions.join('、'))
 const medicationText = ref(form.medications.join('、'))
@@ -162,7 +217,7 @@ function save() {
 <style scoped>
 .page { padding: 40rpx 30rpx 60rpx; }
 .demo-badge { display: inline-block; padding: 8rpx 14rpx; color: #7b561d; background: #f5e8c8; border-radius: 999rpx; font-size: 22rpx; }
-.title, .copy, .label, .section-title, .helper, .warning-copy, .interest-title { display: block; }
+.title, .copy, .label, .section-title, .helper, .warning-copy, .interest-title, .identity-line { display: block; }
 .title { margin-top: 28rpx; font-family: serif; font-size: 50rpx; font-weight: 700; }
 .copy { margin-top: 12rpx; color: #66766f; font-size: 26rpx; line-height: 1.7; }
 .form-card { margin-top: 32rpx; padding: 30rpx; background: #fffef9; border-radius: 30rpx; }
@@ -188,4 +243,9 @@ function save() {
 .small-button { margin: 0; padding: 0 20rpx; color: #fff; background: #123d35; border-radius: 16rpx; font-size: 23rpx; }
 .small-button.muted, .clear-button { color: #52625b; background: #edf1ee; }
 .clear-button { margin-top: 22rpx; }
+.identity-line { margin-top: 14rpx; color: #42534c; font-size: 23rpx; }
+.privacy-button { margin-top: 22rpx; }
+.survey-button { margin-top: 20rpx; }
+.danger-helper { margin-top: 28rpx; color: #8b422e; }
+.danger-button { margin-top: 16rpx; color: #8b2f22; background: #f8e7e2; }
 </style>

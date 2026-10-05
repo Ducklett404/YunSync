@@ -111,3 +111,23 @@ test('本地资源延迟500毫秒时首页仍能进入食谱详情', async ({ pa
   await page.locator('.primary-button').click()
   await expect(page.locator('.step')).not.toHaveCount(0)
 })
+
+test('本机健康数据可导出并在撤回后完整删除', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto(profile)
+  await page.locator('.input input').first().fill('花生')
+  await page.locator('.primary-button').click()
+  await page.getByText('导出我的本机数据', { exact: true }).click()
+  await expect(page.getByText('数据已复制', { exact: true })).toBeVisible()
+  const exported = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()))
+  expect(exported.schemaVersion).toBe('yunsync-local-export-v1')
+  expect(exported.data['yunsync:wellness-profile:v2'].allergens).toEqual(['花生'])
+
+  await page.getByText('撤回并删除全部本机数据', { exact: true }).click()
+  await page.getByText('取消', { exact: true }).click()
+  await expect(page.locator('.input input').first()).toHaveValue('花生')
+  await page.getByText('撤回并删除全部本机数据', { exact: true }).click()
+  await page.getByText('全部删除', { exact: true }).click()
+  await expect(page.locator('.input input').first()).toHaveValue('')
+  await expect(page.getByText('本机数据已删除', { exact: true })).toBeVisible()
+})

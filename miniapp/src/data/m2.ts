@@ -1,4 +1,6 @@
 import rawContent from './m2-content.json'
+import officialContent from './official-content.json'
+import { runtimeConfig } from '../config/runtime'
 import { isContentAvailable } from '../services/content'
 import type { ContentOptions } from '../services/content'
 import type {
@@ -34,7 +36,7 @@ interface M2ContentData {
   recipes: RecipeTemplate[]
 }
 
-const content = rawContent as unknown as M2ContentData
+const content = (runtimeConfig.dataMode === 'real' ? officialContent : rawContent) as unknown as M2ContentData
 const dayMilliseconds = 24 * 60 * 60 * 1000
 const monthNames = ['', '正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
 const dayNames = ['', '初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十', '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十']
@@ -139,6 +141,14 @@ export function resolveDemoCalendar(input?: Date | string): CalendarContext {
 
 export const festivalContentBundles = content.bundles
 export const m2RecipeLibrary = content.recipes
+
+export function hasApprovedOfflineCalendarBaseline(): boolean {
+  return runtimeConfig.dataMode === 'real'
+    && Boolean(content.calendarSource.authority?.trim())
+    && Number.isFinite(Date.parse(content.calendarSource.verifiedAt))
+    && content.lunarMonthStarts2026.length >= 12
+    && content.solarTerms2026.length === 24
+}
 
 export function getRecipeById(recipeId: string): RecipeTemplate | undefined {
   return m2RecipeLibrary.find((recipe) => recipe.id === recipeId)

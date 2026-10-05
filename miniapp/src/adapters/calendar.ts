@@ -1,5 +1,5 @@
 import { runtimeConfig } from '../config/runtime'
-import { resolveDemoCalendar } from '../data/m2'
+import { hasApprovedOfflineCalendarBaseline, resolveDemoCalendar } from '../data/m2'
 import type { CalendarContext } from '../types/domain'
 
 export interface CalendarAdapter {
@@ -61,10 +61,13 @@ export class HkoCalendarAdapter implements CalendarAdapter {
         updatedAt: new Date().toISOString(),
       }
     } catch {
+      const approvedOffline = hasApprovedOfflineCalendarBaseline()
       return {
         ...fallback,
         lunarDate: fallback.lunarDate || '农历服务暂不可用',
         source: `${fallback.source}（官方API不可用时的已校验离线降级）`,
+        isDemo: !approvedOffline,
+        reviewStatus: approvedOffline ? 'approved' : 'draft',
       }
     }
   }
