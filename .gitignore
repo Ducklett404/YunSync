@@ -12,12 +12,23 @@ miniapp/playwright-report/
 
 # Local Python packages and caches
 .site-packages/
+.venv/
+.pytest_cache/
+.pytest-tmp*/
 __pycache__/
 *.py[cod]
 
 # Local development tools and installers
 tools/wechat-devtools/
 .local-backups/
+CodeArts Agent/
+
+# CodeArts IDE local indexes and machine-specific settings
+.codeartsdoer/.codebase/
+.codeartsdoer/mcp/
+.codeartsdoer/mem-exp-config.json
+.codeartsdoer/package.json
+.codeartsdoer/rule/metadata.properties
 
 # Developer-specific mini-program settings
 project.private.config.json
@@ -26,3 +37,12 @@ project.private.config.json
 .env
 .env.*
 !.env.example
+credentials.csv
+*.tfvars
+!*.tfvars.example
+
+# Huawei Cloud deployment state and local evidence
+.auto-deploy/
+**/.terraform/
+*.tfstate
+*.tfstate.*

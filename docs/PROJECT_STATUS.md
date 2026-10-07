@@ -1,8 +1,8 @@
 # YunSync V3 项目状态
 
-更新时间：2026-10-05
+更新时间：2026-10-07
 
-当前里程碑：**M5/M6 可由代码完成的缺口已收口；M11—M14 华为云赛题扩展计划已建立、开发待执行**
+当前里程碑：**M5/M6 可由代码完成的缺口已收口；M11 项目级 Agent/Skills、真实 CodeArts 任务与证据已完成，下一步进入 M12**
 
 总体状态：**已授权在 DEMO_MODE 下开发，禁止正式发布**
 
@@ -84,7 +84,7 @@
 
 ## 华为云赛题扩展状态
 
-- M11：计划与证据模板已提交，CodeArts 实际执行待开始。
+- M11：已完成。CodeArts Agent IDE 26.9.501、CLI 26.9.13、Terraform 1.16.5 与用户级 auto-deploy Skill 已就绪；CodeArts 真实调用三个项目级 Skills 和 `yunsync-cloud-agent`，完成资源计划需求实现、两项生成器缺陷修复、`plan-only` 部署预检与 full 验证。CA-01—CA-05 已登记，最终 full 验证 8/8 通过；未创建云资源，真实上线仍属于 M14。
 - M12：计划已提交，云端后端、RDS 与 DCS Redis 尚未实现。
 - M13：计划已提交，MaaS 尚未接入。
 - M14：计划已提交，华为云在线 Demo 与 CodeArts 部署流水线尚未建立。

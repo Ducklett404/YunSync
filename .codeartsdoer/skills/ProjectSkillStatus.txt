@@ -1,0 +1,3 @@
+yunsync-cloud-plan=true
+yunsync-deploy=true
+yunsync-validate=true

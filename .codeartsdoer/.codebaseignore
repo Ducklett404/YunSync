@@ -1,0 +1,17 @@
+**/node_modules/**
+**/dist/**
+**/test-results/**
+**/playwright-report/**
+.venv/**
+.pytest*/**
+CodeArts Agent/**
+.auto-deploy/**
+backend/**
+frontend/**
+release/**
+**/.env
+**/.env.*
+!**/.env.example
+**/*.tfstate
+**/*.tfstate.*
+**/credentials.csv

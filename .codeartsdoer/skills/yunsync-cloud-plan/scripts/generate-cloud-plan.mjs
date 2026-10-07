@@ -1,0 +1,136 @@
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const here = dirname(fileURLToPath(import.meta.url))
+const root = resolve(here, '../../../..')
+const output = resolve(root, 'docs/competition/generated/CLOUD_RESOURCE_PLAN.md')
+
+for (const required of ['miniapp/package.json', 'docs/HUAWEI_CLOUD_M11_M14_PLAN.md']) {
+  if (!existsSync(resolve(root, required))) throw new Error(`仓库基线文件缺失: ${required}`)
+}
+
+let trackedBackend = false
+try {
+  trackedBackend = execFileSync('git', ['ls-files', 'backend'], { cwd: root, encoding: 'utf8' }).trim().length > 0
+} catch {
+  trackedBackend = false
+}
+
+const region = process.env.YUNSYNC_HWC_REGION || '待团队根据代金券与 MaaS 可用区确认'
+const generatedAt = new Date().toISOString()
+const backendStatus = trackedBackend
+  ? '仓库已有受版本控制的 backend，可进入 M12 适配审查'
+  : '当前提交没有受版本控制的 backend；M12 必须先建立云 API'
+
+const content = `# YunSync 华为云资源计划
+
+生成时间：${generatedAt}
+
+生成方式：CodeArts 项目级 Skill \`yunsync-cloud-plan\`
+
+状态：**仅规划，不创建或购买资源**
+
+## 当前判断
+
+- Region：${region}
+- 后端：${backendStatus}
+- 前端：现有 uni-app 可构建微信小程序与 H5。
+- 正式发布：仍受 48 道签署食谱、问卷授权、主体信息和真人验收门禁约束。
+
+## 资源清单
+
+| 资源 | 用途 | 最小配置原则 | 数据边界 |
+|---|---|---|---|
+| VPC / 子网 / 安全组 | 隔离 API、RDS 与 DCS | API 仅开放 HTTPS；RDS/DCS 仅允许应用子网访问 | 不把管理端口开放到公网 |
+| ECS | 运行后端 API 与健康检查 | 比赛阶段优先单实例；规格由实际压测决定 | 凭据通过部署变量注入 |
+| RDS PostgreSQL | 食谱、内容版本、来源与最小审计 | 开发环境可用基础规格，正式环境启用备份 | 默认不保存完整健康描述 |
+| DCS Redis | 天气、推荐缓存、限流和幂等 | 所有业务键设置 TTL；测试可用单机，正式环境用主备 | 不作为永久健康档案存储 |
+| OBS + 自定义域名 | H5、图片和演示材料 | 开启 HTTPS，限制写权限 | 桶内不存放密钥和健康原文 |
+| MaaS | 自然语言结构化和受控说明 | 只由后端调用；输出必须过 Schema 和规则校验 | 不发送姓名、联系方式等身份信息 |
+| IAM / 委托 | 最小权限访问云资源 | 按服务拆分权限，不使用主账号长期密钥 | 密钥不进入仓库和日志 |
+| CodeArts Pipeline / Deploy | 测试、构建、部署、健康检查与回滚 | 测试通过后部署，失败自动停止 | 部署变量由平台安全保存 |
+
+## auto-deploy Skill 边界
+
+赛题提供的 \`auto-deploy\` Skill 只覆盖单台 ECS：创建 ECS、上传源码、启动应用和验证 \`/health\`。该 Skill **不创建 RDS、DCS Redis 或 OBS**。因此 M14 必须由独立资源 Skill（\`yunsync-cloud-plan\`）先创建或关联这些资源，并把连接变量安全传入应用部署 Skill（\`yunsync-deploy\`），不得把 \`auto-deploy\` 描述为已经创建 RDS、DCS 或 OBS。
+
+## 数据边界与安全约束
+
+- **RDS PostgreSQL**：默认不把用户完整健康描述写入 RDS；只保存审核食谱、节气内容、版本、来源与最小化审计。
+- **推荐审计**：保存规则版本、候选 ID 和命中原因；前端或 MaaS 只产生受控标签，不自由生成食材剂量、疗效或医疗建议。
+- **用户档案云同步**：云端同步用户档案前必须增加明确同意、撤回、导出与删除接口，未取得授权前不开启。
+- **DCS Redis**：所有业务键设置 TTL；只保存天气/推荐缓存、限流和幂等数据；实现缓存穿透保护；不作为永久健康档案存储。
+- **凭据与日志**：不记录 MaaS API Key、数据库连接串、Redis 密码、Cookie、SSH 私钥或完整用户输入；凭据不进入仓库和日志，只通过安全部署变量注入。
+- **MaaS 输入**：不发送姓名、联系方式等身份信息；输出必须过 JSON Schema 和确定性规则校验。
+- **过敏/禁忌/高风险/不支持人群**：始终由确定性规则硬过滤，不交由大模型自由判断。
+
+## 里程碑对齐概要
+
+### M11（CodeArts 合规与证据）
+
+- 建立项目级 Agent/Skills（\`yunsync-cloud-agent\`、\`yunsync-cloud-plan\`、\`yunsync-validate\`、\`yunsync-deploy\`）。
+- 通过 CodeArts 代码智能体完成需求实现、缺陷修复和部署任务，并登记到 \`docs/competition/CODEARTS_EVIDENCE.md\`。
+- 证据不得包含访问密钥、数据库密码、令牌或个人健康原文。
+
+### M12（云后端 + RDS + DCS）API 端点
+
+- \`GET /health\`
+- \`GET /v1/context/today\`
+- \`POST /v1/recommendations/today\`
+- \`POST /v1/recommendations/pantry\`
+- \`GET /v1/recipes/{id}\`
+
+RDS、DCS 或天气服务不可用时返回明确降级状态，不返回错误推荐。
+
+### M13（MaaS 受控 AI）处理流程
+
+1. 用户输入自然语言。
+2. MaaS 输出符合 JSON Schema 的结构化标签。
+3. 服务端校验枚举、长度、数量和置信度，拒绝未知字段。
+4. 安全规则处理过敏、禁忌、高风险症状和不支持人群。
+5. RDS 查询审核食谱，天气、地域、节气与档案参与排序。
+6. MaaS 仅依据最终食谱和结构化原因生成简短说明。
+7. MaaS 超时、格式错误或限流时，自动切换到现有表单和规则说明。
+
+### M14（一键部署与云上 Demo）验收要点
+
+- 评审可通过公网 HTTPS 地址打开 H5 Demo。
+- Demo 可完成今日推荐、体感输入和现有食材匹配三条主流程。
+- 流水线从指定 Git 提交构建，部署后自动验证 \`/health\`。
+- RDS、DCS 和 MaaS 调用均有不泄密的日志或监控证据。
+- 提供一键部署、故障回滚和资源销毁说明。
+
+## 创建顺序（对齐 M11→M12→M13→M14）
+
+| 步骤 | 里程碑 | 操作 |
+|---|---|---|
+| 1 | **M11** | 在 CodeArts 中建立项目工作区、项目级 Agent/Skills 和证据表；确认 Region、代金券范围、域名和预算上限。 |
+| 2 | **M12** | 创建 VPC、子网、安全组和 IAM 委托。 |
+| 3 | **M12** | 创建 RDS 与 DCS，并从 ECS 子网验证内网连接。 |
+| 4 | **M12** | 建立 M12 后端、数据库迁移、种子数据和 \`/health\` 健康检查。 |
+| 5 | **M13** | 开通 MaaS 并从后端完成受控调用，建立提示词版本管理和输出审计。 |
+| 6 | **M14** | 创建 ECS、OBS、自定义域名和 H5 发布路径。 |
+| 7 | **M14** | 建立 CodeArts Pipeline / Deploy，再执行自动部署与回滚演练。 |
+
+依赖关系：M11（Skills 可调用、证据表开始记录）→ M12（云 API、RDS、Redis 联调通过）→ M13（受控 AI 主流程与降级通过）→ M14（HTTPS Demo 与流水线验收通过）。
+
+## 部署前置条件
+
+- [ ] 团队确认华为云 Region 与预计费用。
+- [ ] 华为云账号、CodeArts 席位和最小权限已就绪。
+- [ ] M12 后端已纳入 Git 管理并有 \`/health\`。
+- [ ] RDS/DCS 连接信息只通过安全部署变量注入。
+- [ ] MaaS 模型与 Region 已确认。
+- [ ] H5 自定义域名和 HTTPS 方案已确认。
+- [ ] full 验证通过且没有未关闭 P0/P1 缺陷。
+
+## 明确不执行
+
+本计划不调用 Terraform apply、华为云创建 API 或控制台购买操作，不创建、修改或销毁任何云资源，也不输出任何凭据值（AK/SK、API Key、数据库密码、Redis 密码、Cookie、SSH 私钥等）。\`auto-deploy\` Skill 只覆盖单台 ECS，不创建 RDS、DCS 或 OBS。未得到用户对具体资源、Region 和预计费用的明确确认前，只允许生成计划。
+`
+
+mkdirSync(dirname(output), { recursive: true })
+writeFileSync(output, content, 'utf8')
+console.log(`已生成: ${output}`)
