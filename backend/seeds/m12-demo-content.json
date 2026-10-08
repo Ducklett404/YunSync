@@ -1,0 +1,352 @@
+{
+  "schemaVersion": "m2-demo-1",
+  "calendarSource": {
+    "authority": "香港天文台",
+    "conversionUrl": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2026c.txt",
+    "solarTermsUrl": "https://www.hko.gov.hk/tc/gts/astronomy/data/files/24SolarTerms_2026.xml",
+    "verifiedAt": "2026-09-29T21:00:00+08:00"
+  },
+  "lunarMonthStarts2026": [
+    { "date": "2025-12-20", "month": 11 },
+    { "date": "2026-01-19", "month": 12 },
+    { "date": "2026-02-17", "month": 1 },
+    { "date": "2026-03-19", "month": 2 },
+    { "date": "2026-04-17", "month": 3 },
+    { "date": "2026-05-17", "month": 4 },
+    { "date": "2026-06-15", "month": 5 },
+    { "date": "2026-07-14", "month": 6 },
+    { "date": "2026-08-13", "month": 7 },
+    { "date": "2026-09-11", "month": 8 },
+    { "date": "2026-10-10", "month": 9 },
+    { "date": "2026-11-09", "month": 10 },
+    { "date": "2026-12-09", "month": 11 }
+  ],
+  "solarTerms2026": [
+    { "date": "2026-01-05", "name": "小寒", "time": "16:23" },
+    { "date": "2026-01-20", "name": "大寒", "time": "09:45" },
+    { "date": "2026-02-04", "name": "立春", "time": "04:02" },
+    { "date": "2026-02-18", "name": "雨水", "time": "23:52" },
+    { "date": "2026-03-05", "name": "惊蛰", "time": "21:59" },
+    { "date": "2026-03-20", "name": "春分", "time": "22:46" },
+    { "date": "2026-04-05", "name": "清明", "time": "02:40" },
+    { "date": "2026-04-20", "name": "谷雨", "time": "09:39" },
+    { "date": "2026-05-05", "name": "立夏", "time": "19:49" },
+    { "date": "2026-05-21", "name": "小满", "time": "08:37" },
+    { "date": "2026-06-05", "name": "芒种", "time": "23:48" },
+    { "date": "2026-06-21", "name": "夏至", "time": "16:25" },
+    { "date": "2026-07-07", "name": "小暑", "time": "09:57" },
+    { "date": "2026-07-23", "name": "大暑", "time": "03:13" },
+    { "date": "2026-08-07", "name": "立秋", "time": "19:43" },
+    { "date": "2026-08-23", "name": "处暑", "time": "10:19" },
+    { "date": "2026-09-07", "name": "白露", "time": "22:41" },
+    { "date": "2026-09-23", "name": "秋分", "time": "08:05" },
+    { "date": "2026-10-08", "name": "寒露", "time": "14:29" },
+    { "date": "2026-10-23", "name": "霜降", "time": "17:38" },
+    { "date": "2026-11-07", "name": "立冬", "time": "17:52" },
+    { "date": "2026-11-22", "name": "小雪", "time": "15:23" },
+    { "date": "2026-12-07", "name": "大雪", "time": "10:53" },
+    { "date": "2026-12-22", "name": "冬至", "time": "04:50" }
+  ],
+  "bundles": [
+    {
+      "id": "m2-laba", "name": "腊八节", "kind": "festival",
+      "cultureNote": "腊八节常见粥食与腌渍食物习俗；这里仅作饮食文化展示，食材仍需按个人过敏与限制筛选。",
+      "dateRule": { "kind": "lunar", "lunarMonth": 12, "lunarDay": 8, "gregorianFixtures": { "2026": "2026-01-26" } },
+      "regions": ["全国"], "recipeIds": ["m2-laba-porridge", "m2-laba-garlic"],
+      "source": "香港天文台2026公历农历对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-spring-festival", "name": "春节", "kind": "festival",
+      "cultureNote": "春节饮食因地域而异，本示例用家庭面食表达团聚场景，不把特定食物描述为健康功效。",
+      "dateRule": { "kind": "lunar", "lunarMonth": 1, "lunarDay": 1, "gregorianFixtures": { "2026": "2026-02-17" } },
+      "regions": ["全国", "华北", "东北"], "recipeIds": ["m2-spring-dumpling"],
+      "source": "香港天文台2026公历农历对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-duanwu", "name": "端午节", "kind": "festival",
+      "cultureNote": "端午节有包粽、食粽等地域习俗；糯米食品应按个人吞咽与消化情况适量选择。",
+      "dateRule": { "kind": "lunar", "lunarMonth": 5, "lunarDay": 5, "gregorianFixtures": { "2026": "2026-06-19" } },
+      "regions": ["全国", "江南", "华南"], "recipeIds": ["m2-duanwu-jube-zongzi"],
+      "source": "香港天文台2026公历农历对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-mid-autumn", "name": "中秋节", "kind": "festival",
+      "cultureNote": "中秋节常见赏月与分享月饼等习俗；本示例保留份量和过敏原提示，不作功效宣传。",
+      "dateRule": { "kind": "lunar", "lunarMonth": 8, "lunarDay": 15, "gregorianFixtures": { "2026": "2026-09-25" } },
+      "regions": ["全国"], "recipeIds": ["m2-midautumn-mooncake"],
+      "source": "香港天文台2026公历农历对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-lichun", "name": "立春", "kind": "solar-term",
+      "cultureNote": "立春是二十四节气之一。本示例只提供当季家常饮食灵感，不将节气与疾病疗效建立因果关系。",
+      "dateRule": { "kind": "solar-term", "solarTerm": "立春", "gregorianFixtures": { "2026": "2026-02-04" } },
+      "regions": ["全国"], "recipeIds": ["m2-lichun-tofu-soup"],
+      "source": "香港天文台2026二十四节气数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-qingming", "name": "清明", "kind": "solar-term",
+      "cultureNote": "清明既是节气，也承载祭扫与踏青等文化活动；饮食示例采用常见春季食材并保持中性描述。",
+      "dateRule": { "kind": "solar-term", "solarTerm": "清明", "gregorianFixtures": { "2026": "2026-04-05" } },
+      "regions": ["全国", "江南"], "recipeIds": ["m2-qingming-spring-rice"],
+      "source": "香港天文台2026二十四节气数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-bailu", "name": "白露", "kind": "solar-term",
+      "cultureNote": "白露是秋季节气。本示例展示易获得的家常汤品，是否适合仍取决于个人过敏和医生限制。",
+      "dateRule": { "kind": "solar-term", "solarTerm": "白露", "gregorianFixtures": { "2026": "2026-09-07" } },
+      "regions": ["全国", "江南", "华北"], "recipeIds": ["m2-bailu-pear-lotus-soup"],
+      "source": "香港天文台2026二十四节气数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-dongzhi", "name": "冬至", "kind": "solar-term",
+      "cultureNote": "冬至是二十四节气之一，各地有不同节令饮食。本示例采用普通家常菜，不替代个体化营养建议。",
+      "dateRule": { "kind": "solar-term", "solarTerm": "冬至", "gregorianFixtures": { "2026": "2026-12-22" } },
+      "regions": ["全国", "华北", "东北"], "recipeIds": ["m2-dongzhi-radish-beef"],
+      "source": "香港天文台2026二十四节气数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "demo-yam-millet", "name": "山药小米粥", "category": "粥", "minutes": 30,
+      "tags": ["秋日家常", "清淡", "约30分钟"], "reason": "结合当前季节与演示天气标签排序。",
+      "servings": 2,
+      "ingredients": [
+        { "name": "小米", "amount": "80克", "preparation": "淘洗", "allergenTags": [], "isKey": true },
+        { "name": "山药", "amount": "120克", "preparation": "去皮切小块，处理时戴手套", "allergenTags": [], "isKey": true },
+        { "name": "清水", "amount": "900毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["汤锅", "菜刀"],
+      "steps": [
+        { "order": 1, "action": "小米淘洗后放入锅中。" },
+        { "order": 2, "action": "加入清水，大火煮开。" },
+        { "order": 3, "action": "加入山药块，转小火煮至米粒软烂。" },
+        { "order": 4, "action": "关火后稍放凉再食用。" }
+      ],
+      "substitutions": [{ "from": "山药", "to": "南瓜", "note": "仅作演示替代，正式版需专业审核。" }],
+      "allergens": [], "exclusions": ["吞咽困难者需调整质地并遵医嘱"], "regions": ["全国"], "sceneTags": ["日常", "清淡"],
+      "sourceNote": "演示配方，食材克数和替代关系待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "demo-tomato-tofu", "name": "番茄豆腐汤", "category": "汤", "minutes": 20,
+      "tags": ["家常", "少油", "约20分钟"], "reason": "作为演示备选，不代表正式个性化建议。",
+      "servings": 2,
+      "ingredients": [
+        { "name": "番茄", "amount": "200克", "preparation": "切块", "allergenTags": [], "isKey": true },
+        { "name": "北豆腐", "amount": "180克", "preparation": "切块", "allergenTags": ["大豆"], "isKey": true },
+        { "name": "清水", "amount": "600毫升", "allergenTags": [], "isKey": false },
+        { "name": "食用油", "amount": "5毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["汤锅", "菜刀"],
+      "steps": [
+        { "order": 1, "action": "锅中放油，加入番茄翻炒出汁。" },
+        { "order": 2, "action": "加入清水煮开。" },
+        { "order": 3, "action": "加入豆腐块，小火煮八分钟。" },
+        { "order": 4, "action": "按个人限制少量调味后关火。" }
+      ],
+      "substitutions": [], "allergens": ["大豆"], "exclusions": ["大豆过敏者不适用"], "regions": ["全国"], "sceneTags": ["日常", "汤"],
+      "sourceNote": "演示配方，食材克数待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "demo-greens", "name": "清炒时蔬", "category": "菜", "minutes": 15,
+      "tags": ["时蔬", "快手", "约15分钟"], "reason": "作为演示备选，不代表正式个性化建议。",
+      "servings": 2,
+      "ingredients": [
+        { "name": "当季绿叶菜", "amount": "300克", "preparation": "洗净沥水", "allergenTags": [], "isKey": true },
+        { "name": "食用油", "amount": "8毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["炒锅", "锅铲"],
+      "steps": [
+        { "order": 1, "action": "绿叶菜洗净后充分沥水。" },
+        { "order": 2, "action": "炒锅放油并加热。" },
+        { "order": 3, "action": "放入蔬菜快速翻炒至熟。" },
+        { "order": 4, "action": "按个人限制少量调味后出锅。" }
+      ],
+      "substitutions": [{ "from": "当季绿叶菜", "to": "当地可获得的同类蔬菜", "note": "避开个人过敏食材。" }],
+      "allergens": [], "exclusions": [], "regions": ["全国"], "sceneTags": ["日常", "家常菜"],
+      "sourceNote": "演示配方，食材克数待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-laba-porridge", "name": "腊八杂粮粥（演示）", "category": "节庆食品", "minutes": 70,
+      "tags": ["腊八节", "杂粮", "需提前浸泡"], "reason": "命中腊八节文化内容包，并已执行已知过敏项筛选。",
+      "servings": 4,
+      "ingredients": [
+        { "name": "大米", "amount": "80克", "preparation": "淘洗", "allergenTags": [], "isKey": true },
+        { "name": "糯米", "amount": "50克", "preparation": "淘洗", "allergenTags": [], "isKey": true },
+        { "name": "红豆", "amount": "40克", "preparation": "提前浸泡", "allergenTags": ["豆类" ], "isKey": true },
+        { "name": "莲子", "amount": "25克", "preparation": "去芯", "allergenTags": [], "isKey": false },
+        { "name": "红枣", "amount": "30克", "preparation": "去核", "allergenTags": [], "isKey": false },
+        { "name": "清水", "amount": "1500毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["汤锅", "量杯"],
+      "steps": [
+        { "order": 1, "action": "红豆提前浸泡并冲洗。" },
+        { "order": 2, "action": "全部谷物和莲子放入锅中。" },
+        { "order": 3, "action": "加入清水煮开后转小火。" },
+        { "order": 4, "action": "煮至豆类和谷物软烂。" },
+        { "order": 5, "action": "加入红枣再煮十分钟。" }
+      ],
+      "substitutions": [{ "from": "红豆", "to": "去皮绿豆", "note": "仅为演示替代；豆类过敏者不使用。" }],
+      "allergens": ["豆类"], "exclusions": ["豆类过敏者不适用", "吞咽困难者需调整质地并遵医嘱"], "regions": ["全国"], "sceneTags": ["腊八节", "粥"],
+      "sourceNote": "文化场景演示配方，尚无正式食谱来源授权和专业签署。", "source": "demo-m2-festival-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-laba-garlic", "name": "腊八蒜（演示）", "category": "节庆食品", "minutes": 20,
+      "tags": ["腊八节", "腌渍", "需静置"], "reason": "作为腊八文化备选；蒜不耐受或相关限制命中时完全排除。",
+      "servings": 6,
+      "ingredients": [
+        { "name": "大蒜", "amount": "300克", "preparation": "去皮并检查无霉变", "allergenTags": ["蒜" ], "isKey": true },
+        { "name": "米醋", "amount": "350毫升", "allergenTags": [], "isKey": true }
+      ],
+      "tools": ["洁净玻璃容器"],
+      "steps": [
+        { "order": 1, "action": "容器清洗后充分干燥。" },
+        { "order": 2, "action": "蒜瓣去皮并剔除破损部分。" },
+        { "order": 3, "action": "蒜瓣放入容器并倒入米醋。" },
+        { "order": 4, "action": "密封冷藏静置，食用前检查气味和外观。" }
+      ],
+      "substitutions": [], "allergens": ["蒜"], "exclusions": ["蒜不耐受者不适用", "需限盐限酸或有相关医嘱者遵医嘱"], "regions": ["华北", "全国"], "sceneTags": ["腊八节", "腌渍食品"],
+      "sourceNote": "文化场景演示配方，腌渍安全条件和储存期限待专业签署。", "source": "demo-m2-festival-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-spring-dumpling", "name": "白菜豆腐饺子（演示）", "category": "节庆食品", "minutes": 55,
+      "tags": ["春节", "家庭制作", "约55分钟"], "reason": "命中春节内容包，并优先展示地域常见家庭面食。",
+      "servings": 4,
+      "ingredients": [
+        { "name": "小麦粉", "amount": "300克", "allergenTags": ["含麸质谷物"], "isKey": true },
+        { "name": "白菜", "amount": "300克", "preparation": "切碎挤水", "allergenTags": [], "isKey": true },
+        { "name": "北豆腐", "amount": "200克", "preparation": "压碎", "allergenTags": ["大豆"], "isKey": true },
+        { "name": "清水", "amount": "160毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["面盆", "擀面杖", "汤锅"],
+      "steps": [
+        { "order": 1, "action": "小麦粉加水和成面团并醒面。" },
+        { "order": 2, "action": "白菜与豆腐混合成馅。" },
+        { "order": 3, "action": "面团分剂并擀成饺子皮。" },
+        { "order": 4, "action": "包入馅料并捏紧封口。" },
+        { "order": 5, "action": "放入沸水中煮至完全熟透。" }
+      ],
+      "substitutions": [], "allergens": ["含麸质谷物", "大豆"], "exclusions": ["麸质或大豆过敏者不适用"], "regions": ["全国", "华北", "东北"], "sceneTags": ["春节", "面食"],
+      "sourceNote": "文化场景演示配方，尚无正式食谱来源授权和专业签署。", "source": "demo-m2-festival-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-duanwu-jube-zongzi", "name": "红枣粽（演示）", "category": "节庆食品", "minutes": 150,
+      "tags": ["端午节", "糯米", "需充分加热"], "reason": "命中端午节内容包，使用结构化节庆食谱模板。",
+      "servings": 6,
+      "ingredients": [
+        { "name": "糯米", "amount": "500克", "preparation": "浸泡并沥水", "allergenTags": [], "isKey": true },
+        { "name": "红枣", "amount": "120克", "preparation": "去核", "allergenTags": [], "isKey": true },
+        { "name": "粽叶", "amount": "12片", "preparation": "刷洗并按食品安全要求处理", "allergenTags": [], "isKey": true }
+      ],
+      "tools": ["大汤锅", "棉绳"],
+      "steps": [
+        { "order": 1, "action": "糯米浸泡后充分沥水。" },
+        { "order": 2, "action": "粽叶按食品安全要求清洗处理。" },
+        { "order": 3, "action": "包入糯米和红枣并扎紧。" },
+        { "order": 4, "action": "放入足量清水中煮至完全熟透。" },
+        { "order": 5, "action": "取出稍放凉后食用。" }
+      ],
+      "substitutions": [], "allergens": [], "exclusions": ["吞咽困难者不适用", "需控制糯米摄入者遵医嘱"], "regions": ["全国", "江南", "华南"], "sceneTags": ["端午节", "节庆食品"],
+      "sourceNote": "文化场景演示配方，加热和储存要求待专业签署。", "source": "demo-m2-festival-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-midautumn-mooncake", "name": "豆沙月饼（演示）", "category": "节庆食品", "minutes": 80,
+      "tags": ["中秋节", "烘焙", "注意份量"], "reason": "命中中秋节内容包，并明确标注含麸质原料。",
+      "servings": 8,
+      "ingredients": [
+        { "name": "小麦粉", "amount": "160克", "allergenTags": ["含麸质谷物"], "isKey": true },
+        { "name": "红豆沙", "amount": "320克", "allergenTags": ["豆类"], "isKey": true },
+        { "name": "食用油", "amount": "45毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["烤箱", "烤盘", "月饼模具"],
+      "steps": [
+        { "order": 1, "action": "小麦粉与食用油混合成面团并静置。" },
+        { "order": 2, "action": "面团和豆沙分别等分。" },
+        { "order": 3, "action": "面皮包入豆沙并压模。" },
+        { "order": 4, "action": "放入预热烤箱烤至完全熟透。" },
+        { "order": 5, "action": "彻底放凉后分份食用。" }
+      ],
+      "substitutions": [], "allergens": ["含麸质谷物", "豆类"], "exclusions": ["麸质或豆类过敏者不适用", "需限制糖或能量摄入者遵医嘱"], "regions": ["全国"], "sceneTags": ["中秋节", "烘焙"],
+      "sourceNote": "文化场景演示配方，营养和烘焙参数待专业签署。", "source": "demo-m2-festival-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-lichun-tofu-soup", "name": "春蔬豆腐汤（演示）", "category": "汤", "minutes": 25,
+      "tags": ["立春", "时蔬", "约25分钟"], "reason": "命中立春节气内容包，仅按季节与地域标签排序。",
+      "servings": 2,
+      "ingredients": [
+        { "name": "嫩豆腐", "amount": "200克", "preparation": "切块", "allergenTags": ["大豆"], "isKey": true },
+        { "name": "菠菜", "amount": "120克", "preparation": "洗净切段", "allergenTags": [], "isKey": true },
+        { "name": "胡萝卜", "amount": "60克", "preparation": "切片", "allergenTags": [], "isKey": false },
+        { "name": "清水", "amount": "700毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["汤锅", "菜刀"],
+      "steps": [
+        { "order": 1, "action": "胡萝卜放入清水中煮至变软。" },
+        { "order": 2, "action": "加入豆腐块煮五分钟。" },
+        { "order": 3, "action": "加入菠菜煮熟。" },
+        { "order": 4, "action": "按个人限制少量调味后关火。" }
+      ],
+      "substitutions": [], "allergens": ["大豆"], "exclusions": ["大豆过敏者不适用"], "regions": ["全国"], "sceneTags": ["立春", "汤"],
+      "sourceNote": "节气场景演示配方，待专业签署。", "source": "demo-m2-solar-term-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-qingming-spring-rice", "name": "春笋豌豆焖饭（演示）", "category": "饭", "minutes": 45,
+      "tags": ["清明", "春季食材", "约45分钟"], "reason": "命中清明内容包，并结合江南地域标签排序。",
+      "servings": 3,
+      "ingredients": [
+        { "name": "大米", "amount": "240克", "preparation": "淘洗", "allergenTags": [], "isKey": true },
+        { "name": "春笋", "amount": "150克", "preparation": "切丁并充分焯煮", "allergenTags": [], "isKey": true },
+        { "name": "豌豆", "amount": "80克", "allergenTags": ["豆类"], "isKey": true },
+        { "name": "香菇", "amount": "80克", "preparation": "切丁", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["电饭锅", "菜刀"],
+      "steps": [
+        { "order": 1, "action": "春笋按食品安全要求充分焯煮。" },
+        { "order": 2, "action": "大米放入电饭锅并加适量水。" },
+        { "order": 3, "action": "加入春笋、豌豆和香菇。" },
+        { "order": 4, "action": "启动煮饭程序并煮至完全熟透。" },
+        { "order": 5, "action": "焖十分钟后翻拌均匀。" }
+      ],
+      "substitutions": [], "allergens": ["豆类"], "exclusions": ["豆类过敏者不适用"], "regions": ["江南", "全国"], "sceneTags": ["清明", "主食"],
+      "sourceNote": "节气场景演示配方，待专业签署。", "source": "demo-m2-solar-term-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-bailu-pear-lotus-soup", "name": "莲藕雪梨汤（演示）", "category": "汤", "minutes": 40,
+      "tags": ["白露", "家常汤", "约40分钟"], "reason": "命中白露内容包，仅作为季节家常饮食示例。",
+      "servings": 3,
+      "ingredients": [
+        { "name": "莲藕", "amount": "250克", "preparation": "去皮切块", "allergenTags": [], "isKey": true },
+        { "name": "雪梨", "amount": "220克", "preparation": "去核切块", "allergenTags": [], "isKey": true },
+        { "name": "清水", "amount": "1000毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["汤锅", "菜刀"],
+      "steps": [
+        { "order": 1, "action": "莲藕和雪梨处理后放入锅中。" },
+        { "order": 2, "action": "加入清水并煮开。" },
+        { "order": 3, "action": "转小火煮至莲藕熟透。" },
+        { "order": 4, "action": "稍放凉后食用。" }
+      ],
+      "substitutions": [], "allergens": [], "exclusions": ["需限制液体或糖摄入者遵医嘱"], "regions": ["全国", "江南", "华北"], "sceneTags": ["白露", "汤"],
+      "sourceNote": "节气场景演示配方，待专业签署。", "source": "demo-m2-solar-term-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    },
+    {
+      "id": "m2-dongzhi-radish-beef", "name": "白萝卜烧牛肉（演示）", "category": "菜", "minutes": 75,
+      "tags": ["冬至", "家常菜", "约75分钟"], "reason": "命中冬至内容包，并按华北和东北地域标签排序。",
+      "servings": 4,
+      "ingredients": [
+        { "name": "牛肉", "amount": "400克", "preparation": "切块并按食品安全要求处理", "allergenTags": ["牛肉"], "isKey": true },
+        { "name": "白萝卜", "amount": "350克", "preparation": "切块", "allergenTags": [], "isKey": true },
+        { "name": "清水", "amount": "900毫升", "allergenTags": [], "isKey": false }
+      ],
+      "tools": ["炖锅", "菜刀"],
+      "steps": [
+        { "order": 1, "action": "牛肉按食品安全要求处理后放入锅中。" },
+        { "order": 2, "action": "加入清水煮开并去除浮沫。" },
+        { "order": 3, "action": "转小火炖至牛肉接近软烂。" },
+        { "order": 4, "action": "加入白萝卜继续炖至全部熟透。" },
+        { "order": 5, "action": "按个人限制少量调味后出锅。" }
+      ],
+      "substitutions": [], "allergens": ["牛肉"], "exclusions": ["牛肉过敏者不适用", "有明确蛋白质或脂肪限制者遵医嘱"], "regions": ["全国", "华北", "东北"], "sceneTags": ["冬至", "家常菜"],
+      "sourceNote": "节气场景演示配方，待专业签署。", "source": "demo-m2-solar-term-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+    }
+  ]
+}

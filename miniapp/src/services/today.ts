@@ -1,5 +1,6 @@
 import { createCalendarAdapter } from '../adapters/calendar'
 import { createWeatherAdapter } from '../adapters/weather'
+import { cloudApiEnabled, requestCloudToday } from '../adapters/cloud'
 import { rankM3Recommendations } from './recommendation'
 import { screenSafety } from './safety'
 import { runtimeConfig } from '../config/runtime'
@@ -56,12 +57,38 @@ export async function getTodayExperience({
     return { safety }
   }
 
-  const [calendar, weather] = await Promise.all([
-    createCalendarAdapter().getDate(date),
-    scenario === 'weather-offline'
-      ? Promise.resolve(unavailableWeather(profile.city))
-      : createWeatherAdapter().getCityWeather(profile.city),
-  ])
+  const calendar = await createCalendarAdapter().getDate(date)
+
+  if (scenario === 'normal' && cloudApiEnabled()) {
+    try {
+      const cloud = await requestCloudToday(
+        profile,
+        checkIn,
+        date || calendar.dateKey,
+        recentMainRecipeIds,
+      )
+      if (cloud.main) {
+        return {
+          safety,
+          model: {
+            calendar,
+            weather: cloud.weather,
+            main: cloud.main,
+            alternatives: cloud.alternatives.slice(0, 2),
+            contentBundle: cloud.seasonalContent,
+            recommendationReasons: cloud.reasons,
+            fallbackUsed: cloud.degraded.length > 0,
+          },
+        }
+      }
+    } catch {
+      // 云 API 不可用时继续执行本地确定性规则，保留离线演示能力。
+    }
+  }
+
+  const weather = scenario === 'weather-offline'
+    ? unavailableWeather(profile.city)
+    : await createWeatherAdapter().getCityWeather(profile.city)
 
   const selection = rankM3Recommendations(calendar, weather, profile, checkIn, recentMainRecipeIds, {
     allowDemoContent: runtimeConfig.dataMode === 'demo',

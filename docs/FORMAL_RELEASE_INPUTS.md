@@ -1,10 +1,12 @@
 # 正式数据与服务接入清单
 
-更新时间：2026-10-05。本文描述工程已经支持的正式接入口，以及仍须由真实责任人提供的资料。配置完成不等于已经取得授权或签署。
+更新时间：2026-10-08。本文描述工程已经支持的正式接入口，以及仍须由真实责任人提供的资料。配置完成不等于已经取得授权或签署。
 
 ## 1. 天气代理
 
 小程序只请求不含密钥的 HTTPS 代理，服务凭据留在服务端。请求方式：
+
+M12 云后端启用后，首选配置 `VITE_YUNSYNC_API_BASE_URL`，由后端的今日上下文和推荐 API 统一代理天气。`VITE_YUNSYNC_WEATHER_ENDPOINT` 保留为云 API 不可用时的无密钥兼容适配器。
 
 ```text
 GET {VITE_YUNSYNC_WEATHER_ENDPOINT}?city=杭州
@@ -47,6 +49,8 @@ GET {VITE_YUNSYNC_WEATHER_ENDPOINT}?city=杭州
 
 ```text
 VITE_DATA_MODE=real
+VITE_YUNSYNC_API_BASE_URL=https://华为云后端地址
+VITE_YUNSYNC_API_TIMEOUT_MS=5000
 YUNSYNC_MINIAPP_APPID=真实 AppID
 VITE_YUNSYNC_LEGAL_ENTITY=法定运营主体
 VITE_YUNSYNC_PRIVACY_CONTACT=真实隐私联系人或公开联系方式

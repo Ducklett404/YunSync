@@ -9,6 +9,8 @@ const dataMode = (environment.VITE_DATA_MODE || 'demo') as 'demo' | 'real'
 export const runtimeConfig = {
   dataMode,
   showDemoBadge: dataMode !== 'real',
+  cloudApiBaseUrl: (environment.VITE_YUNSYNC_API_BASE_URL || '').trim().replace(/\/$/, ''),
+  cloudApiTimeoutMs: positiveNumber(environment.VITE_YUNSYNC_API_TIMEOUT_MS, 5000),
   weatherEndpoint: (environment.VITE_YUNSYNC_WEATHER_ENDPOINT || '').trim(),
   weatherProvider: (environment.VITE_YUNSYNC_WEATHER_PROVIDER || '').trim(),
   weatherTimeoutMs: positiveNumber(environment.VITE_YUNSYNC_WEATHER_TIMEOUT_MS, 4000),

@@ -17,12 +17,15 @@ try {
 } catch {
   trackedBackend = false
 }
+const backendImplemented = existsSync(resolve(root, 'backend/app/main.py'))
 
 const region = process.env.YUNSYNC_HWC_REGION || '待团队根据代金券与 MaaS 可用区确认'
 const generatedAt = new Date().toISOString()
 const backendStatus = trackedBackend
-  ? '仓库已有受版本控制的 backend，可进入 M12 适配审查'
-  : '当前提交没有受版本控制的 backend；M12 必须先建立云 API'
+  ? '仓库已有受版本控制的 M12 backend 和 `/health`，待华为云 RDS/DCS 联调'
+  : backendImplemented
+    ? '工作树已实现 M12 backend 和 `/health`，提交后进入华为云 RDS/DCS 联调'
+    : '当前提交没有受版本控制的 backend；M12 必须先建立云 API'
 
 const content = `# YunSync 华为云资源计划
 
@@ -120,7 +123,7 @@ RDS、DCS 或天气服务不可用时返回明确降级状态，不返回错误�
 
 - [ ] 团队确认华为云 Region 与预计费用。
 - [ ] 华为云账号、CodeArts 席位和最小权限已就绪。
-- [ ] M12 后端已纳入 Git 管理并有 \`/health\`。
+- [${trackedBackend ? 'x' : ' '}] M12 后端已纳入 Git 管理并有 \`/health\`。
 - [ ] RDS/DCS 连接信息只通过安全部署变量注入。
 - [ ] MaaS 模型与 Region 已确认。
 - [ ] H5 自定义域名和 HTTPS 方案已确认。

@@ -25,6 +25,7 @@
 - 本机数据 JSON 导出、主体/隐私联系人展示、撤回并删除全部云循本机数据。
 - 独立正式内容文件；没有签署内容时保持为空并阻断正式发布。
 - 授权问卷的通用渲染、结构化计分和谨慎结果页；空白正式题库时入口隐藏并阻断发布。
+- M12 可选云 API：配置 `VITE_YUNSYNC_API_BASE_URL` 后，今日推荐和食材匹配调用后端；失败时保留离线确定性规则。
 
 ## 命令
 
@@ -41,6 +42,17 @@ npm run build:mp-weixin
 ```
 
 `npm run release:check` 和 `npm run build:mp-weixin:release` 会读取 `src/data/official-content.json`，检查真实配置、AppID 一致性、HTTPS 天气代理、问卷授权版本、内容状态、字段、审核人、签署版本与冻结配额。当前正式内容和外部资料未交付，因此正式构建应失败。接入契约见 `../docs/FORMAL_RELEASE_INPUTS.md`。
+
+## M12 云 API
+
+在本地未提交的环境文件中设置：
+
+```text
+VITE_YUNSYNC_API_BASE_URL=https://你的后端域名
+VITE_YUNSYNC_API_TIMEOUT_MS=5000
+```
+
+小程序只向后端发送城市、受控体感标签、过敏/饮食限制、偏好和食材条件，不发送体感备注原文。天气供应商密钥只配置在后端。API 地址未配置、请求超时或后端降级时，应用继续使用原有离线演示规则。
 
 ## H5 自动化交互回归
 

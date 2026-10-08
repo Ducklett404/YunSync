@@ -45,7 +45,7 @@
         <view v-for="item in additionalOptions" :key="item.value" class="choice" :class="{ active: session.maxAdditionalIngredients === item.value }" :data-value="item.value" @tap="onAdditionalTap">{{ item.label }}</view>
       </view>
 
-      <button class="primary-button" tabindex="0" @click="runMatch" @keydown.enter="runMatch">开始匹配</button>
+      <button class="primary-button" :disabled="matching" tabindex="0" @click="runMatch" @keydown.enter="runMatch">{{ matching ? '正在匹配' : '开始匹配' }}</button>
     </view>
 
     <view v-if="result" class="results">
@@ -85,6 +85,7 @@
 import { reactive, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { runtimeConfig } from '../../config/runtime'
+import { cloudApiEnabled, requestCloudPantry } from '../../adapters/cloud'
 import { loadProfile } from '../../services/profile'
 import { matchPantryRecipes, normalizePantryIngredients, pantryIngredientsEquivalent } from '../../services/pantry'
 import type { PantryCategory, PantryMatchKind, PantryMatchResult, PantrySession, WellnessProfile } from '../../types/domain'
@@ -114,6 +115,7 @@ const additionalOptions: Array<{ value: 0 | 1 | 2; label: string }> = [
 let profile: WellnessProfile = loadProfile()
 const searchText = ref('')
 const result = ref<PantryMatchResult>()
+const matching = ref(false)
 const session = reactive<PantrySession>({
   ingredients: [], maxMinutes: 45, tools: ['汤锅', '菜刀', '炒锅', '锅铲', '电饭锅'], targetServings: 2, maxAdditionalIngredients: 1,
 })
@@ -147,10 +149,29 @@ function onTimeTap(event: DatasetTapEvent) { session.maxMinutes = Number(eventVa
 function onServingTap(event: DatasetTapEvent) { session.targetServings = Number(eventValue(event)) as PantrySession['targetServings'] }
 function onAdditionalTap(event: DatasetTapEvent) { session.maxAdditionalIngredients = Number(eventValue(event)) as PantrySession['maxAdditionalIngredients'] }
 function kindLabel(kind: PantryMatchKind): string { return ({ complete: '材料齐全', substitution: '使用登记替代', missing: '缺少少量材料' })[kind] }
-function runMatch() {
+async function runMatch() {
   if (!session.ingredients.length) { uni.showToast({ title: '请先录入至少 1 种食材', icon: 'none' }); return }
   if (!session.tools.length) { uni.showToast({ title: '请至少选择 1 件厨具', icon: 'none' }); return }
-  result.value = matchPantryRecipes({ ...session, ingredients: [...session.ingredients], tools: [...session.tools] }, profile, { allowDemoContent: runtimeConfig.dataMode === 'demo' })
+  const request = { ...session, ingredients: [...session.ingredients], tools: [...session.tools] }
+  const local = matchPantryRecipes(request, profile, { allowDemoContent: runtimeConfig.dataMode === 'demo' })
+  if (local.safety.blocked || !cloudApiEnabled()) { result.value = local; return }
+  matching.value = true
+  try {
+    const cloud = await requestCloudPantry(request, profile)
+    result.value = {
+      safety: local.safety,
+      matches: cloud.matches,
+      safetyFilteredCount: cloud.filteredCount,
+      contentFilteredCount: 0,
+      constraintFilteredCount: 0,
+      message: cloud.message,
+    }
+  } catch {
+    result.value = local
+    uni.showToast({ title: '云服务暂不可用，已使用离线结果', icon: 'none' })
+  } finally {
+    matching.value = false
+  }
 }
 function openRecipe(recipeId: string, servings: number) { uni.navigateTo({ url: `/pages/recipe/detail?id=${encodeURIComponent(recipeId)}&servings=${servings}` }) }
 function openProfile() { uni.switchTab({ url: '/pages/profile/index' }) }

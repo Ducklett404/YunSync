@@ -23,6 +23,9 @@ let trackedBackend = false
 try {
   trackedBackend = execFileSync('git', ['ls-files', 'backend'], { cwd: root, encoding: 'utf8' }).trim().length > 0
 } catch {}
+const backendImplemented = existsSync(resolve(root, 'backend/app/main.py'))
+const healthImplemented = backendImplemented
+  && existsSync(resolve(root, 'backend/tests/test_api.py'))
 
 const checks = [
   ['CodeArts CLI', commandAvailable('codearts') || existsSync(resolve(home, '.codeartsdoer/installers/bin/codearts.exe')), 'M11 必需'],
@@ -36,6 +39,19 @@ const checks = [
 
 const table = checks.map(([name, ok, purpose]) => `| ${name} | ${ok ? '就绪' : '未就绪'} | ${purpose} |`).join('\n')
 const blockers = checks.filter(([, ok]) => !ok).map(([name, , purpose]) => `- ${name}：${purpose}`).join('\n') || '- 无'
+const backendGate = trackedBackend
+  ? '- M12 后端已纳入版本控制，`/health` 与核心 API 契约测试通过'
+  : backendImplemented
+    ? '- M12 后端与 `/health` 已在工作树实现，尚需提交到版本控制'
+    : '- M12 后端未实现'
+const healthGate = healthImplemented
+  ? '- 后端 `/health` 与五个 M12 API 路由已实现并有契约测试'
+  : '- 后端 `/health` 健康检查未实现'
+const conclusion = trackedBackend
+  ? 'M12 后端代码门槛已满足；当前阻塞项为华为云 Region/预算确认、RDS/DCS 等资源创建与 M13 MaaS。'
+  : backendImplemented
+    ? 'M12 后端已在工作树实现；当前阻塞项为提交后端代码，以及华为云 Region/预算确认和 RDS/DCS 等资源创建。'
+    : '当前阻塞项为 M12 后端未实现。'
 
 const content = `# YunSync 部署计划
 
@@ -69,8 +85,8 @@ ${blockers}
 - H5 自定义域名与 HTTPS 方案未确认
 
 ### 内容门禁
-- M12 后端未纳入版本控制（\`git ls-files backend\` 为空）
-- 后端 \`/health\` 健康检查未实现
+${backendGate}
+${healthGate}
 - \`yunsync-validate\` full 模式结果待确认
 - 48 道正式审核食谱未交付（DEMO 内容不得进入生产）
 
@@ -159,7 +175,7 @@ ${blockers}
 
 ## 结论
 
-M11 已具备生成部署计划和识别前置条件的能力。实际部署属于 M14，必须在 M14 执行门槛（5 条）全部满足、安全规则（5 条）全部遵守后执行。当前阻塞项为 M12 后端未纳入版本控制。
+M11 已具备生成部署计划和识别前置条件的能力。实际部署属于 M14，必须在 M14 执行门槛（5 条）全部满足、安全规则（5 条）全部遵守后执行。${conclusion}
 
 > 注：本文件由 \`create-deployment-plan.mjs\` 生成，M14 覆盖内容已同步到生成器模板，重新运行不会丢失。
 `

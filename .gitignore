@@ -17,6 +17,10 @@ miniapp/playwright-report/
 .pytest-tmp*/
 __pycache__/
 *.py[cod]
+.coverage
+htmlcov/
+backend/data/*
+!backend/data/.gitkeep
 
 # Local development tools and installers
 tools/wechat-devtools/

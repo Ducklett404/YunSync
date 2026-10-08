@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: yunsync
+      POSTGRES_USER: yunsync_app
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yunsync_app -d yunsync"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    environment:
+      YUNSYNC_APP_ENV: development
+      YUNSYNC_DATABASE_URL: postgresql+psycopg://yunsync_app@postgres:5432/yunsync
+      YUNSYNC_REDIS_URL: redis://redis:6379/0
+      YUNSYNC_ALLOW_DEMO_CONTENT: "true"
+      YUNSYNC_SEED_DEMO_CONTENT: "true"
+      YUNSYNC_CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
