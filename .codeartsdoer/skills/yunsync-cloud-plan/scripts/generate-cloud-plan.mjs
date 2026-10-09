@@ -18,6 +18,13 @@ try {
   trackedBackend = false
 }
 const backendImplemented = existsSync(resolve(root, 'backend/app/main.py'))
+const maasImplemented = existsSync(resolve(root, 'backend/app/maas.py'))
+  && existsSync(resolve(root, 'backend/app/natural.py'))
+let trackedMaas = false
+try {
+  const tracked = execFileSync('git', ['ls-files', 'backend/app/maas.py', 'backend/app/natural.py'], { cwd: root, encoding: 'utf8' }).trim().split(/\r?\n/)
+  trackedMaas = tracked.includes('backend/app/maas.py') && tracked.includes('backend/app/natural.py')
+} catch {}
 
 const region = process.env.YUNSYNC_HWC_REGION || '待团队根据代金券与 MaaS 可用区确认'
 const generatedAt = new Date().toISOString()
@@ -39,6 +46,7 @@ const content = `# YunSync 华为云资源计划
 
 - Region：${region}
 - 后端：${backendStatus}
+- M13：${trackedMaas ? '自然语言与 MaaS 服务端适配已纳入版本控制；真实服务开通和调用证据待完成' : maasImplemented ? '自然语言与 MaaS 服务端适配已在工作树实现；真实服务开通和调用证据待完成' : 'MaaS 服务端适配待实现'}
 - 前端：现有 uni-app 可构建微信小程序与 H5。
 - 正式发布：仍受 48 道签署食谱、问卷授权、主体信息和真人验收门禁约束。
 
@@ -126,6 +134,7 @@ RDS、DCS 或天气服务不可用时返回明确降级状态，不返回错误�
 - [${trackedBackend ? 'x' : ' '}] M12 后端已纳入 Git 管理并有 \`/health\`。
 - [ ] RDS/DCS 连接信息只通过安全部署变量注入。
 - [ ] MaaS 模型与 Region 已确认。
+- [${maasImplemented ? 'x' : ' '}] M13 服务端受控 AI 代码与本地模拟验收已准备。
 - [ ] H5 自定义域名和 HTTPS 方案已确认。
 - [ ] full 验证通过且没有未关闭 P0/P1 缺陷。
 

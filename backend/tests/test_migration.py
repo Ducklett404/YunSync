@@ -11,4 +11,4 @@ def test_alembic_upgrade_creates_m12_tables(tmp_path):
     config.set_main_option("sqlalchemy.url", database_url)
     command.upgrade(config, "head")
     tables = set(inspect(create_engine(database_url)).get_table_names())
-    assert {"recipes", "seasonal_contents", "recommendation_audits"} <= tables
+    assert {"recipes", "seasonal_contents", "recommendation_audits", "ai_output_audits"} <= tables

@@ -32,6 +32,14 @@ class Settings:
     weather_api_key: str | None
     weather_provider: str
     weather_timeout_seconds: float
+    maas_api_url: str | None
+    maas_api_key: str | None
+    maas_model: str | None
+    maas_timeout_seconds: float
+    maas_retries: int
+    maas_cache_ttl_seconds: int
+    maas_circuit_failures: int
+    maas_circuit_seconds: int
     cache_version: str
     recommendation_ttl_seconds: int
     weather_ttl_seconds: int
@@ -63,6 +71,14 @@ class Settings:
             weather_api_key=(env.get("YUNSYNC_WEATHER_API_KEY") or "").strip() or None,
             weather_provider=env.get("YUNSYNC_WEATHER_PROVIDER", "configured-weather-service").strip(),
             weather_timeout_seconds=float(env.get("YUNSYNC_WEATHER_TIMEOUT_SECONDS", "3.5")),
+            maas_api_url=(env.get("YUNSYNC_MAAS_API_URL") or "").strip() or None,
+            maas_api_key=(env.get("YUNSYNC_MAAS_API_KEY") or "").strip() or None,
+            maas_model=(env.get("YUNSYNC_MAAS_MODEL") or "").strip() or None,
+            maas_timeout_seconds=float(env.get("YUNSYNC_MAAS_TIMEOUT_SECONDS", "4")),
+            maas_retries=max(0, min(2, int(env.get("YUNSYNC_MAAS_RETRIES", "1")))),
+            maas_cache_ttl_seconds=_positive_int(env.get("YUNSYNC_MAAS_CACHE_TTL_SECONDS"), 600),
+            maas_circuit_failures=_positive_int(env.get("YUNSYNC_MAAS_CIRCUIT_FAILURES"), 3),
+            maas_circuit_seconds=_positive_int(env.get("YUNSYNC_MAAS_CIRCUIT_SECONDS"), 60),
             cache_version=env.get("YUNSYNC_CACHE_VERSION", "m12-v1").strip(),
             recommendation_ttl_seconds=_positive_int(
                 env.get("YUNSYNC_RECOMMENDATION_TTL_SECONDS"), 900

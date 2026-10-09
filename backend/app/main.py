@@ -20,7 +20,9 @@ from . import __version__
 from .cache import ResilientCache
 from .config import Settings
 from .database import ContentRepository, Database, DatabaseUnavailable, seed_demo_content
-from .schemas import PantryRecommendationRequest, TodayRecommendationRequest
+from .maas import MaaSClient
+from .natural import NaturalRecommendationService
+from .schemas import NaturalRecommendationRequest, PantryRecommendationRequest, TodayRecommendationRequest
 from .services import YunSyncService
 from .weather import WeatherClient
 
@@ -44,6 +46,8 @@ def create_app(
     repository = ContentRepository(database, resolved_settings.allow_demo_content)
     weather = WeatherClient(resolved_settings, cache)
     service = YunSyncService(resolved_settings, repository, cache, weather)
+    maas = MaaSClient(resolved_settings, cache)
+    natural = NaturalRecommendationService(repository, service, maas)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -62,7 +66,7 @@ def create_app(
 
     app = FastAPI(
         title="YunSync Cloud API",
-        description="M12 API for traceable wellness recipe recommendations.",
+        description="Traceable wellness recipe recommendations with controlled M13 MaaS assistance.",
         version=__version__,
         lifespan=lifespan,
     )
@@ -72,6 +76,8 @@ def create_app(
     app.state.repository = repository
     app.state.weather = weather
     app.state.service = service
+    app.state.maas = maas
+    app.state.natural = natural
 
     if resolved_settings.cors_origins:
         app.add_middleware(
@@ -142,6 +148,7 @@ def create_app(
             database_status != "ok"
             or cache_health["status"] != "ok"
             or weather_status != "configured"
+            or maas.status() != "configured"
             or not resolved_settings.production_safe
         ):
             status = "degraded"
@@ -160,6 +167,7 @@ def create_app(
                     "status": weather_status,
                     "provider": resolved_settings.weather_provider,
                 },
+                "maas": {"status": maas.status()},
             },
         }
 
@@ -177,6 +185,10 @@ def create_app(
     @app.post("/v1/recommendations/pantry")
     def recommendations_pantry(payload: PantryRecommendationRequest):
         return service.recommend_pantry(payload)
+
+    @app.post("/v1/recommendations/natural")
+    def recommendations_natural(payload: NaturalRecommendationRequest):
+        return natural.recommend(payload)
 
     @app.get("/v1/recipes/{recipe_id}")
     def recipe_detail(recipe_id: str):

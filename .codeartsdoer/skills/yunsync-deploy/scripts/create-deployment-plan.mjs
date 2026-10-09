@@ -26,6 +26,13 @@ try {
 const backendImplemented = existsSync(resolve(root, 'backend/app/main.py'))
 const healthImplemented = backendImplemented
   && existsSync(resolve(root, 'backend/tests/test_api.py'))
+const maasImplemented = existsSync(resolve(root, 'backend/app/maas.py'))
+  && existsSync(resolve(root, 'backend/app/natural.py'))
+let trackedMaas = false
+try {
+  const tracked = execFileSync('git', ['ls-files', 'backend/app/maas.py', 'backend/app/natural.py'], { cwd: root, encoding: 'utf8' }).trim().split(/\r?\n/)
+  trackedMaas = tracked.includes('backend/app/maas.py') && tracked.includes('backend/app/natural.py')
+} catch {}
 
 const checks = [
   ['CodeArts CLI', commandAvailable('codearts') || existsSync(resolve(home, '.codeartsdoer/installers/bin/codearts.exe')), 'M11 必需'],
@@ -48,7 +55,7 @@ const healthGate = healthImplemented
   ? '- 后端 `/health` 与五个 M12 API 路由已实现并有契约测试'
   : '- 后端 `/health` 健康检查未实现'
 const conclusion = trackedBackend
-  ? 'M12 后端代码门槛已满足；当前阻塞项为华为云 Region/预算确认、RDS/DCS 等资源创建与 M13 MaaS。'
+  ? `M12 后端代码门槛已满足；M13 ${maasImplemented ? '工程实现和本地模拟验收已完成，真实 MaaS 开通与调用证据待完成' : '工程待实现'}；当前阻塞项为华为云 Region/预算确认、RDS/DCS 等资源创建。`
   : backendImplemented
     ? 'M12 后端已在工作树实现；当前阻塞项为提交后端代码，以及华为云 Region/预算确认和 RDS/DCS 等资源创建。'
     : '当前阻塞项为 M12 后端未实现。'
@@ -87,6 +94,7 @@ ${blockers}
 ### 内容门禁
 ${backendGate}
 ${healthGate}
+- M13 ${trackedMaas ? '自然语言 API、受控 MaaS 适配及本地模拟验收已纳入版本控制；真实调用待服务开通' : maasImplemented ? '自然语言 API、受控 MaaS 适配及本地模拟验收已在工作树完成；真实调用待服务开通' : '自然语言与 MaaS 适配待实现'}
 - \`yunsync-validate\` full 模式结果待确认
 - 48 道正式审核食谱未交付（DEMO 内容不得进入生产）
 

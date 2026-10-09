@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from .config import Settings
-from .models import Base, Recipe, RecommendationAudit, SeasonalContent
+from .models import AiOutputAudit, Base, Recipe, RecommendationAudit, SeasonalContent
 
 
 class DatabaseUnavailable(RuntimeError):
@@ -158,6 +158,13 @@ class ContentRepository:
             raise DatabaseUnavailable("seasonal content database is unavailable") from exc
 
     def write_audit(self, audit: RecommendationAudit) -> None:
+        try:
+            with self.database.session() as session:
+                session.add(audit)
+        except SQLAlchemyError as exc:
+            raise DatabaseUnavailable("audit database is unavailable") from exc
+
+    def write_ai_audit(self, audit: AiOutputAudit) -> None:
         try:
             with self.database.session() as session:
                 session.add(audit)

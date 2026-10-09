@@ -5,6 +5,26 @@ const profile = '/#/pages/profile/index'
 const today = '/#/pages/today/index'
 const pantry = '/#/pages/pantry/index'
 
+test('一句话输入在离线规则下阻断高风险并排除过敏食谱', async ({ page }) => {
+  await page.goto(today)
+  await page.locator('.natural-input textarea').fill('我高烧39度，给我治病的粥')
+  await page.locator('.natural-button').click()
+  await expect(page.locator('.safety-block')).toBeVisible()
+  await expect(page.locator('.recipe-name')).toHaveCount(0)
+
+  await page.locator('.natural-clear').click()
+  await page.locator('.scenario-button').filter({ hasText: /^腊八$/ }).click()
+  await page.locator('.natural-input textarea').fill('我对蒜过敏，今天想喝粥')
+  await page.locator('.natural-button').click()
+  await expect(page.locator('.recipe-name')).toBeVisible()
+  await expect(page.locator('.recipe-name, .alternative-name').filter({ hasText: '腊八蒜' })).toHaveCount(0)
+
+  await page.locator('.natural-clear').click()
+  await page.locator('.natural-input textarea').fill('手上有西红柿、豆腐和食用油，做什么饭？')
+  await page.locator('.natural-button').click()
+  await expect(page.locator('.recipe-name')).toHaveText('番茄豆腐汤')
+})
+
 test('收藏、反馈、浏览记录持久化及清除确认', async ({ page }) => {
   await page.goto(recipe)
   await expect(page.locator('.title')).toHaveText('山药小米粥')

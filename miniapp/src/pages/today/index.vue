@@ -28,6 +28,17 @@
       <button class="city" size="mini" @tap="chooseCity">{{ profile.city }}⌄</button>
     </view>
 
+    <view class="natural-card">
+      <text class="natural-title">一句话告诉云循</text>
+      <text class="natural-hint">说说今天的感觉或手边食材，例如“有点着凉，想喝粥”。请勿填写姓名和联系方式。</text>
+      <textarea v-model="naturalInput" class="natural-input" maxlength="200" placeholder="今天有点着凉，家里有小米和红枣" />
+      <view class="natural-actions">
+        <button class="natural-button" :disabled="!naturalInput.trim()" @tap="submitNatural">看看适合做什么</button>
+        <button v-if="submittedNaturalText" class="natural-clear" @tap="clearNatural">清除</button>
+      </view>
+      <text v-if="submittedNaturalText" class="natural-hint">本次描述仅用于当前推荐，不保存在本机或推荐审计中。</text>
+    </view>
+
     <view class="checkin">
       <text class="section-label">今天感觉怎么样？（可多选）</text>
       <scroll-view scroll-x class="chips">
@@ -59,7 +70,7 @@
 
     <view v-else-if="!model" class="state-card">
       <text class="state-title">没有符合当前硬性限制的推荐</text>
-      <text class="state-copy">系统没有用不确定的替代项填充结果。请核对档案中的过敏和医生饮食限制，或仅浏览食材信息。</text>
+      <text class="state-copy">{{ emptyMessage || '系统没有用不确定的替代项填充结果。请核对档案中的过敏和医生饮食限制，或仅浏览食材信息。' }}</text>
     </view>
 
     <template v-else>
@@ -77,6 +88,7 @@
           <view class="tags"><text v-for="tag in model.main.tags" :key="tag" class="tag">{{ tag }}</text></view>
           <button class="primary-button" @tap="showRecipeDetail(model.main.id)">看食材和做法</button>
           <text class="reason"><text class="reason-strong">为什么推荐？</text>{{ shortReasons }}</text>
+          <text v-if="model.aiExplanation" class="ai-explanation">{{ model.aiStatus === 'assisted' ? 'AI 辅助说明' : '规则说明' }}：{{ model.aiExplanation }}</text>
         </view>
       </view>
 
@@ -96,7 +108,16 @@
         <text v-for="item in model.recommendationReasons" :key="item" class="reason-item">· {{ item }}</text>
         </template>
       </view>
-      <view v-if="model.fallbackUsed" class="fallback-note">已启用降级策略：天气不可用或内容包食谱被硬过滤时，展示城市季节通用安全候选。</view>
+      <view v-if="model.usedFactors" class="reason-card">
+        <text class="reason-card-title">本次使用的条件</text>
+        <text class="reason-item">天气：{{ model.usedFactors.weather }}</text>
+        <text class="reason-item">地域：{{ model.usedFactors.region }}</text>
+        <text v-if="model.usedFactors.seasonal" class="reason-item">节庆节气：{{ model.usedFactors.seasonal }}</text>
+        <text class="reason-item">体感：{{ model.usedFactors.feelings.join('、') }}</text>
+        <text v-if="model.usedFactors.ingredients.length" class="reason-item">现有食材：{{ model.usedFactors.ingredients.join('、') }}</text>
+        <text class="reason-item">食谱来源：{{ model.main.source }} · {{ model.main.version }}</text>
+      </view>
+      <view v-if="model.fallbackUsed" class="fallback-note">部分外部服务暂不可用，已按当前可用条件和审核食谱执行规则推荐。</view>
       <view class="safety-note">已先执行服务范围、高风险描述、药物/确诊情况和过敏禁忌筛查。结果只用于日常饮食参考，不替代诊断。</view>
     </template>
   </view>
@@ -124,9 +145,12 @@ const dateScenario = ref<M2AcceptanceDateScenario>(loadM2AcceptanceDateScenario(
 const checkIn = ref<DailyCheckIn>(createDefaultCheckIn(currentDateKey()))
 const loading = ref(true)
 const error = ref(false)
+const emptyMessage = ref('')
 const safety = ref<SafetyDecision>()
 const model = ref<TodayViewModel>()
 const showReasons = ref(false)
+const naturalInput = ref('')
+const submittedNaturalText = ref('')
 let loadVersion = 0
 
 const selectedDateKey = computed(() => m2AcceptanceDates[dateScenario.value] || currentDateKey())
@@ -153,6 +177,7 @@ async function loadToday() {
   const version = ++loadVersion
   loading.value = true
   error.value = false
+  emptyMessage.value = ''
   safety.value = undefined
   model.value = undefined
   showReasons.value = false
@@ -163,10 +188,12 @@ async function loadToday() {
       scenario: scenario.value,
       date: m2AcceptanceDates[dateScenario.value],
       recentMainRecipeIds: loadRecentMainRecipeIds(selectedDateKey.value),
+      naturalText: submittedNaturalText.value,
     })
     if (version !== loadVersion) return
     safety.value = result.safety
     model.value = result.model
+    emptyMessage.value = result.message || ''
     if (result.model) {
       try { saveMainRecommendation(result.model.calendar.dateKey, result.model.main.id) }
       catch { uni.showToast({ title: '推荐可用，历史记录未保存', icon: 'none' }) }
@@ -179,6 +206,17 @@ async function loadToday() {
       uni.stopPullDownRefresh()
     }
   }
+}
+
+function submitNatural() {
+  submittedNaturalText.value = naturalInput.value.trim()
+  if (submittedNaturalText.value) loadToday()
+}
+
+function clearNatural() {
+  naturalInput.value = ''
+  submittedNaturalText.value = ''
+  loadToday()
 }
 
 function toggleFeeling(item: FeelingOption) {
@@ -239,6 +277,7 @@ onPullDownRefresh(loadToday)
 .calendar-context { display: block; margin-top: 6rpx; color: #8f5f18; font-size: 24rpx; font-weight: 700; }.weather { margin-top: 8rpx; color: #66766f; font-size: 25rpx; }
 .city { margin: 0; padding: 0 24rpx; color: #123d35; background: #e7eee9; border-radius: 999rpx; font-size: 26rpx; }
 .checkin { margin-bottom: 24rpx; }.section-label { color: #66766f; font-size: 26rpx; }.chips { width: 100%; margin-top: 12rpx; white-space: nowrap; }.chip-row { display: inline-flex; gap: 12rpx; }
+.natural-card { margin-bottom: 24rpx; padding: 24rpx; background: #edf3ef; border-radius: 24rpx; }.natural-title { display: block; font-size: 30rpx; font-weight: 700; color: #123d35; }.natural-hint { display: block; margin-top: 10rpx; color: #60736a; font-size: 22rpx; line-height: 1.5; }.natural-input { box-sizing: border-box; width: 100%; height: 120rpx; margin-top: 16rpx; padding: 18rpx; background: #fffef9; border: 1rpx solid #d6dfd9; border-radius: 18rpx; font-size: 24rpx; }.natural-actions { display: flex; align-items: center; gap: 14rpx; margin-top: 14rpx; }.natural-button { flex: 1; margin: 0; color: #fff; background: #123d35; border-radius: 18rpx; font-size: 25rpx; }.natural-clear { margin: 0; color: #123d35; background: #fffef9; border-radius: 18rpx; font-size: 24rpx; }.ai-explanation { display: block; margin-top: 14rpx; color: #42534c; font-size: 22rpx; line-height: 1.6; }
 .chip { margin: 0; padding: 0 24rpx; color: #42534c; background: #fffef9; border: 1rpx solid #d6dfd9; border-radius: 999rpx; font-size: 25rpx; }.chip.active { color: #fff; background: #123d35; border-color: #123d35; }
 .note-input { box-sizing: border-box; width: 100%; height: 120rpx; margin-top: 16rpx; padding: 18rpx 20rpx; background: #fffef9; border: 1rpx solid #d6dfd9; border-radius: 18rpx; font-size: 24rpx; }
 .checkin-hint { display: block; margin-top: 8rpx; color: #809088; font-size: 20rpx; }

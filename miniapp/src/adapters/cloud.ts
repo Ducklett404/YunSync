@@ -7,6 +7,7 @@ import type {
   WellnessProfile,
   DailyCheckIn,
   PantrySession,
+  SafetyDecision,
 } from '../types/domain'
 
 interface CloudCacheStatus {
@@ -37,6 +38,15 @@ interface CloudPantryResponse {
   cache: CloudCacheStatus
 }
 
+export interface CloudNaturalResponse extends CloudTodayResponse {
+  mode: 'today' | 'pantry'
+  safety: Pick<SafetyDecision, 'blocked' | 'level' | 'message'>
+  ai: { status: 'assisted' | 'rules_fallback' | 'not_called'; promptVersion: string }
+  explanation?: string
+  factors?: { weather: string; region: string; seasonal?: string | null; feelings: string[]; ingredients: string[] }
+  message?: string
+}
+
 const reasonLabels: Record<string, string> = {
   seasonal_content: '命中今日节庆或节气内容包',
   safety_filtered: '已排除过敏和明确饮食限制冲突',
@@ -44,6 +54,7 @@ const reasonLabels: Record<string, string> = {
   region_ranked: '地域标签参与排序',
   feeling_ranked: '当天受控体感标签参与排序',
   general_safe_content: '从当前可用审核库中选择通用候选',
+  pantry_match: '现有食材和常用厨具参与匹配',
 }
 
 function requestCloud<T>(path: string, data: Record<string, unknown>): Promise<T> {
@@ -108,6 +119,31 @@ export async function requestCloudToday(
     ...response,
     reasons: response.reasons.map(reason => reasonLabels[reason] || reason),
   }
+}
+
+export async function requestCloudNatural(
+  text: string,
+  profile: WellnessProfile,
+  date: string,
+  recentRecipeIds: string[],
+): Promise<CloudNaturalResponse> {
+  const response = await requestCloud<CloudNaturalResponse>('/v1/recommendations/natural', {
+    text,
+    city: profile.city,
+    region: cityRegion(profile.city),
+    date,
+    allergies: profile.allergens,
+    dietaryRestrictions: profile.doctorDietRestrictions,
+    preferences: profile.preferences,
+    constitutionTags: profile.constitutionReference?.recommendationTags || [],
+    recentRecipeIds,
+    serviceScope: profile.serviceScope,
+    hasMedicalConditions: profile.medicalConditions.length > 0,
+    hasMedications: profile.medications.length > 0,
+  })
+  assertTraceableRecipe(response.main)
+  response.alternatives.forEach(assertTraceableRecipe)
+  return { ...response, reasons: (response.reasons || []).map(reason => reasonLabels[reason] || reason) }
 }
 
 export async function requestCloudPantry(

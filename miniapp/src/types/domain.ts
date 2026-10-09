@@ -157,11 +157,15 @@ export interface TodayViewModel {
   contentBundle?: FestivalContentBundle
   recommendationReasons: string[]
   fallbackUsed: boolean
+  aiExplanation?: string
+  aiStatus?: 'assisted' | 'rules_fallback'
+  usedFactors?: { weather: string; region: string; seasonal?: string | null; feelings: string[]; ingredients: string[] }
 }
 
 export interface TodayExperienceResult {
   safety: SafetyDecision
   model?: TodayViewModel
+  message?: string
 }
 
 export type PantryCategory = '主食' | '蔬菜水果' | '肉蛋奶' | '豆制品' | '调味品'
