@@ -1,0 +1,23 @@
+# Template for CodeArts Pipeline YAML mode after the repo is mirrored to CodeArts Repo.
+# Replace both task IDs with real IDs from the same CodeArts project.
+# The Build task runs build-release.sh and publishes deploy/m14/out as one artifact.
+# The Deploy task downloads that exact artifact, publishes OBS H5, then deploys ECS API.
+jobs:
+  build:
+    name: M14-verify-and-package
+    runs-on: default
+    steps:
+      - name: Build-test-and-package
+        uses: CodeArtsBuild
+        with:
+          jobId: REPLACE_WITH_CODEARTS_BUILD_TASK_ID
+  deploy:
+    name: M14-deploy-and-smoke
+    needs: [build]
+    if: ${{ default() }}
+    runs-on: default
+    steps:
+      - name: Deploy-demo
+        uses: CodeArtsDeploy
+        with:
+          jobId: REPLACE_WITH_CODEARTS_DEPLOY_TASK_ID

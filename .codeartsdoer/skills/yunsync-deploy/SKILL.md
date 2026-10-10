@@ -37,6 +37,12 @@ python "$env:USERPROFILE/.codeartsdoer/skills/auto-deploy/scripts/auto_deploy.py
 
 `auto-deploy` 只创建单 ECS，不创建 RDS、DCS Redis 或 OBS。M14 必须先通过独立资源计划或基础设施代码准备这些服务，再以部署变量注入连接信息。
 
+## M14 发布执行
+
+满足上述全部门槛后，按 `deploy/m14/README.md` 配置 CodeArts Build、Pipeline 和 Deploy。Build 执行 `deploy/m14/build-release.sh`，以完整 Git SHA 和 SHA256 清单打包；Deploy 从该 SHA 对应制品下载，运行 `deploy-release.sh`。该脚本发布 OBS H5，验证候选 API 的 RDS/DCS 健康状态，再切换公网入口并执行 `smoke.py`；失败时自动恢复上一 API 槽位和 OBS 入口。每次保存 CodeArts 运行号、Git SHA、健康摘要和回滚结果到 `docs/competition/M14_ACCEPTANCE_RECORD.md`。
+
+`codearts-pipeline.yaml.example` 只是待绑定真实 Build/Deploy 任务 ID 的模板；在 CodeArts 控制台实际运行之前，不得称为已建成流水线。资源 Skill 的 plan-only 版本不具备创建 RDS/DCS/OBS 的权限；资源创建必须使用另行审阅的基础设施代码或经确认的现有资源。
+
 ## 安全规则
 
 - 不把 `--yes` 视为用户对费用和公网开放的确认。

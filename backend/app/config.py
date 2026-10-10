@@ -50,6 +50,7 @@ class Settings:
     seed_demo_content: bool
     seed_path: Path
     cors_origins: tuple[str, ...]
+    release_sha: str = ""
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -98,6 +99,7 @@ class Settings:
                 )
             ),
             cors_origins=origins,
+            release_sha=(env.get("YUNSYNC_RELEASE_SHA") or "").strip(),
         )
 
     @property

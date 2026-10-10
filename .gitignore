@@ -50,3 +50,5 @@ credentials.csv
 **/.terraform/
 *.tfstate
 *.tfstate.*
+.m14-venv/
+deploy/m14/out/

@@ -155,6 +155,7 @@ def create_app(
         return {
             "status": status,
             "version": __version__,
+            "releaseSha": resolved_settings.release_sha,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "dependencies": {
                 "database": {

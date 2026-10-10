@@ -23,6 +23,7 @@ test('一句话输入在离线规则下阻断高风险并排除过敏食谱', as
   await page.locator('.natural-input textarea').fill('手上有西红柿、豆腐和食用油，做什么饭？')
   await page.locator('.natural-button').click()
   await expect(page.locator('.recipe-name')).toHaveText('番茄豆腐汤')
+  await page.screenshot({ path: 'test-results/m14-local-preview.png', fullPage: true })
 })
 
 test('收藏、反馈、浏览记录持久化及清除确认', async ({ page }) => {
