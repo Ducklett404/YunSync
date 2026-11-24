@@ -14,6 +14,7 @@ import type {
 interface LunarMonthStart {
   date: string
   month: number
+  leap?: boolean
 }
 
 interface SolarTermFixture {
@@ -22,16 +23,27 @@ interface SolarTermFixture {
   time: string
 }
 
+interface CalendarSource {
+  authority: string
+  conversionUrl: string
+  solarTermsUrl: string
+  verifiedAt: string
+}
+
+interface CalendarYear {
+  source: CalendarSource
+  previousLunarYear: string
+  lunarYear: string
+  lunarMonthStarts: LunarMonthStart[]
+  solarTerms: SolarTermFixture[]
+}
+
 interface M2ContentData {
   schemaVersion: string
-  calendarSource: {
-    authority: string
-    conversionUrl: string
-    solarTermsUrl: string
-    verifiedAt: string
-  }
-  lunarMonthStarts2026: LunarMonthStart[]
-  solarTerms2026: SolarTermFixture[]
+  calendarYears?: Record<string, CalendarYear>
+  calendarSource?: CalendarSource
+  lunarMonthStarts2026?: LunarMonthStart[]
+  solarTerms2026?: SolarTermFixture[]
   bundles: FestivalContentBundle[]
   recipes: RecipeTemplate[]
 }
@@ -92,21 +104,38 @@ function asUtcDay(dateKey: string): number {
   return Date.UTC(year, month - 1, day)
 }
 
-function resolveLunar2026(dateKey: string) {
-  const starts = content.lunarMonthStarts2026
-  const start = [...starts].reverse().find((item) => item.date <= dateKey)
-  if (!start || dateKey < '2026-01-01' || dateKey > '2026-12-31') return undefined
-  const day = Math.round((asUtcDay(dateKey) - asUtcDay(start.date)) / dayMilliseconds) + 1
-  if (day < 1 || day > 30) return undefined
+function getCalendarYear(dateKey: string): CalendarYear | undefined {
+  const year = dateKey.slice(0, 4)
+  const annual = content.calendarYears?.[year]
+  if (annual) return annual
+  if (year !== '2026' || !content.calendarSource) return undefined
   return {
-    year: dateKey < '2026-02-17' ? '乙巳年，蛇' : '丙午年，马',
-    month: start.month,
-    day,
-    label: `${monthNames[start.month]}${dayNames[day]}`,
+    source: content.calendarSource,
+    previousLunarYear: '乙巳年，蛇',
+    lunarYear: '丙午年，马',
+    lunarMonthStarts: content.lunarMonthStarts2026 || [],
+    solarTerms: content.solarTerms2026 || [],
   }
 }
 
-function resolveFestival(lunarMonth?: number, lunarDay?: number): string | undefined {
+function resolveLunar(dateKey: string, calendar: CalendarYear) {
+  const starts = calendar.lunarMonthStarts
+  const start = [...starts].reverse().find((item) => item.date <= dateKey)
+  if (!start) return undefined
+  const day = Math.round((asUtcDay(dateKey) - asUtcDay(start.date)) / dayMilliseconds) + 1
+  if (day < 1 || day > 30) return undefined
+  const newYear = starts.find(item => item.date.slice(0, 4) === dateKey.slice(0, 4) && item.month === 1 && !item.leap)
+  return {
+    year: newYear && dateKey >= newYear.date ? calendar.lunarYear : calendar.previousLunarYear,
+    month: start.month,
+    day,
+    leap: Boolean(start.leap),
+    label: `${start.leap ? '闰' : ''}${monthNames[start.month]}${dayNames[day]}`,
+  }
+}
+
+export function resolveFestival(lunarMonth?: number, lunarDay?: number, lunarIsLeap?: boolean): string | undefined {
+  if (lunarIsLeap) return undefined
   if (lunarMonth === 12 && lunarDay === 8) return '腊八节'
   if (lunarMonth === 1 && lunarDay === 1) return '春节'
   if (lunarMonth === 5 && lunarDay === 5) return '端午节'
@@ -117,8 +146,9 @@ function resolveFestival(lunarMonth?: number, lunarDay?: number): string | undef
 export function resolveDemoCalendar(input?: Date | string): CalendarContext {
   const dateKey = asDateKey(input)
   const [year, month, day] = dateKey.split('-').map(Number)
-  const lunar = resolveLunar2026(dateKey)
-  const solarTerm = content.solarTerms2026.find((item) => item.date === dateKey)
+  const annual = getCalendarYear(dateKey)
+  const lunar = annual && resolveLunar(dateKey, annual)
+  const solarTerm = annual?.solarTerms.find((item) => item.date === dateKey)
   const date = new Date(year, month - 1, day)
   return {
     dateKey,
@@ -127,27 +157,29 @@ export function resolveDemoCalendar(input?: Date | string): CalendarContext {
     lunarYear: lunar?.year,
     lunarMonth: lunar?.month,
     lunarDay: lunar?.day,
+    lunarIsLeap: lunar?.leap,
     lunarDate: lunar?.label || '农历日期待官方服务返回',
     solarTerm: solarTerm?.name,
     solarTermTime: solarTerm?.time,
-    festival: resolveFestival(lunar?.month, lunar?.day),
-    source: `${content.calendarSource.authority}2026公历农历对照表与二十四节气数据`,
+    festival: resolveFestival(lunar?.month, lunar?.day, lunar?.leap),
+    source: annual ? `${annual.source.authority}${year}公历农历对照表与二十四节气数据` : '当年离线日历暂不可用',
     isDemo: true,
     version: content.schemaVersion,
     reviewStatus: 'demo',
-    updatedAt: content.calendarSource.verifiedAt,
+    updatedAt: annual?.source.verifiedAt || '',
   }
 }
 
 export const festivalContentBundles = content.bundles
 export const m2RecipeLibrary = content.recipes
 
-export function hasApprovedOfflineCalendarBaseline(): boolean {
+export function hasApprovedOfflineCalendarBaseline(dateKey: string): boolean {
+  const annual = getCalendarYear(dateKey)
   return runtimeConfig.dataMode === 'real'
-    && Boolean(content.calendarSource.authority?.trim())
-    && Number.isFinite(Date.parse(content.calendarSource.verifiedAt))
-    && content.lunarMonthStarts2026.length >= 12
-    && content.solarTerms2026.length === 24
+    && Boolean(annual && annual.source.authority.trim()
+      && Number.isFinite(Date.parse(annual.source.verifiedAt))
+      && annual.lunarMonthStarts.length >= 12
+      && annual.solarTerms.length === 24)
 }
 
 export function getRecipeById(recipeId: string): RecipeTemplate | undefined {
@@ -160,7 +192,7 @@ export function getContentBundle(calendar: CalendarContext, city?: string, optio
     if (!isContentAvailable(bundle, options)) return false
     const rule = bundle.dateRule
     const dateMatches = rule.kind === 'lunar'
-      ? calendar.lunarMonth === rule.lunarMonth && calendar.lunarDay === rule.lunarDay
+      ? !calendar.lunarIsLeap && calendar.lunarMonth === rule.lunarMonth && calendar.lunarDay === rule.lunarDay
       : calendar.solarTerm === rule.solarTerm
     const regionMatches = !region || bundle.regions.includes('全国') || bundle.regions.includes(region)
     return dateMatches && regionMatches
@@ -171,17 +203,21 @@ function normalize(value: string): string {
   return value.toLowerCase().replace(/[\s、,，/]/g, '')
 }
 
-export function recipeConflictsWith(recipe: RecipeTemplate, restrictions: string[]): boolean {
+export function foodTermsConflict(terms: string[], restrictions: string[]): boolean {
   if (!restrictions.length) return false
-  const recipeTerms = [
+  const normalized = terms.map(normalize)
+  return restrictions.some((restriction) => {
+    const needle = normalize(restriction).replace(/过敏|不耐受|忌口|不能吃|禁食|忌|限制|避免|不吃|少吃/g, '')
+    return Boolean(needle) && normalized.some((term) => term.includes(needle) || needle.includes(term))
+  })
+}
+
+export function recipeConflictsWith(recipe: RecipeTemplate, restrictions: string[]): boolean {
+  return foodTermsConflict([
     ...recipe.allergens,
     ...recipe.exclusions,
     ...recipe.ingredients.flatMap((ingredient) => [ingredient.name, ...ingredient.allergenTags]),
-  ].map(normalize)
-  return restrictions.some((restriction) => {
-    const needle = normalize(restriction).replace(/过敏|不耐受|忌口|不能吃|禁食|忌|限制|避免|不吃|少吃/g, '')
-    return Boolean(needle) && recipeTerms.some((term) => term.includes(needle) || needle.includes(term))
-  })
+  ], restrictions)
 }
 
 export function selectM2Recommendations(

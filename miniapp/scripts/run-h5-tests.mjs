@@ -13,7 +13,7 @@ try {
       if (chunk.toString().includes('H5 test server:')) { clearTimeout(timer); resolve() }
     })
   })
-  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test'], { cwd, windowsHide: true, stdio: 'inherit' })
+  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(2)], { cwd, windowsHide: true, stdio: 'inherit' })
   process.exitCode = await new Promise((resolve, reject) => {
     runner.once('error', reject)
     runner.once('exit', code => resolve(code ?? 1))

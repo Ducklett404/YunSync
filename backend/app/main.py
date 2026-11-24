@@ -7,7 +7,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +23,7 @@ from .database import ContentRepository, Database, DatabaseUnavailable, seed_dem
 from .maas import MaaSClient
 from .natural import NaturalRecommendationService
 from .schemas import NaturalRecommendationRequest, PantryRecommendationRequest, TodayRecommendationRequest
-from .services import YunSyncService
+from .services import YunSyncService, recipe_to_dict
 from .weather import WeatherClient
 
 
@@ -192,11 +192,20 @@ def create_app(
         return natural.recommend(payload)
 
     @app.get("/v1/recipes/{recipe_id}")
-    def recipe_detail(recipe_id: str):
+    def recipe_detail(recipe_id: str, version: Annotated[str | None, Query(min_length=1)] = None):
         if not recipe_id or len(recipe_id) > 80 or not all(
             character.isalnum() or character in {"-", "_"} for character in recipe_id
         ):
             raise HTTPException(status_code=400, detail="invalid recipe id")
+        # Versioned links must check the current catalogue, including removals.
+        if version is not None:
+            current = repository.get_recipe(recipe_id)
+            if current is None:
+                raise HTTPException(status_code=404, detail="recipe not found")
+            if current.version != version:
+                raise HTTPException(status_code=409, detail="recipe version changed")
+            return {"recipe": recipe_to_dict(current), "cache": {"status": "bypass"}}
+
         recipe, cache_status, cache_degraded = service.recipe(recipe_id)
         if recipe is None:
             raise HTTPException(status_code=404, detail="recipe not found")

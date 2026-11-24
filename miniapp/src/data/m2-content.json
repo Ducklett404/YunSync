@@ -47,62 +47,116 @@
     { "date": "2026-12-07", "name": "大雪", "time": "10:53" },
     { "date": "2026-12-22", "name": "冬至", "time": "04:50" }
   ],
+  "calendarYears": {
+    "2027": {
+      "source": {
+        "authority": "香港天文台",
+        "conversionUrl": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2027c.txt",
+        "solarTermsUrl": "https://www.hko.gov.hk/tc/gts/astronomy/data/files/24SolarTerms_2027.xml",
+        "verifiedAt": "2026-11-25T00:00:00+08:00"
+      },
+      "previousLunarYear": "丙午年，马",
+      "lunarYear": "丁未年，羊",
+      "lunarMonthStarts": [
+        { "date": "2026-12-09", "month": 11 },
+        { "date": "2027-01-08", "month": 12 },
+        { "date": "2027-02-06", "month": 1 },
+        { "date": "2027-03-08", "month": 2 },
+        { "date": "2027-04-07", "month": 3 },
+        { "date": "2027-05-06", "month": 4 },
+        { "date": "2027-06-05", "month": 5 },
+        { "date": "2027-07-04", "month": 6 },
+        { "date": "2027-08-02", "month": 7 },
+        { "date": "2027-09-01", "month": 8 },
+        { "date": "2027-09-30", "month": 9 },
+        { "date": "2027-10-29", "month": 10 },
+        { "date": "2027-11-28", "month": 11 },
+        { "date": "2027-12-28", "month": 12 }
+      ],
+      "solarTerms": [
+        { "date": "2027-01-05", "name": "小寒", "time": "22:10" },
+        { "date": "2027-01-20", "name": "大寒", "time": "15:30" },
+        { "date": "2027-02-04", "name": "立春", "time": "09:46" },
+        { "date": "2027-02-19", "name": "雨水", "time": "05:33" },
+        { "date": "2027-03-06", "name": "惊蛰", "time": "03:40" },
+        { "date": "2027-03-21", "name": "春分", "time": "04:25" },
+        { "date": "2027-04-05", "name": "清明", "time": "08:17" },
+        { "date": "2027-04-20", "name": "谷雨", "time": "15:18" },
+        { "date": "2027-05-06", "name": "立夏", "time": "01:25" },
+        { "date": "2027-05-21", "name": "小满", "time": "14:18" },
+        { "date": "2027-06-06", "name": "芒种", "time": "05:26" },
+        { "date": "2027-06-21", "name": "夏至", "time": "22:11" },
+        { "date": "2027-07-07", "name": "小暑", "time": "15:37" },
+        { "date": "2027-07-23", "name": "大暑", "time": "09:05" },
+        { "date": "2027-08-08", "name": "立秋", "time": "01:27" },
+        { "date": "2027-08-23", "name": "处暑", "time": "16:14" },
+        { "date": "2027-09-08", "name": "白露", "time": "04:28" },
+        { "date": "2027-09-23", "name": "秋分", "time": "14:02" },
+        { "date": "2027-10-08", "name": "寒露", "time": "20:17" },
+        { "date": "2027-10-23", "name": "霜降", "time": "23:33" },
+        { "date": "2027-11-07", "name": "立冬", "time": "23:39" },
+        { "date": "2027-11-22", "name": "小雪", "time": "21:16" },
+        { "date": "2027-12-07", "name": "大雪", "time": "16:38" },
+        { "date": "2027-12-22", "name": "冬至", "time": "10:42" }
+      ]
+    }
+  },
   "bundles": [
     {
       "id": "m2-laba", "name": "腊八节", "kind": "festival",
       "cultureNote": "腊八节常见粥食与腌渍食物习俗；这里仅作饮食文化展示，食材仍需按个人过敏与限制筛选。",
-      "dateRule": { "kind": "lunar", "lunarMonth": 12, "lunarDay": 8, "gregorianFixtures": { "2026": "2026-01-26" } },
+      "dateRule": { "kind": "lunar", "lunarMonth": 12, "lunarDay": 8, "gregorianFixtures": { "2026": "2026-01-26", "2027": "2027-01-15" } },
       "regions": ["全国"], "recipeIds": ["m2-laba-porridge", "m2-laba-garlic"],
-      "source": "香港天文台2026公历农历对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "source": "香港天文台公历农历年度对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
     },
     {
       "id": "m2-spring-festival", "name": "春节", "kind": "festival",
       "cultureNote": "春节饮食因地域而异，本示例用家庭面食表达团聚场景，不把特定食物描述为健康功效。",
-      "dateRule": { "kind": "lunar", "lunarMonth": 1, "lunarDay": 1, "gregorianFixtures": { "2026": "2026-02-17" } },
+      "dateRule": { "kind": "lunar", "lunarMonth": 1, "lunarDay": 1, "gregorianFixtures": { "2026": "2026-02-17", "2027": "2027-02-06" } },
       "regions": ["全国", "华北", "东北"], "recipeIds": ["m2-spring-dumpling"],
-      "source": "香港天文台2026公历农历对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "source": "香港天文台公历农历年度对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
     },
     {
       "id": "m2-duanwu", "name": "端午节", "kind": "festival",
       "cultureNote": "端午节有包粽、食粽等地域习俗；糯米食品应按个人吞咽与消化情况适量选择。",
-      "dateRule": { "kind": "lunar", "lunarMonth": 5, "lunarDay": 5, "gregorianFixtures": { "2026": "2026-06-19" } },
+      "dateRule": { "kind": "lunar", "lunarMonth": 5, "lunarDay": 5, "gregorianFixtures": { "2026": "2026-06-19", "2027": "2027-06-09" } },
       "regions": ["全国", "江南", "华南"], "recipeIds": ["m2-duanwu-jube-zongzi"],
-      "source": "香港天文台2026公历农历对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "source": "香港天文台公历农历年度对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
     },
     {
       "id": "m2-mid-autumn", "name": "中秋节", "kind": "festival",
       "cultureNote": "中秋节常见赏月与分享月饼等习俗；本示例保留份量和过敏原提示，不作功效宣传。",
-      "dateRule": { "kind": "lunar", "lunarMonth": 8, "lunarDay": 15, "gregorianFixtures": { "2026": "2026-09-25" } },
+      "dateRule": { "kind": "lunar", "lunarMonth": 8, "lunarDay": 15, "gregorianFixtures": { "2026": "2026-09-25", "2027": "2027-09-15" } },
       "regions": ["全国"], "recipeIds": ["m2-midautumn-mooncake"],
-      "source": "香港天文台2026公历农历对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "source": "香港天文台公历农历年度对照表；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
     },
     {
       "id": "m2-lichun", "name": "立春", "kind": "solar-term",
       "cultureNote": "立春是二十四节气之一。本示例只提供当季家常饮食灵感，不将节气与疾病疗效建立因果关系。",
-      "dateRule": { "kind": "solar-term", "solarTerm": "立春", "gregorianFixtures": { "2026": "2026-02-04" } },
+      "dateRule": { "kind": "solar-term", "solarTerm": "立春", "gregorianFixtures": { "2026": "2026-02-04", "2027": "2027-02-04" } },
       "regions": ["全国"], "recipeIds": ["m2-lichun-tofu-soup"],
-      "source": "香港天文台2026二十四节气数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "source": "香港天文台二十四节气年度数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
     },
     {
       "id": "m2-qingming", "name": "清明", "kind": "solar-term",
       "cultureNote": "清明既是节气，也承载祭扫与踏青等文化活动；饮食示例采用常见春季食材并保持中性描述。",
-      "dateRule": { "kind": "solar-term", "solarTerm": "清明", "gregorianFixtures": { "2026": "2026-04-05" } },
+      "dateRule": { "kind": "solar-term", "solarTerm": "清明", "gregorianFixtures": { "2026": "2026-04-05", "2027": "2027-04-05" } },
       "regions": ["全国", "江南"], "recipeIds": ["m2-qingming-spring-rice"],
-      "source": "香港天文台2026二十四节气数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "source": "香港天文台二十四节气年度数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
     },
     {
       "id": "m2-bailu", "name": "白露", "kind": "solar-term",
       "cultureNote": "白露是秋季节气。本示例展示易获得的家常汤品，是否适合仍取决于个人过敏和医生限制。",
-      "dateRule": { "kind": "solar-term", "solarTerm": "白露", "gregorianFixtures": { "2026": "2026-09-07" } },
+      "dateRule": { "kind": "solar-term", "solarTerm": "白露", "gregorianFixtures": { "2026": "2026-09-07", "2027": "2027-09-08" } },
       "regions": ["全国", "江南", "华北"], "recipeIds": ["m2-bailu-pear-lotus-soup"],
-      "source": "香港天文台2026二十四节气数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "source": "香港天文台二十四节气年度数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
     },
     {
       "id": "m2-dongzhi", "name": "冬至", "kind": "solar-term",
       "cultureNote": "冬至是二十四节气之一，各地有不同节令饮食。本示例采用普通家常菜，不替代个体化营养建议。",
-      "dateRule": { "kind": "solar-term", "solarTerm": "冬至", "gregorianFixtures": { "2026": "2026-12-22" } },
+      "dateRule": { "kind": "solar-term", "solarTerm": "冬至", "gregorianFixtures": { "2026": "2026-12-22", "2027": "2027-12-22" } },
       "regions": ["全国", "华北", "东北"], "recipeIds": ["m2-dongzhi-radish-beef"],
-      "source": "香港天文台2026二十四节气数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "source": "香港天文台二十四节气年度数据；云循演示文化文案", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
     }
   ],
   "recipes": [
@@ -117,14 +171,14 @@
       ],
       "tools": ["汤锅", "菜刀"],
       "steps": [
-        { "order": 1, "action": "小米淘洗后放入锅中。" },
-        { "order": 2, "action": "加入清水，大火煮开。" },
-        { "order": 3, "action": "加入山药块，转小火煮至米粒软烂。" },
+        { "order": 1, "action": "小米淘洗后放入锅中。", "doneWhen": "倒掉淘洗水并沥去明显积水，另备切好的山药块。" },
+        { "order": 2, "action": "加入清水，大火煮开。", "doneWhen": "锅面持续冒泡后再下山药。" },
+        { "order": 3, "action": "加入山药块，转小火煮至米粒软烂。", "doneWhen": "米粒软开，用勺背能轻松压开一块山药。" },
         { "order": 4, "action": "关火后稍放凉再食用。" }
       ],
       "substitutions": [{ "from": "山药", "to": "南瓜", "note": "仅作演示替代，正式版需专业审核。" }],
       "allergens": [], "exclusions": ["吞咽困难者需调整质地并遵医嘱"], "regions": ["全国"], "sceneTags": ["日常", "清淡"],
-      "sourceNote": "演示配方，食材克数和替代关系待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "sourceNote": "演示配方，食材克数和替代关系待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-2", "reviewStatus": "demo", "updatedAt": "2026-11-25T00:00:00+08:00"
     },
     {
       "id": "demo-tomato-tofu", "name": "番茄豆腐汤", "category": "汤", "minutes": 20,
@@ -138,13 +192,13 @@
       ],
       "tools": ["汤锅", "菜刀"],
       "steps": [
-        { "order": 1, "action": "锅中放油，加入番茄翻炒出汁。" },
-        { "order": 2, "action": "加入清水煮开。" },
-        { "order": 3, "action": "加入豆腐块，小火煮八分钟。" },
+        { "order": 1, "action": "锅中放油，加入番茄翻炒出汁。", "doneWhen": "番茄变软，锅底能看到析出的番茄汁。" },
+        { "order": 2, "action": "加入清水煮开。", "doneWhen": "锅面持续冒泡后再下豆腐。" },
+        { "order": 3, "action": "加入豆腐块，转小火煮至热透。", "minutes": 8, "doneWhen": "保持汤面轻微翻滚，轻推豆腐块以免碎裂。" },
         { "order": 4, "action": "按个人限制少量调味后关火。" }
       ],
       "substitutions": [], "allergens": ["大豆"], "exclusions": ["大豆过敏者不适用"], "regions": ["全国"], "sceneTags": ["日常", "汤"],
-      "sourceNote": "演示配方，食材克数待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "sourceNote": "演示配方，食材克数待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-2", "reviewStatus": "demo", "updatedAt": "2026-11-25T00:00:00+08:00"
     },
     {
       "id": "demo-greens", "name": "清炒时蔬", "category": "菜", "minutes": 15,
@@ -156,14 +210,14 @@
       ],
       "tools": ["炒锅", "锅铲"],
       "steps": [
-        { "order": 1, "action": "绿叶菜洗净后充分沥水。" },
-        { "order": 2, "action": "炒锅放油并加热。" },
-        { "order": 3, "action": "放入蔬菜快速翻炒至熟。" },
+        { "order": 1, "action": "绿叶菜洗净后充分沥水。", "doneWhen": "沥到菜叶提起时没有明显滴水。" },
+        { "order": 2, "action": "炒锅放油并加热。", "doneWhen": "油能在锅底流动铺开即可，避免烧至冒烟。" },
+        { "order": 3, "action": "放入蔬菜快速翻炒至熟。", "doneWhen": "菜叶收软，较厚的菜梗也已炒熟。" },
         { "order": 4, "action": "按个人限制少量调味后出锅。" }
       ],
       "substitutions": [{ "from": "当季绿叶菜", "to": "当地可获得的同类蔬菜", "note": "避开个人过敏食材。" }],
       "allergens": [], "exclusions": [], "regions": ["全国"], "sceneTags": ["日常", "家常菜"],
-      "sourceNote": "演示配方，食材克数待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-1", "reviewStatus": "demo", "updatedAt": "2026-09-29T21:00:00+08:00"
+      "sourceNote": "演示配方，食材克数待专业签署。", "source": "demo-recipe-library", "isDemo": true, "version": "m2-demo-2", "reviewStatus": "demo", "updatedAt": "2026-11-25T00:00:00+08:00"
     },
     {
       "id": "m2-laba-porridge", "name": "腊八杂粮粥（演示）", "category": "节庆食品", "minutes": 70,

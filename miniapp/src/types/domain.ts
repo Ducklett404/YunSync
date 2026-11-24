@@ -28,6 +28,7 @@ export interface CalendarContext extends TraceableData {
   lunarYear?: string
   lunarMonth?: number
   lunarDay?: number
+  lunarIsLeap?: boolean
   lunarDate: string
   solarTerm?: string
   solarTermTime?: string
@@ -54,6 +55,8 @@ export interface RecipeIngredient {
 export interface RecipeStep {
   order: number
   action: string
+  minutes?: number
+  doneWhen?: string
 }
 
 export interface RecipeSubstitution {

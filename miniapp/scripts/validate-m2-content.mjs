@@ -21,14 +21,33 @@ const expectedFixtures = {
   'm2-bailu': '2026-09-07',
   'm2-dongzhi': '2026-12-22',
 }
+const expected2027 = {
+  'm2-laba': '2027-01-15',
+  'm2-spring-festival': '2027-02-06',
+  'm2-duanwu': '2027-06-09',
+  'm2-mid-autumn': '2027-09-15',
+  'm2-lichun': '2027-02-04',
+  'm2-qingming': '2027-04-05',
+  'm2-bailu': '2027-09-08',
+  'm2-dongzhi': '2027-12-22',
+}
+const backendSeed = JSON.parse(fs.readFileSync(path.resolve(currentDir, '../../backend/seeds/m12-demo-content.json'), 'utf8'))
+const annual2027 = content.calendarYears['2027']
 
 const recipeById = new Map(content.recipes.map((recipe) => [recipe.id, recipe]))
 check(content.bundles.length === 8, `内容包应为 8 个，实际 ${content.bundles.length}`)
 check(content.solarTerms2026.length === 24, `节气应为 24 个，实际 ${content.solarTerms2026.length}`)
 check(content.lunarMonthStarts2026.length === 13, '2026 农历月起点不完整')
+check(annual2027.lunarMonthStarts.length === 14, '2027 农历月起点不完整')
+check(annual2027.solarTerms.length === 24, '2027 年应包含 24 个节气')
+check(JSON.stringify(content.calendarYears) === JSON.stringify(backendSeed.calendarYears), '前后端年度日历数据不一致')
+check(JSON.stringify(content.recipes) === JSON.stringify(backendSeed.recipes), '前后端演示食谱与版本不一致')
 
 for (const bundle of content.bundles) {
   check(bundle.dateRule?.gregorianFixtures?.['2026'] === expectedFixtures[bundle.id], `${bundle.id} 的 2026 日期不正确`)
+  check(bundle.dateRule?.gregorianFixtures?.['2027'] === expected2027[bundle.id], `${bundle.id} 的 2027 日期不正确`)
+  const backendRule = backendSeed.bundles.find(item => item.id === bundle.id)?.dateRule
+  check(JSON.stringify(backendRule) === JSON.stringify(bundle.dateRule), `${bundle.id} 的前后端节庆日期不一致`)
   check(Boolean(bundle.cultureNote), `${bundle.id} 缺少文化说明`)
   check(Array.isArray(bundle.regions) && bundle.regions.length > 0, `${bundle.id} 缺少地域标签`)
   check(Array.isArray(bundle.recipeIds) && bundle.recipeIds.length > 0, `${bundle.id} 缺少食谱引用`)

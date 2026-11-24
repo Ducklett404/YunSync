@@ -18,7 +18,7 @@ export function isProductionWeatherEndpoint(value) {
   }
 }
 
-export function checkProductionData({ env, content, survey, manifest, weatherReady }) {
+export function checkProductionData({ env, content, survey, manifest, weatherReady, calendarYear = new Date().getFullYear() }) {
   const errors = []
   for (const key of requiredConfig) {
     const value = env[key]?.trim()
@@ -34,10 +34,15 @@ export function checkProductionData({ env, content, survey, manifest, weatherRea
 
   const recipes = Array.isArray(content?.recipes) ? content.recipes : []
   const bundles = Array.isArray(content?.bundles) ? content.bundles : []
-  const calendar = content?.calendarSource || {}
+  const annual = content?.calendarYears?.[calendarYear] ?? (calendarYear === 2026 ? {
+    source: content?.calendarSource,
+    lunarMonthStarts: content?.lunarMonthStarts2026,
+    solarTerms: content?.solarTerms2026,
+  } : undefined)
+  const calendar = annual?.source || {}
   if (!calendar.authority?.trim() || !/^https:\/\//.test(calendar.conversionUrl || '') || !/^https:\/\//.test(calendar.solarTermsUrl || '') || !Number.isFinite(Date.parse(calendar.verifiedAt))) errors.push('Formal calendar source and verification metadata are incomplete')
-  if (!Array.isArray(content?.lunarMonthStarts2026) || content.lunarMonthStarts2026.length < 12) errors.push('Formal lunar offline baseline is incomplete')
-  if (!Array.isArray(content?.solarTerms2026) || content.solarTerms2026.length !== 24) errors.push('Formal solar-term offline baseline must contain 24 entries')
+  if (!Array.isArray(annual?.lunarMonthStarts) || annual.lunarMonthStarts.length < 12) errors.push(`Formal lunar offline baseline is incomplete for ${calendarYear}`)
+  if (!Array.isArray(annual?.solarTerms) || annual.solarTerms.length !== 24) errors.push(`Formal solar-term offline baseline must contain 24 entries for ${calendarYear}`)
   const approved = item => item?.reviewStatus === 'approved' && item?.isDemo === false
   const active = recipes.filter(item => item?.reviewStatus !== 'disabled')
   for (const item of [...active, ...bundles.filter(item => item?.reviewStatus !== 'disabled')]) {

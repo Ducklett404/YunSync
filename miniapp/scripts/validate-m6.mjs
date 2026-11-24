@@ -14,6 +14,7 @@ const env = {
   YUNSYNC_CONTENT_SIGNOFF_VERSION: 'signed-v1', YUNSYNC_SURVEY_LICENSE_VERSION: 'licensed-v1',
 }
 const fixture = {
+  calendarYear: 2026,
   env, manifest: { 'mp-weixin': { appid: env.YUNSYNC_MINIAPP_APPID, setting: { urlCheck: true } } },
   survey: {
     source: 'fixture-source', licenseVersion: 'licensed-v1', reviewer: '合成审核者', isDemo: false,
@@ -73,6 +74,11 @@ check('draft festival bundle', input => { input.content.bundles[0].reviewStatus 
 check('duplicate recipe ID', input => { input.content.recipes[1].id = input.content.recipes[0].id }, false)
 check('content package version differs from sign-off', input => { input.content.schemaVersion = 'signed-v2' }, false)
 check('formal calendar baseline missing', input => { input.content.solarTerms2026 = [] }, false)
+check('prior-year calendar cannot pass the current-year release gate', input => { input.calendarYear = 2027 }, false)
+check('annual calendar passes the current-year release gate', input => {
+  input.calendarYear = 2027
+  input.content.calendarYears = structuredClone(currentContent.calendarYears)
+}, true)
 
 const runtimeBuild = await build({
   entryPoints: ['scripts/m6-runtime-validation-entry.ts'], bundle: true, format: 'esm', platform: 'node', target: 'node18', write: false,

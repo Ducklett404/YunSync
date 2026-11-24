@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.database import DatabaseUnavailable, seed_demo_content
 from app.main import create_app
-from app.models import RecommendationAudit
+from app.models import Recipe, RecommendationAudit
 from app.schemas import PantryRecommendationRequest, TodayRecommendationRequest
 from conftest import make_settings
 
@@ -68,9 +69,46 @@ def test_recipe_returns_traceable_source_and_version(app_client):
     )
     recipe = payload["recipe"]
     assert recipe["source"] == "demo-recipe-library"
-    assert recipe["version"] == "m2-demo-1"
+    assert recipe["version"] == "m2-demo-2"
+    assert "doneWhen" in recipe["steps"][2]
     assert recipe["reviewStatus"] == "demo"
     assert recipe["isDemo"] is True
+
+
+def test_versioned_recipe_checks_current_catalogue_even_with_cached_detail(app_client):
+    client = TestClient(app_client)
+    path = "/v1/recipes/demo-yam-millet"
+    assert client.get(path).json()["recipe"]["version"] == "m2-demo-2"
+    assert client.get(path, params={"version": "m2-demo-2"}).status_code == 200
+
+    with app_client.state.database.session() as session:
+        recipe = session.get(Recipe, "demo-yam-millet")
+        recipe.version = "m2-demo-3"
+    assert client.get(path, params={"version": "m2-demo-2"}).status_code == 409
+    response = client.get(path, params={"version": "m2-demo-3"})
+    assert response.json()["recipe"]["version"] == "m2-demo-3"
+    assert response.json()["cache"]["status"] == "bypass"
+
+    with app_client.state.database.session() as session:
+        session.get(Recipe, "demo-yam-millet").review_status = "disabled"
+    assert client.get(path, params={"version": "m2-demo-3"}).status_code == 404
+
+
+def test_calendar_context_and_recommendations_cover_the_2027_boundary(app_client):
+    client = TestClient(app_client)
+    dates = {
+        "2026-12-22": "m2-dongzhi",
+        "2027-01-01": None,
+        "2027-01-15": "m2-laba",
+        "2027-02-06": "m2-spring-festival",
+        "2027-09-08": "m2-bailu",
+    }
+    for day, bundle_id in dates.items():
+        context = client.get("/v1/context/today", params={"city": "北京", "date": day}).json()
+        today = client.post("/v1/recommendations/today", json={**TODAY_PAYLOAD, "date": day}).json()
+        for response in (context, today):
+            bundle = response["seasonalContent"]
+            assert (bundle["id"] if bundle else None) == bundle_id
 
 
 def test_today_recommendation_uses_festival_and_cache(app_client):
@@ -115,6 +153,20 @@ def test_pantry_matches_reviewed_template_and_filters_allergy(app_client):
     ids = [item["recipe"]["id"] for item in payload["matches"]]
     assert "demo-tomato-tofu" not in ids
     assert payload["filteredCount"] >= 1
+
+
+def test_pantry_rejects_a_substitute_that_conflicts_with_the_profile(app_client):
+    client = TestClient(app_client)
+    pantry = {
+        "ingredients": ["小米", "南瓜"],
+        "tools": ["汤锅", "菜刀"],
+        "maxAdditionalIngredients": 0,
+    }
+    path = "/v1/recommendations/pantry"
+    matches = client.post(path, json=pantry).json()["matches"]
+    assert matches[0]["recipe"]["id"] == "demo-yam-millet"
+    assert matches[0]["kind"] == "substitution"
+    assert client.post(path, json={**pantry, "allergies": ["南瓜"]}).json()["matches"] == []
 
 
 def test_database_failure_never_returns_recommendation(app_client, monkeypatch):

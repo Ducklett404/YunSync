@@ -86,7 +86,7 @@
           <text class="eyebrow">今日主推荐</text>
           <text class="recipe-name">{{ model.main.name }}</text>
           <view class="tags"><text v-for="tag in model.main.tags" :key="tag" class="tag">{{ tag }}</text></view>
-          <button class="primary-button" @tap="showRecipeDetail(model.main.id)">看食材和做法</button>
+          <button class="primary-button" @tap="showRecipeDetail(model.main)">看食材和做法</button>
           <text class="reason"><text class="reason-strong">为什么推荐？</text>{{ shortReasons }}</text>
           <text v-if="model.aiExplanation" class="ai-explanation">{{ model.aiStatus === 'assisted' ? 'AI 辅助说明' : '规则说明' }}：{{ model.aiExplanation }}</text>
         </view>
@@ -95,7 +95,7 @@
       <view v-if="model.alternatives.length" class="alternatives">
         <text class="section-title">两个备选</text>
         <view class="alternative-grid">
-          <view v-for="item in model.alternatives" :key="item.id" class="alternative-card" @tap="showRecipeDetail(item.id)">
+          <view v-for="item in model.alternatives" :key="item.id" class="alternative-card" @tap="showRecipeDetail(item)">
             <text class="alternative-name">{{ item.name }}</text>
             <text class="alternative-meta">{{ item.tags.join(' · ') }}</text>
           </view>
@@ -133,7 +133,7 @@ import { createDefaultCheckIn, loadDailyCheckIn, saveDailyCheckIn } from '../../
 import { loadRecentMainRecipeIds, saveMainRecommendation } from '../../services/history'
 import { loadProfile } from '../../services/profile'
 import { getTodayExperience } from '../../services/today'
-import type { DailyCheckIn, FeelingOption, M1AcceptanceScenario, M2AcceptanceDateScenario, SafetyDecision, TodayViewModel } from '../../types/domain'
+import type { DailyCheckIn, FeelingOption, M1AcceptanceScenario, M2AcceptanceDateScenario, RecipeTemplate, SafetyDecision, TodayViewModel } from '../../types/domain'
 
 const cities = ['杭州', '北京', '广州', '成都', '哈尔滨']
 const feelings: FeelingOption[] = ['正常', '有点着凉', '胃口较差', '睡眠不足', '口干', '排便不规律', '其他轻微不适']
@@ -254,7 +254,9 @@ function chooseCity() {
 }
 
 function openProfile() { uni.switchTab({ url: '/pages/profile/index' }) }
-function showRecipeDetail(recipeId: string) { uni.navigateTo({ url: `/pages/recipe/detail?id=${encodeURIComponent(recipeId)}` }) }
+function showRecipeDetail(recipe: RecipeTemplate) {
+  uni.navigateTo({ url: `/pages/recipe/detail?id=${encodeURIComponent(recipe.id)}&version=${encodeURIComponent(recipe.version)}` })
+}
 
 onLoad(() => { loadCheckInForSelectedDate(); loadToday() })
 onShow(() => {

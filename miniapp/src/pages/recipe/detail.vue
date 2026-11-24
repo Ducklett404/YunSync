@@ -4,8 +4,9 @@
       <view v-if="recipe.isDemo" class="demo-badge">DEMO · 未经正式专业签署</view>
       <text class="category">{{ recipe.category }}</text>
       <text class="title">{{ recipe.name }}</text>
+      <text v-if="offlineCopy" class="item-note">当前显示本机副本 · {{ recipe.version }}</text>
       <text class="meta">{{ displayServings }} 人份 · 约 {{ recipe.minutes }} 分钟 · {{ recipe.tools.join('、') }}</text>
-      <text v-if="displayServings !== recipe.servings" class="scale-note">食材用量已按原配方 {{ recipe.servings }} 人份等比例换算；烹饪时间和锅具容量仍需按实际情况调整。</text>
+      <text v-if="displayServings !== recipe.servings" class="scale-note">单一单位的食材用量按原配方 {{ recipe.servings }} 人份换算。烹饪时间和锅具容量请按实际情况调整。</text>
       <text class="reason">{{ recipe.reason }}</text>
       <button class="favorite-button" tabindex="0" @click="toggleFavorite" @keydown.enter="toggleFavorite">{{ favorite ? '已收藏 · 取消收藏' : '收藏这道食谱' }}</button>
       <text v-if="storageMessage" class="item-note">{{ storageMessage }}</text>
@@ -22,10 +23,28 @@
       </view>
 
       <view class="section">
-        <text class="section-title">做法</text>
-        <view v-for="step in recipe.steps" :key="step.order" class="step">
+        <view class="cooking-heading">
+          <text class="section-title">做法</text>
+          <button v-if="currentStep" class="cooking-button" tabindex="0" @click="cooking = undefined" @keydown.enter="cooking = undefined">查看全部步骤</button>
+          <button v-else-if="recipe.steps.length" class="cooking-button" tabindex="0" @click="startCooking" @keydown.enter="startCooking">开始跟做</button>
+        </view>
+        <view v-if="cooking && currentStep" class="guided-step">
+          <text class="cooking-progress" aria-live="polite">第 {{ cooking.index + 1 }} 步 / 共 {{ recipe.steps.length }} 步</text>
+          <text class="cooking-action">{{ currentStep.action }}</text>
+          <text v-if="currentStep.minutes" class="item-note">参考用时约 {{ currentStep.minutes }} 分钟</text>
+          <text v-if="currentStep.doneWhen" class="item-note">完成提示：{{ currentStep.doneWhen }}</text>
+          <view class="cooking-actions">
+            <button class="cooking-button" :disabled="cooking.index === 0" tabindex="0" @click="moveCookingStep(-1)" @keydown.enter="moveCookingStep(-1)">上一步</button>
+            <button class="cooking-button cooking-primary" tabindex="0" @click="moveCookingStep(1)" @keydown.enter="moveCookingStep(1)">{{ cooking.index + 1 === recipe.steps.length ? '完成跟做' : '下一步' }}</button>
+          </view>
+        </view>
+        <view v-else v-for="step in recipe.steps" :key="step.order" class="step">
           <text class="step-number">{{ step.order }}</text>
-          <text class="step-copy">{{ step.action }}</text>
+          <view class="step-copy">
+            <text>{{ step.action }}</text>
+            <text v-if="step.minutes" class="item-note">参考用时约 {{ step.minutes }} 分钟</text>
+            <text v-if="step.doneWhen" class="item-note">完成提示：{{ step.doneWhen }}</text>
+          </view>
         </view>
       </view>
 
@@ -61,6 +80,9 @@
       </view>
     </view>
 
+    <view v-else-if="loading" class="empty-card">
+      <text class="section-title">正在读取食谱</text>
+    </view>
     <view v-else class="empty-card">
       <text class="section-title">这条食谱暂不可用</text>
       <text class="item-note">{{ unavailableReason }}。请返回“今日”或“食材”查看其他内容。</text>
@@ -70,45 +92,109 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app'
+import { cloudApiEnabled, CloudHttpError, requestCloudRecipe } from '../../adapters/cloud'
 import { getRecipeById } from '../../data/m2'
 import { runtimeConfig } from '../../config/runtime'
 import { contentUnavailableReason, isContentAvailable } from '../../services/content'
+import { scaleRecipeAmount } from '../../services/recipe-amount'
 import { feedbackLabels, isFavorite, loadRecipeFeedback, recordRecipeView, saveRecipeFeedback, setFavorite } from '../../services/engagement'
 import type { FeedbackKind, RecipeFeedback } from '../../services/engagement'
 import type { RecipeTemplate } from '../../types/domain'
 
 const recipe = ref<RecipeTemplate>()
 const recipeId = ref('')
+const expectedVersion = ref('')
+const offlineCopy = ref(false)
+const loading = ref(false)
 const favorite = ref(false)
 const feedback = ref<RecipeFeedback>()
 const unavailableReason = ref('内容已移除或链接无效')
 const storageMessage = ref('')
 const contentOptions = { allowDemoContent: runtimeConfig.dataMode === 'demo' }
+const recordOptions = computed(() => ({ ...contentOptions, fromCloud: cloudApiEnabled() && !offlineCopy.value }))
 const feedbackOptions = (Object.keys(feedbackLabels) as FeedbackKind[]).map((kind) => ({ kind, label: feedbackLabels[kind] }))
 const targetServings = ref<number>()
+const cooking = ref<{ version: string; index: number }>()
 const displayServings = computed(() => targetServings.value || recipe.value?.servings || 1)
+const currentStep = computed(() => {
+  const state = cooking.value
+  if (state && recipe.value?.version === state.version) return recipe.value.steps[state.index]
+})
+const versionChangedMessage = '食谱版本已更新，请从推荐列表重新选择'
+let detailRequestId = 0
+let recordedVersion: string | undefined
 
 function scaledAmount(amount: string, baseServings: number): string {
   if (!targetServings.value || targetServings.value === baseServings) return amount
-  const match = amount.match(/^([0-9]+(?:\.[0-9]+)?)(.*)$/)
-  if (!match) return amount
-  const scaled = Math.round((Number(match[1]) * targetServings.value / baseServings) * 10) / 10
-  return `${scaled}${match[2]}`
+  return scaleRecipeAmount(amount, baseServings, targetServings.value) ?? amount
 }
 
-function refreshRecipe() {
-  const current = getRecipeById(recipeId.value)
+function startCooking() {
+  if (recipe.value?.steps.length) cooking.value = { version: recipe.value.version, index: 0 }
+}
+
+function moveCookingStep(offset: number) {
+  if (!cooking.value || !recipe.value) return
+  const index = cooking.value.index + offset
+  if (index < 0) return
+  if (index < recipe.value.steps.length) {
+    cooking.value.index = index
+    return
+  }
+  cooking.value = undefined
+  uni.showToast({ title: '已完成跟做', icon: 'none' })
+}
+
+async function refreshRecipe() {
+  const requestId = ++detailRequestId
+  const id = recipeId.value
+  const version = expectedVersion.value
+  const local = getRecipeById(id)
+  const useCloud = Boolean(id && cloudApiEnabled())
+  let current = local
+  let usingOfflineCopy = false
+  let reason: string | undefined
+  favorite.value = isFavorite(id)
+  feedback.value = loadRecipeFeedback(id)
+  loading.value = useCloud
+  if (useCloud) {
+    recipe.value = undefined
+    try {
+      current = await requestCloudRecipe(id, version)
+    } catch (error) {
+      if (error instanceof CloudHttpError && error.status < 500) {
+        current = undefined
+        if (error.status === 409) reason = versionChangedMessage
+      } else {
+        usingOfflineCopy = Boolean(local)
+        reason = local ? undefined : '在线食谱暂时无法读取，本机没有此食谱的副本'
+      }
+    }
+  }
+  if (requestId !== detailRequestId) return
+  if (current && version && current.version !== version) {
+    current = undefined
+    reason = usingOfflineCopy ? '本机副本与推荐版本不一致，请联网后重新选择' : versionChangedMessage
+  }
   recipe.value = current && isContentAvailable(current, contentOptions) ? current : undefined
-  unavailableReason.value = contentUnavailableReason(current)
-  favorite.value = isFavorite(recipeId.value)
-  feedback.value = loadRecipeFeedback(recipeId.value)
+  offlineCopy.value = usingOfflineCopy
+  unavailableReason.value = reason || contentUnavailableReason(current)
+  loading.value = false
+  if (recipe.value && recipe.value.version !== recordedVersion) {
+    try {
+      recordRecipeView(recipe.value, recordOptions.value)
+      recordedVersion = recipe.value.version
+    } catch {
+      storageMessage.value = '浏览记录未保存，仍可查看食谱。'
+    }
+  }
 }
 
 function toggleFavorite() {
   if (!recipe.value) return
   try {
-    setFavorite(recipe.value.id, !favorite.value, contentOptions)
+    setFavorite(recipe.value, !favorite.value, recordOptions.value)
     favorite.value = isFavorite(recipe.value.id)
     storageMessage.value = ''
     uni.showToast({ title: favorite.value ? '已收藏到本机' : '已取消收藏', icon: 'success' })
@@ -120,7 +206,7 @@ function toggleFavorite() {
 function submitFeedback(kind: FeedbackKind) {
   if (!recipe.value) return
   try {
-    saveRecipeFeedback(recipe.value.id, kind, contentOptions)
+    saveRecipeFeedback(recipe.value, kind, recordOptions.value)
     feedback.value = loadRecipeFeedback(recipe.value.id)
     storageMessage.value = ''
     uni.showToast({ title: '反馈已记录在本机', icon: 'success' })
@@ -130,20 +216,29 @@ function submitFeedback(kind: FeedbackKind) {
 }
 
 onLoad((options) => {
-  try { recipeId.value = typeof options?.id === 'string' ? decodeURIComponent(options.id) : '' }
-  catch { recipeId.value = '' }
-  refreshRecipe()
-  if (recipe.value) {
-    try { recordRecipeView(recipe.value.id, contentOptions) }
-    catch { storageMessage.value = '浏览记录未保存，仍可查看食谱。' }
+  try {
+    recipeId.value = typeof options?.id === 'string' ? decodeURIComponent(options.id) : ''
+    expectedVersion.value = typeof options?.version === 'string' ? decodeURIComponent(options.version) : ''
+  } catch {
+    recipeId.value = ''
   }
   const servings = Number(options?.servings)
   if ([1, 2, 4].includes(servings)) targetServings.value = servings
 })
 onShow(refreshRecipe)
+onUnload(() => { detailRequestId += 1 })
 </script>
 
 <style scoped>
+.cooking-heading, .cooking-actions { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
+.cooking-heading .section-title { margin-bottom: 0; }
+.cooking-button { margin: 0; padding: 0 16rpx; color: #123d35; background: #edf4ee; border-radius: 14rpx; font-size: 22rpx; }
+.cooking-primary { color: #fff; background: #123d35; }
+.guided-step { margin-top: 18rpx; padding: 22rpx; background: #f1f6f2; border-radius: 18rpx; }
+.cooking-progress, .cooking-action { display: block; }
+.cooking-progress { color: #52625b; font-size: 22rpx; }
+.cooking-action { margin-top: 9rpx; color: #142b26; font-size: 29rpx; line-height: 1.6; }
+.cooking-actions { margin-top: 18rpx; }
 .page { min-height: 100vh; padding: 30rpx 28rpx 60rpx; box-sizing: border-box; }
 .demo-badge { display: inline-block; padding: 8rpx 14rpx; color: #7b561d; background: #f5e8c8; border-radius: 999rpx; font-size: 22rpx; font-weight: 700; }
 .category { display: block; margin-top: 30rpx; color: #8f5f18; font-size: 24rpx; font-weight: 700; }

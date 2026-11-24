@@ -14,6 +14,11 @@
       <view v-if="session.ingredients.length" class="selected-list">
         <view v-for="item in session.ingredients" :key="item" class="selected-chip" :data-value="item" @tap="onRemoveIngredientTap">{{ item }} ×</view>
       </view>
+      <view class="staples-actions">
+        <button class="secondary-button" :disabled="!session.ingredients.length" tabindex="0" @click="saveCurrentStaples" @keydown.enter="saveCurrentStaples">保存为常备食材</button>
+        <button v-if="staples.length" class="secondary-button" tabindex="0" @click="updateStaples([])" @keydown.enter="updateStaples([])">清空常备食材</button>
+      </view>
+      <text v-if="staples.length" class="counter">本机已保存 {{ staples.length }} 种，下次打开时自动填入。</text>
 
       <view v-for="group in ingredientGroups" :key="group.category" class="tag-group">
         <text class="group-name">{{ group.category }}</text>
@@ -63,7 +68,7 @@
           <text v-if="result.safetyFilteredCount" class="filter-note">已硬过滤 {{ result.safetyFilteredCount }} 条安全冲突食谱。</text>
         </view>
 
-        <view v-for="item in result.matches" :key="item.recipe.id" class="result-card" @tap="openRecipe(item.recipe.id, item.targetServings)">
+        <view v-for="item in result.matches" :key="item.recipe.id" class="result-card" @tap="openRecipe(item.recipe, item.targetServings)">
           <view class="result-top">
             <text class="match-badge" :class="item.kind">{{ kindLabel(item.kind) }}</text>
             <text class="result-meta">{{ item.targetServings }} 人份 · {{ item.recipe.minutes }} 分钟</text>
@@ -72,6 +77,7 @@
           <text class="result-line">已有：{{ item.matchedIngredients.join('、') }}</text>
           <text v-if="item.missingIngredients.length" class="result-line missing">需再买：{{ item.missingIngredients.join('、') }}</text>
           <text v-if="item.substitutionsUsed.length" class="result-line substitution">登记替代：{{ item.substitutionsUsed.map((value) => `${value.from}→${value.to}`).join('；') }}</text>
+          <button v-if="item.missingIngredients.length" class="secondary-button copy-list" tabindex="0" @tap.stop="copyShoppingList(item)" @keydown.enter.stop.prevent="copyShoppingList(item)">复制需购买材料</button>
           <text class="detail-link">查看按份数换算后的食材和做法 →</text>
         </view>
       </template>
@@ -83,12 +89,12 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onHide, onShow } from '@dcloudio/uni-app'
 import { runtimeConfig } from '../../config/runtime'
 import { cloudApiEnabled, requestCloudPantry } from '../../adapters/cloud'
 import { loadProfile } from '../../services/profile'
-import { matchPantryRecipes, normalizePantryIngredients, pantryIngredientsEquivalent } from '../../services/pantry'
-import type { PantryCategory, PantryMatchKind, PantryMatchResult, PantrySession, WellnessProfile } from '../../types/domain'
+import { buildShoppingList, loadPantryStaples, matchPantryRecipes, normalizePantryIngredients, pantryIngredientsEquivalent, savePantryStaples } from '../../services/pantry'
+import type { PantryCategory, PantryMatchKind, PantryMatchResult, PantryRecipeMatch, PantrySession, RecipeTemplate, WellnessProfile } from '../../types/domain'
 
 const ingredientGroups: Array<{ category: PantryCategory; items: string[] }> = [
   { category: '主食', items: ['大米', '小米', '糯米', '小麦粉', '粽叶', '莲子'] },
@@ -116,10 +122,20 @@ let profile: WellnessProfile = loadProfile()
 const searchText = ref('')
 const result = ref<PantryMatchResult>()
 const matching = ref(false)
+const staples = ref<string[]>([])
+let matchRequestId = 0
 const session = reactive<PantrySession>({
   ingredients: [], maxMinutes: 45, tools: ['汤锅', '菜刀', '炒锅', '锅铲', '电饭锅'], targetServings: 2, maxAdditionalIngredients: 1,
 })
-watch(session, () => { result.value = undefined }, { deep: true, flush: 'sync' })
+function invalidateMatch() {
+  matchRequestId += 1
+  matching.value = false
+  result.value = undefined
+}
+watch(session, invalidateMatch, { deep: true, flush: 'sync' })
+onHide(() => {
+  if (matching.value) invalidateMatch()
+})
 
 type DatasetTapEvent = { currentTarget: { dataset: { value?: string | number } } }
 function eventValue(event: DatasetTapEvent): string | number { return event.currentTarget.dataset.value ?? '' }
@@ -148,16 +164,44 @@ function onToolTap(event: DatasetTapEvent) { toggleTool(String(eventValue(event)
 function onTimeTap(event: DatasetTapEvent) { session.maxMinutes = Number(eventValue(event)) }
 function onServingTap(event: DatasetTapEvent) { session.targetServings = Number(eventValue(event)) as PantrySession['targetServings'] }
 function onAdditionalTap(event: DatasetTapEvent) { session.maxAdditionalIngredients = Number(eventValue(event)) as PantrySession['maxAdditionalIngredients'] }
+function saveCurrentStaples() {
+  if (session.ingredients.length) updateStaples(session.ingredients)
+}
+
+function updateStaples(items: string[]) {
+  try {
+    staples.value = savePantryStaples(items)
+    if (!staples.value.length) session.ingredients = []
+    uni.showToast({ title: staples.value.length ? '常备食材已保存' : '常备食材已清空', icon: 'none' })
+  } catch {
+    uni.showToast({ title: '常备食材未更新，请检查本机存储', icon: 'none' })
+  }
+}
+
+function copyShoppingList(match: PantryRecipeMatch) {
+  const data = buildShoppingList(match)
+  if (!data) return
+  uni.setClipboardData({
+    data,
+    showToast: false,
+    success: () => uni.showToast({ title: '需购买材料已复制', icon: 'none' }),
+    fail: () => uni.showToast({ title: '复制失败，可查看结果卡上的需购买材料', icon: 'none' }),
+  })
+}
+
 function kindLabel(kind: PantryMatchKind): string { return ({ complete: '材料齐全', substitution: '使用登记替代', missing: '缺少少量材料' })[kind] }
 async function runMatch() {
+  if (matching.value) return
   if (!session.ingredients.length) { uni.showToast({ title: '请先录入至少 1 种食材', icon: 'none' }); return }
   if (!session.tools.length) { uni.showToast({ title: '请至少选择 1 件厨具', icon: 'none' }); return }
   const request = { ...session, ingredients: [...session.ingredients], tools: [...session.tools] }
   const local = matchPantryRecipes(request, profile, { allowDemoContent: runtimeConfig.dataMode === 'demo' })
   if (local.safety.blocked || !cloudApiEnabled()) { result.value = local; return }
+  const requestId = ++matchRequestId
   matching.value = true
   try {
     const cloud = await requestCloudPantry(request, profile)
+    if (requestId !== matchRequestId) return
     result.value = {
       safety: local.safety,
       matches: cloud.matches,
@@ -167,22 +211,37 @@ async function runMatch() {
       message: cloud.message,
     }
   } catch {
+    if (requestId !== matchRequestId) return
     result.value = local
     uni.showToast({ title: '云服务暂不可用，已使用离线结果', icon: 'none' })
   } finally {
-    matching.value = false
+    if (requestId === matchRequestId) matching.value = false
   }
 }
-function openRecipe(recipeId: string, servings: number) { uni.navigateTo({ url: `/pages/recipe/detail?id=${encodeURIComponent(recipeId)}&servings=${servings}` }) }
+function openRecipe(recipe: RecipeTemplate, servings: number) {
+  uni.navigateTo({ url: `/pages/recipe/detail?id=${encodeURIComponent(recipe.id)}&version=${encodeURIComponent(recipe.version)}&servings=${servings}` })
+}
 function openProfile() { uni.switchTab({ url: '/pages/profile/index' }) }
 onShow(() => {
   const next = loadProfile()
-  if (JSON.stringify(next) !== JSON.stringify(profile)) result.value = undefined
+  if (JSON.stringify(next) !== JSON.stringify(profile)) invalidateMatch()
   profile = next
+  try {
+    const saved = loadPantryStaples()
+    if (JSON.stringify(saved) !== JSON.stringify(staples.value)) {
+      staples.value = saved
+      session.ingredients = [...saved]
+    }
+  } catch {
+    // Keep the current working list if the device cannot read local storage.
+  }
 })
 </script>
 
 <style scoped>
+.staples-actions { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
+.secondary-button { margin: 0; padding: 0 16rpx; color: #123d35; background: #edf4ee; border-radius: 14rpx; font-size: 22rpx; }
+.copy-list { width: fit-content; margin: 12rpx 0 0; }
 .page { min-height: 100vh; padding: 36rpx 28rpx 60rpx; box-sizing: border-box; }
 .demo-badge { display: inline-block; padding: 8rpx 14rpx; color: #7b561d; background: #f5e8c8; border-radius: 999rpx; font-size: 22rpx; font-weight: 700; }
 .title, .copy, .section-title, .label, .counter, .group-name, .message-kicker, .message-title, .message-copy, .filter-note, .result-name, .result-line, .detail-link { display: block; }

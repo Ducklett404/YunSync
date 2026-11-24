@@ -15,7 +15,7 @@ from .schemas import PantryRecommendationRequest, TodayRecommendationRequest
 from .weather import WeatherClient
 
 
-RULE_VERSION = "m12-deterministic-v1"
+RULE_VERSION = "m12-deterministic-v3"
 MISSING_SENTINEL = {"missing": True}
 
 INGREDIENT_ALIAS_GROUPS = [
@@ -96,9 +96,7 @@ def _cache_digest(payload: dict[str, Any]) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32]
 
 
-def _conflicts(recipe: Recipe, restrictions: Iterable[str]) -> bool:
-    ingredients = [item.get("name", "") for item in recipe.ingredients]
-    searchable = [*recipe.allergens, *recipe.exclusions, *ingredients]
+def _food_terms_conflict(searchable: list[str], restrictions: Iterable[str]) -> bool:
     for restriction in restrictions:
         if any(_equivalent(restriction, value) for value in searchable):
             return True
@@ -106,6 +104,11 @@ def _conflicts(recipe: Recipe, restrictions: Iterable[str]) -> bool:
         if token and any(token in _compact(value) for value in searchable):
             return True
     return False
+
+
+def _conflicts(recipe: Recipe, restrictions: Iterable[str]) -> bool:
+    ingredients = [item.get("name", "") for item in recipe.ingredients]
+    return _food_terms_conflict([*recipe.allergens, *recipe.exclusions, *ingredients], restrictions)
 
 
 def _find_content_for_date(
@@ -155,7 +158,7 @@ class YunSyncService:
         }
 
     def recipe(self, recipe_id: str) -> tuple[dict[str, Any] | None, str, bool]:
-        cache_key = self.cache.key("recipe", recipe_id)
+        cache_key = self.cache.key(f"recipe:{RULE_VERSION}", recipe_id)
         cached = self.cache.get_json(cache_key)
         if cached.hit:
             if cached.value == MISSING_SENTINEL:
@@ -172,8 +175,10 @@ class YunSyncService:
         return payload, "miss", cached.degraded or degraded
 
     def recommend_today(self, request: TodayRecommendationRequest) -> dict[str, Any]:
+        date_value = request.date or date.today()
         raw_request = request.model_dump(mode="json")
-        cache_key = self.cache.key("recommendation:today", _cache_digest(raw_request))
+        raw_request["date"] = date_value.isoformat()
+        cache_key = self.cache.key(f"recommendation:today:{RULE_VERSION}", _cache_digest(raw_request))
         cached = self.cache.get_json(cache_key)
         if cached.hit:
             payload = dict(cached.value)
@@ -187,7 +192,6 @@ class YunSyncService:
                 payload["degraded"].append("cache")
             return payload
 
-        date_value = request.date or date.today()
         recipes = self.repository.list_recipes()
         contents = self.repository.list_seasonal_contents()
         seasonal = _find_content_for_date(contents, date_value)
@@ -288,7 +292,7 @@ class YunSyncService:
 
     def recommend_pantry(self, request: PantryRecommendationRequest) -> dict[str, Any]:
         raw_request = request.model_dump(mode="json")
-        cache_key = self.cache.key("recommendation:pantry", _cache_digest(raw_request))
+        cache_key = self.cache.key(f"recommendation:pantry:{RULE_VERSION}", _cache_digest(raw_request))
         cached = self.cache.get_json(cache_key)
         if cached.hit:
             payload = dict(cached.value)
@@ -328,6 +332,7 @@ class YunSyncService:
                         for item in recipe.substitutions
                         if _equivalent(item.get("from", ""), name)
                         and _contains_equivalent(request.ingredients, item.get("to", ""))
+                        and not _food_terms_conflict([item.get("to", "")], restrictions)
                     ),
                     None,
                 )

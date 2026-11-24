@@ -71,7 +71,7 @@
       <button class="small-button privacy-button" tabindex="0" @click="exportLocalData" @keydown.enter="exportLocalData">导出我的本机数据</button>
       <text class="helper">以下操作清除收藏、最近浏览和食谱反馈，保留用于安全筛查的档案与体感。</text>
       <button class="small-button clear-button" tabindex="0" @click="confirmClearRecords" @keydown.enter="confirmClearRecords">清除收藏、浏览与反馈</button>
-      <text class="helper danger-helper">撤回本机数据使用会删除档案、每日体感、推荐历史、天气缓存、收藏、浏览和反馈。删除后无法恢复。</text>
+      <text class="helper danger-helper">撤回本机数据使用会删除档案、每日体感、推荐历史、天气缓存、常备食材、收藏、浏览和反馈。删除后无法恢复。</text>
       <button class="small-button danger-button" tabindex="0" @click="confirmDeleteAllData" @keydown.enter="confirmDeleteAllData">撤回并删除全部本机数据</button>
     </view>
   </view>
@@ -82,6 +82,7 @@ import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { loadProfile, saveProfile } from '../../services/profile'
 import { runtimeConfig } from '../../config/runtime'
+import { cloudApiEnabled } from '../../adapters/cloud'
 import { clearEngagement, loadSavedRecipes, setFavorite } from '../../services/engagement'
 import { buildLocalDataExport, deleteAllLocalData } from '../../services/privacy'
 import { isConstitutionSurveyAvailable, loadConstitutionSurveyResult } from '../../services/constitution'
@@ -107,7 +108,7 @@ const favorites = ref<SavedRecipeView[]>([])
 const recent = ref<SavedRecipeView[]>([])
 const constitutionSurveyAvailable = isConstitutionSurveyAvailable()
 const constitutionResult = ref<ConstitutionSurveyResult>()
-const contentOptions = { allowDemoContent: runtimeConfig.dataMode === 'demo' }
+const contentOptions = { allowDemoContent: runtimeConfig.dataMode === 'demo', allowCloudLookup: cloudApiEnabled() }
 const savedSections = computed(() => [
   { kind: 'favorites', title: '我的收藏', items: favorites.value },
   { kind: 'recent', title: '最近浏览', items: recent.value },
@@ -158,7 +159,7 @@ function resetFormFromStorage() {
 function confirmDeleteAllData() {
   uni.showModal({
     title: '撤回并删除全部数据？',
-    content: '将删除当前设备内的档案、体感、推荐历史、天气缓存和收藏反馈，无法恢复。',
+    content: '将删除当前设备内的档案、体感、推荐历史、天气缓存、常备食材和收藏反馈，无法恢复。',
     cancelText: '取消', confirmText: '全部删除',
     success(result) {
       if (!result.confirm) return

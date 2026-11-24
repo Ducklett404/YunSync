@@ -1,5 +1,5 @@
 import { m2RecipeLibrary, recipeConflictsWith } from '../src/data/m2'
-import { matchPantryRecipes } from '../src/services/pantry'
+import { buildShoppingList, matchPantryRecipes } from '../src/services/pantry'
 import type { PantrySession, WellnessProfile } from '../src/types/domain'
 
 interface HouseholdCase {
@@ -60,7 +60,29 @@ for (const scenario of cases) {
       match.recipe.substitutions.some((registered) => registered.from === used.from && registered.to === used.to),
     )
     add(`${scenario.name}：替代关系已登记`, substitutionsRegistered, match.substitutionsUsed.map((item) => `${item.from}->${item.to}`).join(',') || '未使用替代')
+    if (match.kind === 'substitution') {
+      add(`${scenario.name}：替代后无需补购`, buildShoppingList(match) === '', match.recipe.id)
+    }
   }
+}
+
+const unsafeSubstitute = matchPantryRecipes({
+  ingredients: ['小米', '南瓜'], tools: ['汤锅', '菜刀'], maxMinutes: 30, maxAdditionalIngredients: 0, targetServings: 2,
+}, { ...baseProfile, allergens: ['南瓜'] }, { allowDemoContent: true })
+add('登记替代也遵循个人过敏限制', unsafeSubstitute.matches.length === 0, unsafeSubstitute.message)
+
+const laba = matchPantryRecipes({
+  ingredients: ['大米', '糯米', '红豆'], tools: ['汤锅', '量杯'], maxMinutes: 90, maxAdditionalIngredients: 2, targetServings: 2,
+}, baseProfile, { allowDemoContent: true }).matches.find(match => match.recipe.id === 'm2-laba-porridge')
+const labaList = laba ? buildShoppingList(laba) : ''
+add('两种缺料按份数换算', labaList === '腊八杂粮粥（演示）（2 人份）\n莲子 12.5克\n红枣 15克', labaList)
+if (laba) {
+  const ambiguous = {
+    ...laba,
+    recipe: { ...laba.recipe, ingredients: laba.recipe.ingredients.map(item => item.name === '红枣' ? { ...item, amount: '20–30克' } : item) },
+  }
+  const list = buildShoppingList(ambiguous)
+  add('无法可靠换算的用量只列食材名', list.endsWith('\n红枣'), list)
 }
 
 const sixteenIngredients = Array.from({ length: 16 }, (_, index) => `食材${index + 1}`)

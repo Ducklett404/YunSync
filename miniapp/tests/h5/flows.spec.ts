@@ -5,6 +5,28 @@ const profile = '/#/pages/profile/index'
 const today = '/#/pages/today/index'
 const pantry = '/#/pages/pantry/index'
 
+test('离线日历在跨年后仍展示正确农历、节庆和节气', async ({ page }) => {
+  const dates = [
+    { date: '2026-12-31', lunar: '十一月廿三' },
+    { date: '2027-01-01', lunar: '十一月廿四' },
+    { date: '2027-02-04', lunar: '十二月廿八', event: '立春', time: '09:46' },
+    { date: '2027-02-06', lunar: '正月初一', event: '春节' },
+    { date: '2027-06-10', lunar: '五月初六' },
+  ]
+  for (const { date, lunar, event, time } of dates) {
+    await page.clock.setFixedTime(new Date(`${date}T12:00:00Z`))
+    await page.goto(today)
+    await page.reload()
+    await expect(page.locator('.date')).toContainText(lunar)
+    if (event) {
+      await expect(page.locator('.calendar-context')).toContainText(event)
+      if (time) await expect(page.locator('.calendar-context')).toContainText(time)
+    } else {
+      await expect(page.locator('.calendar-context')).toHaveCount(0)
+    }
+  }
+})
+
 test('一句话输入在离线规则下阻断高风险并排除过敏食谱', async ({ page }) => {
   await page.goto(today)
   await page.locator('.natural-input textarea').fill('我高烧39度，给我治病的粥')
@@ -108,6 +130,82 @@ test('返回食材页时过敏档案改变使旧结果失效', async ({ page }) 
   await page.screenshot({ path: 'test-results/m5-profile.png', fullPage: true })
 })
 
+test('常备食材去重保存、重开预填，仍按最新过敏档案过滤', async ({ page }) => {
+  await page.goto(pantry)
+  await page.locator('.search-input input').fill('番茄,西红柿,豆腐,食用油')
+  await page.locator('.add-action').click()
+  await page.getByText('保存为常备食材', { exact: true }).click()
+  await expect(page.getByText('本机已保存 3 种', { exact: false })).toBeVisible()
+  await page.reload()
+  await expect(page.locator('.selected-chip')).toHaveCount(3)
+  await page.locator('.selected-chip').filter({ hasText: '食用油' }).click()
+  await expect(page.locator('.selected-chip')).toHaveCount(2)
+  await page.reload()
+  await expect(page.locator('.selected-chip')).toHaveCount(3)
+
+  await page.locator('.uni-tabbar__label').filter({ hasText: /^我的$/ }).click()
+  await page.locator('.input input').first().fill('大豆')
+  await page.locator('.primary-button').click()
+  await page.locator('.uni-tabbar__label').filter({ hasText: /^食材$/ }).click()
+  await page.locator('.primary-button').click()
+  await expect(page.locator('.result-name').filter({ hasText: '番茄豆腐汤' })).toHaveCount(0)
+  await expect(page.locator('.filter-note')).toBeVisible()
+  await page.getByText('清空常备食材', { exact: true }).click()
+  await expect(page.locator('.results')).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('.selected-chip')).toHaveCount(0)
+})
+
+test('复制缺料清单只包含需要购买的食材，按当前份数换算', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto(pantry)
+  await page.locator('.search-input input').fill('番茄,豆腐')
+  await page.locator('.add-action').click()
+  const card = page.locator('.result-card').filter({ hasText: '番茄豆腐汤' })
+  const copy = card.getByText('复制需购买材料', { exact: true })
+  const clipboard = async () => (await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n')
+
+  await page.locator('.primary-button').click()
+  await copy.click()
+  await expect.poll(clipboard).toBe('番茄豆腐汤（2 人份）\n食用油 5毫升')
+  expect(page.url()).toContain('/pages/pantry/index')
+  await page.getByText('4人家庭', { exact: true }).click()
+  await expect(copy).toHaveCount(0)
+  await page.locator('.primary-button').click()
+  await copy.click()
+  await expect.poll(clipboard).toBe('番茄豆腐汤（4 人份）\n食用油 10毫升')
+
+  await page.locator('.tag').filter({ hasText: /^食用油$/ }).click()
+  await page.locator('.primary-button').click()
+  await expect(card.locator('.match-badge')).toHaveText('材料齐全')
+  await expect(copy).toHaveCount(0)
+})
+
+test('三道样例可逐步跟做并查看完成提示', async ({ page }) => {
+  for (const id of ['demo-yam-millet', 'demo-tomato-tofu', 'demo-greens']) {
+    await page.goto(`/#/pages/recipe/detail?id=${id}`)
+    await page.reload()
+    await expect(page.locator('.step')).toHaveCount(4)
+    await page.getByText('开始跟做', { exact: true }).click()
+    await expect(page.locator('.guided-step')).toContainText('完成提示')
+    await expect(page.locator('.cooking-progress')).toHaveText('第 1 步 / 共 4 步')
+    await page.getByText('下一步', { exact: true }).click()
+    await expect(page.locator('.cooking-progress')).toHaveText('第 2 步 / 共 4 步')
+    await page.getByText('上一步', { exact: true }).click()
+    await expect(page.locator('.cooking-progress')).toHaveText('第 1 步 / 共 4 步')
+
+    await page.getByText('下一步', { exact: true }).click()
+    await page.getByText('下一步', { exact: true }).click()
+    if (id === 'demo-tomato-tofu') await expect(page.locator('.guided-step')).toContainText('参考用时约 8 分钟')
+    await page.getByText('下一步', { exact: true }).click()
+    await page.getByText('完成跟做', { exact: true }).click()
+    await expect(page.locator('.step')).toHaveCount(4)
+    await page.getByText('开始跟做', { exact: true }).click()
+    await page.getByText('查看全部步骤', { exact: true }).click()
+    await expect(page.locator('.guided-step')).toHaveCount(0)
+  }
+})
+
 test('无定位权限和离线时仍能打开食谱', async ({ page, context }) => {
   await context.clearPermissions()
   await page.goto(recipe)
@@ -135,7 +233,11 @@ test('本地资源延迟500毫秒时首页仍能进入食谱详情', async ({ pa
 
 test('本机健康数据可导出并在撤回后完整删除', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-  await page.goto(profile)
+  await page.goto(pantry)
+  await page.locator('.search-input input').fill('番茄')
+  await page.locator('.add-action').click()
+  await page.getByText('保存为常备食材', { exact: true }).click()
+  await page.locator('.uni-tabbar__label').filter({ hasText: /^我的$/ }).click()
   await page.locator('.input input').first().fill('花生')
   await page.locator('.primary-button').click()
   await page.getByText('导出我的本机数据', { exact: true }).click()
@@ -143,6 +245,7 @@ test('本机健康数据可导出并在撤回后完整删除', async ({ page, co
   const exported = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()))
   expect(exported.schemaVersion).toBe('yunsync-local-export-v1')
   expect(exported.data['yunsync:wellness-profile:v2'].allergens).toEqual(['花生'])
+  expect(exported.data['yunsync:pantry-staples:v1']).toEqual(['番茄'])
 
   await page.getByText('撤回并删除全部本机数据', { exact: true }).click()
   await page.getByText('取消', { exact: true }).click()
@@ -151,4 +254,7 @@ test('本机健康数据可导出并在撤回后完整删除', async ({ page, co
   await page.getByText('全部删除', { exact: true }).click()
   await expect(page.locator('.input input').first()).toHaveValue('')
   await expect(page.getByText('本机数据已删除', { exact: true })).toBeVisible()
+  await page.locator('.uni-tabbar__label').filter({ hasText: /^食材$/ }).click()
+  await expect(page.locator('.selected-chip')).toHaveCount(0)
+  await expect(page.getByText('清空常备食材', { exact: true })).toHaveCount(0)
 })

@@ -57,18 +57,24 @@ const reasonLabels: Record<string, string> = {
   pantry_match: '现有食材和常用厨具参与匹配',
 }
 
-function requestCloud<T>(path: string, data: Record<string, unknown>): Promise<T> {
+export class CloudHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`云 API HTTP ${status}`)
+  }
+}
+
+function requestCloud<T>(path: string, data?: Record<string, unknown>): Promise<T> {
   if (!runtimeConfig.cloudApiBaseUrl) return Promise.reject(new Error('云 API 未配置'))
   return new Promise((resolve, reject) => {
     uni.request({
       url: `${runtimeConfig.cloudApiBaseUrl}${path}`,
-      method: 'POST',
+      method: data ? 'POST' : 'GET',
       data,
       timeout: runtimeConfig.cloudApiTimeoutMs,
-      header: { 'Content-Type': 'application/json' },
+      header: data ? { 'Content-Type': 'application/json' } : undefined,
       success: (response) => {
         if (response.statusCode < 200 || response.statusCode >= 300) {
-          reject(new Error(`云 API HTTP ${response.statusCode}`))
+          reject(new CloudHttpError(response.statusCode))
           return
         }
         resolve(response.data as T)
@@ -94,6 +100,19 @@ function assertTraceableRecipe(recipe: RecipeTemplate | null): void {
 
 export function cloudApiEnabled(): boolean {
   return Boolean(runtimeConfig.cloudApiBaseUrl)
+}
+
+export async function requestCloudRecipe(recipeId: string, version?: string): Promise<RecipeTemplate> {
+  const query = version ? `?version=${encodeURIComponent(version)}` : ''
+  const response = await requestCloud<{ recipe: RecipeTemplate }>(`/v1/recipes/${encodeURIComponent(recipeId)}${query}`)
+  const recipe = response?.recipe
+  if (!recipe || recipe.id !== recipeId || !recipe.source || !recipe.version || !recipe.reviewStatus
+    || !Array.isArray(recipe.ingredients) || !Array.isArray(recipe.steps) || !Array.isArray(recipe.tools)
+    || !Array.isArray(recipe.substitutions) || !Array.isArray(recipe.allergens) || !Array.isArray(recipe.exclusions)) {
+    throw new CloudHttpError(422)
+  }
+  if (version && recipe.version !== version) throw new CloudHttpError(409)
+  return recipe
 }
 
 export async function requestCloudToday(

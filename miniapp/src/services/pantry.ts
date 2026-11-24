@@ -1,6 +1,7 @@
-import { m2RecipeLibrary, recipeConflictsWith } from '../data/m2'
+import { foodTermsConflict, m2RecipeLibrary, recipeConflictsWith } from '../data/m2'
 import { screenSafety } from './safety'
 import { isContentAvailable } from './content'
+import { scaleRecipeAmount } from './recipe-amount'
 import type {
   DailyCheckIn,
   PantryMatchKind,
@@ -12,6 +13,7 @@ import type {
 } from '../types/domain'
 
 const automaticBasics = ['清水']
+const staplesKey = 'yunsync:pantry-staples:v1'
 const ingredientAliasGroups = [
   ['番茄', '西红柿'],
   ['北豆腐', '嫩豆腐', '豆腐'],
@@ -71,7 +73,34 @@ export function normalizePantryIngredients(values: string[]): string[] {
   return normalized
 }
 
-function matchRecipe(recipe: RecipeTemplate, session: PantrySession): PantryRecipeMatch | undefined {
+export function loadPantryStaples(): string[] {
+  const saved: unknown = uni.getStorageSync(staplesKey)
+  return Array.isArray(saved) ? normalizePantryIngredients(saved.filter((value): value is string => typeof value === 'string')) : []
+}
+
+export function savePantryStaples(values: string[]): string[] {
+  const normalized = normalizePantryIngredients(values)
+  if (normalized.length) uni.setStorageSync(staplesKey, normalized)
+  else uni.removeStorageSync(staplesKey)
+  return normalized
+}
+
+export function buildShoppingList(match: PantryRecipeMatch): string {
+  const missing = normalizePantryIngredients(match.missingIngredients)
+    .filter(name => !pantryHas(match.matchedIngredients, name)
+      && !match.substitutionsUsed.some(substitution => pantryIngredientsEquivalent(substitution.from, name)))
+  if (!missing.length) return ''
+  const items = missing.map(name => {
+    const ingredients = match.recipe.ingredients.filter(item => pantryIngredientsEquivalent(item.name, name))
+    const amount = ingredients.length === 1
+      ? scaleRecipeAmount(ingredients[0].amount, match.recipe.servings, match.targetServings)
+      : undefined
+    return amount ? `${name} ${amount}` : name
+  })
+  return [`${match.recipe.name}（${match.targetServings} 人份）`, ...items].join('\n')
+}
+
+function matchRecipe(recipe: RecipeTemplate, session: PantrySession, restrictions: string[]): PantryRecipeMatch | undefined {
   if (recipe.minutes > session.maxMinutes || !toolsAvailable(session.tools, recipe.tools)) return undefined
 
   const matchedIngredients: string[] = []
@@ -89,7 +118,9 @@ function matchRecipe(recipe: RecipeTemplate, session: PantrySession): PantryReci
     }
 
     const substitution = recipe.substitutions.find((item) =>
-      equivalent(item.from, ingredient.name, ingredientAliasGroups) && pantryHas(session.ingredients, item.to),
+      equivalent(item.from, ingredient.name, ingredientAliasGroups)
+        && pantryHas(session.ingredients, item.to)
+        && !foodTermsConflict([item.to], restrictions),
     )
     if (substitution) {
       substitutionsUsed.push({ from: substitution.from, to: substitution.to, note: substitution.note })
@@ -139,7 +170,7 @@ export function matchPantryRecipes(
   const safeRecipes = contentEligible.filter((recipe) => !recipeConflictsWith(recipe, restrictions))
   const safetyFilteredCount = contentEligible.length - safeRecipes.length
   const matches = safeRecipes
-    .map((recipe) => matchRecipe(recipe, session))
+    .map((recipe) => matchRecipe(recipe, session, restrictions))
     .filter((item): item is PantryRecipeMatch => Boolean(item))
     .sort((left, right) => {
       const rank: Record<PantryMatchKind, number> = { complete: 0, substitution: 1, missing: 2 }
