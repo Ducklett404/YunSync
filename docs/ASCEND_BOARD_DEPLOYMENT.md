@@ -1,12 +1,12 @@
-# YunSync 昇腾开发板初步部署指南
+# 香橙派 AIpro 20T 部署指南
 
-本指南适用于同一局域网内的首次演示。完成后，用电脑或手机打开板子的 H5 页面，提交一句“有点着凉，想喝粥”，由板上的 FastAPI、PostgreSQL 和 Redis 返回推荐。演示使用仓库自带的 12 道 DEMO 食谱。板卡型号、系统镜像和实机运行结果待现场确认。
+目标是在香橙派 AIpro 20T 的 ARM64 Linux 上运行 YunSync：H5、FastAPI、PostgreSQL 和 Redis 均在板上运行。推荐规则使用 CPU，默认无需配置天气或 MaaS。本次适配不包含 NPU 推理，未进行板卡实机验收。
 
-前端在 Windows 电脑构建，板上只运行静态文件服务和后端容器。默认配置通过 CPU 执行推荐规则，可以先跑通这条链路；需要演示 NPU 推理时，另见文末。
+部署入口为 [deploy/orangepi/board.sh](../deploy/orangepi/board.sh)，独立使用 [板端 Compose 配置](../deploy/orangepi/compose.yml)。浏览器通过 `http://板卡IP:8080/` 打开页面，H5 使用同源 `/api` 访问后端；板卡 IP 改变后无需重新构建。数据库和 Redis 只在容器网络内访问。
 
-## 1. 确认板端环境
+## 1. 板端准备
 
-在板子的 Linux 终端执行以下命令。记下板卡型号、系统、CPU 架构、可用内存、磁盘空间，以及电脑能访问的板端 IP。下文使用 `192.168.1.100` 举例，请换成实际地址。
+在板子的 Linux 终端运行：
 
 ```bash
 uname -m
@@ -19,85 +19,122 @@ docker compose version
 python3 --version
 ```
 
-继续前先确认当前账号能访问 Docker 引擎，并且有 Compose v2、Python 3 和 Git。电脑需要 Node.js、npm 和 scp。首次在线构建需要板子能下载容器镜像和 Python 依赖，电脑能下载 npm 依赖。现场断网时，提前在相同架构的环境构建并传入 API、PostgreSQL、Redis 镜像，同时带上 H5 构建产物。
+要求：
 
-## 2. 在板上启动后端
+- CPU 架构为 `aarch64` / `arm64`；Ubuntu 或 openEuler 系统须已安装并启动 Docker Engine。
+- 当前用户能执行 `docker info`，并安装 Docker Compose 插件 2.20 或更新版本（使用 `docker compose` 命令）。
+- 主机有 Bash 和 Python 3；应用使用容器内的 Python 3.12、Node.js 22，避免更改板端系统 Python 和昇腾软件环境。
+- 首次构建能访问 Docker Hub、npm 和 PyPI，并有足够磁盘空间保存构建缓存和数据。
 
-先在构建 H5 的电脑上运行 `git rev-parse HEAD`，记下本次演示提交的完整 SHA。在板上用单独的目录检出同一提交。
-
-```bash
-git clone https://github.com/Ducklett404/YunSync.git ~/YunSync-demo
-cd ~/YunSync-demo
-read -r -p '输入本次演示提交的完整 Git SHA：' deploy_sha
-git switch --detach "$deploy_sha"
-git rev-parse --short HEAD
-```
-
-H5 将从板子的 8080 端口提供，API 使用 8000 端口。下面用单独的 Compose 配置文件把 H5 的实际来源加入允许列表。请在同一终端执行。
+Ubuntu 可按 [Docker 官方安装说明](https://docs.docker.com/engine/install/ubuntu/)安装引擎，Compose 见 [官方插件说明](https://docs.docker.com/compose/install/linux/)。openEuler 使用对应发行版提供的 Docker 安装方式，再确认以上命令通过。不同系统的包安装命令不应混用。若需要重启后自动运行容器，确认 Docker 服务已启用：
 
 ```bash
-BOARD_IP=192.168.1.100
-cat > backend/compose.board.local.yml <<EOF
-services:
-  api:
-    environment:
-      YUNSYNC_CORS_ORIGINS: "http://${BOARD_IP}:8080,http://localhost:5173"
-EOF
-
-docker compose -f backend/docker-compose.yml -f backend/compose.board.local.yml up -d --build
-docker compose -f backend/docker-compose.yml ps
+sudo systemctl enable --now docker
 ```
 
-等 `postgres` 和 `redis` 显示 `healthy`、`api` 显示运行后，再执行下一步。API 启动时会执行数据库迁移并导入演示食谱。仓库的 Compose 使用开发模式和 PostgreSQL 的 `trust` 认证，这套配置仅用于可信局域网演示。 [Compose 配置](../backend/docker-compose.yml)
+## 2. 将代码放到板上
 
-## 3. 在板上验收 API
-
-在板子的 `~/YunSync-demo` 目录运行：
+如果适配文件已经提交到 GitHub，可以在板上克隆仓库：
 
 ```bash
-curl -fsS http://127.0.0.1:8000/health
-python3 deploy/m14/smoke.py --api-base http://127.0.0.1:8000 \
-  --allow-local-http --allow-degraded
+git clone https://github.com/Ducklett404/YunSync.git ~/YunSync
+cd ~/YunSync
 ```
 
-先看健康信息中的 `dependencies.database` 和 `dependencies.cache`。本方案应分别显示 `postgresql` 和 `redis`，两项状态均为 `ok`。默认未配置天气服务和云端模型，总状态显示 `degraded` 属于预期。
-
-再看验收脚本的输出。通过时会看到 `"result": "pass"`，检查项包括节日上下文、今日推荐、食材匹配和自然语言推荐。默认配置下，自然语言样例的 `maas` 字段应为 `rules_fallback`。 [验收脚本](../deploy/m14/smoke.py)
-
-## 4. 在电脑构建 H5，在板上提供页面
-
-在 Windows **PowerShell** 中执行。修改前两行的板端 IP 和 SSH 用户名，API 地址会在构建时写入前端产物。
-
-```powershell
-$boardIp = '192.168.1.100'
-$boardUser = '板端用户名'
-Set-Location 'D:\A_MyProjects\ICT\YunSync\miniapp'
-$env:VITE_YUNSYNC_API_BASE_URL = "http://${boardIp}:8000"
-npm ci
-npm run build:h5
-scp -r dist/build/h5 "${boardUser}@${boardIp}:~/YunSync-demo/"
-```
-
-在板上开一个终端，启动演示用静态服务，并在演示期间保持该终端运行。
+如果适配仍是开发机上的本地修改，先将完整工作目录同步到板上。在开发机仓库根目录运行下面的命令，替换 SSH 用户和 IP。同步保留板上的 `.env` 和已有文件，不传开发机依赖、密钥与本地数据库：
 
 ```bash
-cd ~/YunSync-demo
-python3 -m http.server 8080 --bind 0.0.0.0 --directory h5
+rsync -az \
+  --exclude='.git/' --exclude='node_modules/' --exclude='.venv/' \
+  --exclude='dist/' --exclude='__pycache__/' --exclude='.DS_Store' \
+  --exclude='.site-packages/' --exclude='.m14-venv/' \
+  --exclude='test-results/' --exclude='playwright-report/' \
+  --include='.env.example' --exclude='.env*' \
+  --exclude='/backend/data/' --exclude='/deploy/m14/out/' \
+  ./ orangepi@192.168.1.100:~/YunSync/
 ```
 
-在同一局域网的电脑上打开 `http://192.168.1.100:8080`。在首页提交“有点着凉，想喝粥”，打开浏览器开发者工具的 **Network（网络）** 面板，确认 `POST /v1/recommendations/natural` 的目标为板子 IP 的 8000 端口、响应为 HTTP 200，且响应中有 `main.id`。这个请求可以验证页面使用了板端返回的食谱。
+## 3. 构建并启动
 
-## 5. 现场排查与停机
+在板上的仓库根目录运行：
 
-| 现象 | 检查方法 |
+```bash
+cd ~/YunSync
+bash deploy/orangepi/board.sh check
+bash deploy/orangepi/board.sh init
+bash deploy/orangepi/board.sh up
+```
+
+`init` 生成只允许当前用户读写的 `deploy/orangepi/.env`，包含随机数据库密码。重复运行不会覆盖该文件。默认网页端口是 8080；如被占用，先修改 `.env` 中的 `YUNSYNC_BOARD_HTTP_PORT`。
+
+`up` 在板上构建 ARM64 API 镜像和 H5/Nginx 镜像，启动 PostgreSQL、Redis，执行迁移并导入 12 道 DEMO 食谱。数据库和缓存健康后才启动 API；API 健康后再启动网页，最后自动执行验收。首次构建耗时取决于板卡和网络。
+
+完成后，在板上或同一局域网的电脑、手机打开：
+
+```text
+http://192.168.1.100:8080/
+```
+
+将 IP 替换为 `hostname -I` 显示且电脑可访问的板端地址。全部服务使用 `restart: unless-stopped`，Docker 服务启用后，未手动停止的容器会随系统恢复运行。
+
+## 4. 验收
+
+```bash
+bash deploy/orangepi/board.sh status
+bash deploy/orangepi/board.sh smoke
+curl -fsS http://127.0.0.1:8080/api/health
+```
+
+验收经由 Nginx 的 `/api` 检查 PostgreSQL、Redis、节日上下文、今日推荐、食材匹配、自然语言推荐，并检查 H5 页面入口。通过时输出 `"result": "pass"`，数据库和缓存均为 `ok`。
+
+默认天气、MaaS 未配置，因此 `/api/health` 的总状态为 `degraded`，自然语言推荐的 `ai.status` 为 `rules_fallback`，属于预期。验收脚本不会将数据库或 Redis 故障视为正常降级。
+
+在页面提交“有点着凉，想喝粥”，用浏览器 Network 面板确认请求地址为板子的 `/api/v1/recommendations/natural`，HTTP 200 且响应含 `main.id`；进入食谱详情核对内容来自板端 API。当前内容仍为 12 道 DEMO 食谱。
+
+## 5. 日常操作与备份
+
+```bash
+# 查看最近日志；也可在 logs 后添加 api / web / postgres / redis
+bash deploy/orangepi/board.sh logs
+
+# 暂停；需要恢复时再次执行 up
+bash deploy/orangepi/board.sh stop
+
+# 删除容器和项目网络，保留数据库与缓存卷
+bash deploy/orangepi/board.sh down
+
+# 同步新代码后重新构建、启动并验收
+bash deploy/orangepi/board.sh up
+```
+
+已从 GitHub 克隆的干净工作目录可以先运行 `git pull --ff-only`；使用开发机本地改动时，先重新同步工作目录。`up` 会让网页服务随 API 更新重启，重新解析后端地址。
+
+数据库保存在 `yunsync-orangepi_postgres-data`，缓存保存在 `yunsync-orangepi_redis-data`。备份数据库示例：
+
+```bash
+docker compose --project-name yunsync-orangepi \
+  --env-file deploy/orangepi/.env -f deploy/orangepi/compose.yml \
+  exec -T postgres pg_dump -U yunsync_app -d yunsync > yunsync-backup.sql
+```
+
+同时单独备份 `.env`。已有数据库时不要重新生成或随意更改其中的数据库密码；PostgreSQL 初始化变量不会修改已有数据卷的密码。`stop` / `down` 保留数据；不要对需要保留的数据使用 `down -v`。
+
+可选天气服务或云端 MaaS 的配置见 `.env.example` 和 [后端说明](../backend/README.md)。修改 `.env` 后再次执行 `up`。默认配置用于局域网演示；公网发布使用原有 [M14 部署流程](../deploy/m14/README.md)。
+
+## 6. 排查
+
+| 现象 | 处理 |
 | --- | --- |
-| 构建报镜像架构不匹配 | 对照 `uname -m` 检查预制镜像。板端若为 aarch64，应准备 linux/arm64 镜像。 |
-| 8000 端口没有响应 | 在板上运行 `docker compose -f backend/docker-compose.yml logs --tail=80 api postgres redis`，先看依赖健康状态和迁移错误。 |
-| 板上验收通过，电脑打不开 | 在电脑 PowerShell 用 `Test-NetConnection $boardIp -Port 8000` 和 `Test-NetConnection $boardIp -Port 8080` 分别检查连通性，再检查网段、端口和板端防火墙。 |
-| 页面有内容，但没有板端推荐请求 | 检查构建时的 API 地址，修改后重新构建并上传。若浏览器提示 CORS，核对地址栏中的协议、主机和端口与 `YUNSYNC_CORS_ORIGINS` 一致，重新执行第 2 步的 Compose 启动命令。 |
+| `check` 提示架构错误 | 确认系统和 Docker 引擎均为 ARM64；本配置固定使用 `linux/arm64`。 |
+| `docker compose` 不存在或不支持 `--wait` | 安装或更新 Compose 插件到 2.20 或更新版本。 |
+| 无法访问 Docker 引擎 | 先确认服务已启动、当前用户有访问权限。 |
+| 拉镜像或安装依赖失败 | 检查板端 DNS、网络和镜像源；本流程首次构建需要在线下载。 |
+| `up` 等待超时 | 用 `status` 和 `logs api postgres redis` 检查迁移、密码、磁盘空间和服务状态。 |
+| 本机通过但局域网打不开 | 检查实际 IP、网段和 8080（或自定义端口）的防火墙规则。 |
+| 页面打开但 API 报错 | 查看 `logs web api`，检查 `/api/health`。H5 应请求同源 `/api`。 |
 
-演示结束后，在静态服务终端按 Ctrl+C。在板端仓库根目录运行 `docker compose -f backend/docker-compose.yml stop` 暂停后端；下次使用 `docker compose -f backend/docker-compose.yml start` 恢复已有容器，再启动静态服务。
+## 实机记录
 
-## 如果验收要求板端 NPU 推理
+2026-11-25 本地验证：后端 34 项测试通过；前端类型检查和 `/api` 配置的 H5 构建通过；ARM64 / Python 3.12 二进制依赖下载通过；五个基础镜像均确认提供 `linux/arm64`；Compose 文件通过官方规范 Schema 校验；密码初始化、重复执行保留配置和验收脚本的依赖故障检测通过。当前开发机没有 Docker 引擎，未执行容器构建和启动测试。
 
-当前自然语言流程支持云端 MaaS 和规则回退。若要演示本地昇腾推理，先记录板卡型号、芯片、驱动、CANN 版本及可用内存；支持 `npu-smi` 的设备可运行 `npu-smi info` 查看设备状态。建议先把“一句话提取体感与食材标签”接到适配该板的模型，沿用现有标签校验、过敏过滤和规则回退。验收时，用同一次请求的板端模型执行记录及接口响应确认 NPU 实际参与。 [现有模型调用](../backend/app/maas.py) · [自然语言推荐流程](../backend/app/natural.py)
+板卡型号已确认：香橙派 AIpro 20T。系统具体版本、板端构建结果、接口和浏览器验收、重启恢复及数据持久化结果，均须在拿到板卡后记录。本地检查不能替代这些结果。

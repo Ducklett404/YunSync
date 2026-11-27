@@ -1,0 +1,99 @@
+name: yunsync-orangepi
+
+x-board-service: &board-service
+  platform: linux/arm64
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  postgres:
+    <<: *board-service
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: yunsync
+      POSTGRES_USER: yunsync_app
+      POSTGRES_PASSWORD: ${YUNSYNC_BOARD_DB_PASSWORD:?Run bash deploy/orangepi/board.sh init first}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yunsync_app -d yunsync"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  redis:
+    <<: *board-service
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    <<: *board-service
+    image: yunsync-orangepi-api:local
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    environment:
+      YUNSYNC_APP_ENV: development
+      YUNSYNC_DATABASE_URL: postgresql+psycopg://yunsync_app:${YUNSYNC_BOARD_DB_PASSWORD:?Initialize the board environment}@postgres:5432/yunsync
+      YUNSYNC_REDIS_URL: redis://redis:6379/0
+      YUNSYNC_ALLOW_DEMO_CONTENT: "true"
+      YUNSYNC_SEED_DEMO_CONTENT: "true"
+      YUNSYNC_CORS_ORIGINS: ""
+      YUNSYNC_WEATHER_API_URL: ${YUNSYNC_WEATHER_API_URL:-}
+      YUNSYNC_WEATHER_API_KEY: ${YUNSYNC_WEATHER_API_KEY:-}
+      YUNSYNC_MAAS_API_URL: ${YUNSYNC_MAAS_API_URL:-}
+      YUNSYNC_MAAS_API_KEY: ${YUNSYNC_MAAS_API_KEY:-}
+      YUNSYNC_MAAS_MODEL: ${YUNSYNC_MAAS_MODEL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import json, urllib.request;
+          h = json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4));
+          assert h['dependencies']['database']['status'] == 'ok';
+          assert h['dependencies']['cache']['status'] == 'ok'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  web:
+    <<: *board-service
+    image: yunsync-orangepi-web:local
+    build:
+      context: ../..
+      dockerfile: deploy/orangepi/Dockerfile.web
+    ports:
+      - "${YUNSYNC_BOARD_HTTP_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+volumes:
+  postgres-data:
+  redis-data:

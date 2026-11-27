@@ -8,6 +8,7 @@
 - **本地 API**：参见 [backend/README.md](backend/README.md)。可使用 SQLite/内存缓存离线开发，`/health` 会标记 `degraded`。
 - **公网 Demo**：尚未上线。M14 的云端资源、MaaS、域名和 CodeArts Pipeline 仍需开通、配置及验收；不得把本地预览当成华为云上线证据。
 - **部署手册**：[deploy/m14/README.md](deploy/m14/README.md)；[M14 验收记录](docs/competition/M14_ACCEPTANCE_RECORD.md)。
+- **香橙派 AIpro 20T**：[ARM64 Linux 部署指南](docs/ASCEND_BOARD_DEPLOYMENT.md)，板上构建并运行 H5、API、PostgreSQL、Redis；统一 8080 端口，支持数据持久化和容器重启。实机验收待完成。
 
 ## 架构
 
