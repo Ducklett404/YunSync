@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -21,26 +22,56 @@ class CacheRead:
 
 
 class MemoryTTLStore:
-    def __init__(self, now: Callable[[], float] | None = None):
-        self._now = now or time.time
-        self._values: dict[str, tuple[float, str]] = {}
+    MAX_VALUE_BYTES = 64 * 1024
+    CLEANUP_INTERVAL = 10
+
+    def __init__(
+        self,
+        now: Callable[[], float] | None = None,
+        *,
+        max_values: int = 256,
+        max_counters: int = 4096,
+    ):
+        self._now = now or time.monotonic
+        self._max_values = max_values
+        self._max_counters = max_counters
+        self._next_cleanup = float("-inf")
+        self._values: OrderedDict[str, tuple[float, bytes]] = OrderedDict()
         self._counters: dict[str, tuple[float, int]] = {}
         self._lock = threading.Lock()
 
+    def _expire_entries(self, now: float) -> None:
+        if now >= self._next_cleanup:
+            for store in (self._values, self._counters):
+                for key in [key for key, entry in store.items() if entry[0] <= now]:
+                    del store[key]
+            self._next_cleanup = now + self.CLEANUP_INTERVAL
+
     def get(self, key: str) -> str | None:
         with self._lock:
+            now = self._now()
+            self._expire_entries(now)
             record = self._values.get(key)
             if not record:
                 return None
             expires_at, value = record
-            if expires_at <= self._now():
+            if expires_at <= now:
                 self._values.pop(key, None)
                 return None
-            return value
+            self._values.move_to_end(key)
+            return value.decode("utf-8")
 
     def set(self, key: str, value: str, ttl_seconds: int) -> None:
+        encoded = value.encode("utf-8")
         with self._lock:
-            self._values[key] = (self._now() + ttl_seconds, value)
+            now = self._now()
+            self._expire_entries(now)
+            self._values.pop(key, None)
+            if self._max_values <= 0 or len(encoded) > self.MAX_VALUE_BYTES:
+                return
+            if len(self._values) >= self._max_values:
+                self._values.popitem(last=False)
+            self._values[key] = (now + ttl_seconds, encoded)
 
     def delete(self, key: str) -> None:
         with self._lock:
@@ -49,12 +80,18 @@ class MemoryTTLStore:
     def allow(self, key: str, limit: int, window_seconds: int) -> bool:
         with self._lock:
             now = self._now()
-            expires_at, count = self._counters.get(key, (now + window_seconds, 0))
+            self._expire_entries(now)
+            existing = self._counters.get(key)
+            if existing is None and len(self._counters) >= self._max_counters:
+                # An active window must not be evicted to admit a new client.
+                return False
+            expires_at, count = existing or (now + window_seconds, 0)
             if expires_at <= now:
                 expires_at, count = now + window_seconds, 0
-            count += 1
-            self._counters[key] = (expires_at, count)
-            return count <= limit
+            if count >= limit:
+                return False
+            self._counters[key] = (expires_at, count + 1)
+            return True
 
 
 class ResilientCache:

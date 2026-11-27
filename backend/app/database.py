@@ -5,17 +5,38 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Iterator
+from uuid import uuid4
 
-from sqlalchemy import Engine, create_engine, select, text
+from sqlalchemy import Engine, create_engine, event, select, text, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from .config import Settings
-from .models import AiOutputAudit, Base, Recipe, RecommendationAudit, SeasonalContent
+from .models import AiOutputAudit, Base, CatalogueState, Recipe, RecommendationAudit, SeasonalContent
 
 
 class DatabaseUnavailable(RuntimeError):
     pass
+
+
+class CatalogueSession(Session):
+    pass
+
+
+def _advance_catalogue_revision(session: Session) -> None:
+    session.execute(
+        update(CatalogueState).where(CatalogueState.id == 1).values(revision=uuid4().hex)
+    )
+
+
+@event.listens_for(CatalogueSession, "before_flush")
+def invalidate_catalogue_cache(session: Session, _flush_context, _instances) -> None:
+    content_types = (Recipe, SeasonalContent)
+    changed = any(isinstance(row, content_types) for row in (*session.new, *session.deleted))
+    if changed or any(
+        isinstance(row, content_types) and session.is_modified(row) for row in session.dirty
+    ):
+        _advance_catalogue_revision(session)
 
 
 def create_database_engine(settings: Settings) -> Engine:
@@ -34,7 +55,7 @@ class Database:
         self.session_factory = sessionmaker(
             bind=self.engine,
             expire_on_commit=False,
-            class_=Session,
+            class_=CatalogueSession,
         )
 
     def create_schema(self) -> None:
@@ -67,9 +88,26 @@ def _parse_timestamp(value: str) -> datetime:
 
 def seed_demo_content(database: Database, seed_path: Path) -> dict[str, int]:
     payload = json.loads(seed_path.read_text(encoding="utf-8"))
-    recipes = payload.get("recipes", [])
-    bundles = payload.get("bundles", [])
-    with database.session() as session:
+    recipes = payload["recipes"]
+    bundles = payload["bundles"]
+    if not isinstance(recipes, list) or not isinstance(bundles, list):
+        raise ValueError("demo seed must contain recipes and bundles lists")
+    recipe_ids = {item["id"] for item in recipes}
+    bundle_ids = {item["id"] for item in bundles}
+    if len(recipe_ids) != len(recipes) or len(bundle_ids) != len(bundles):
+        raise ValueError("demo seed contains duplicate IDs")
+
+    with database.session() as session, session.no_autoflush:
+        # Lock the same row for each import before reading the old catalogue.
+        _advance_catalogue_revision(session)
+        for model, active_ids in ((Recipe, recipe_ids), (SeasonalContent, bundle_ids)):
+            omitted = select(model).where(
+                model.is_demo.is_(True),
+                model.review_status == "demo",
+                model.id.not_in(active_ids),
+            )
+            for row in session.scalars(omitted):
+                row.review_status = "disabled"
         for item in recipes:
             session.merge(
                 Recipe(
@@ -120,6 +158,15 @@ class ContentRepository:
     def __init__(self, database: Database, allow_demo_content: bool):
         self.database = database
         self.allow_demo_content = allow_demo_content
+
+    def catalogue_revision(self) -> str:
+        try:
+            with self.database.session() as session:
+                return session.scalars(
+                    select(CatalogueState.revision).where(CatalogueState.id == 1)
+                ).one()
+        except SQLAlchemyError as exc:
+            raise DatabaseUnavailable("catalogue revision is unavailable") from exc
 
     def _eligible_recipe_query(self):
         query = select(Recipe).where(Recipe.review_status.in_(["approved", "demo"]))

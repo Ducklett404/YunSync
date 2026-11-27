@@ -67,7 +67,7 @@ bash deploy/orangepi/board.sh up
 
 `init` 生成只允许当前用户读写的 `deploy/orangepi/.env`，包含随机数据库密码。重复运行不会覆盖该文件。默认网页端口是 8080；如被占用，先修改 `.env` 中的 `YUNSYNC_BOARD_HTTP_PORT`。
 
-`up` 在板上构建 ARM64 API 镜像和 H5/Nginx 镜像，启动 PostgreSQL、Redis，执行迁移并导入 12 道 DEMO 食谱。数据库和缓存健康后才启动 API；API 健康后再启动网页，最后自动执行验收。首次构建耗时取决于板卡和网络。
+`up` 在板上构建 ARM64 API 镜像和 H5/Nginx 镜像并启动服务。API 会等待数据库可以登录，再执行迁移并导入 12 道 DEMO 食谱。H5 可以独立提供页面，并在 API 恢复后重新连接。四个容器就绪后脚本会自动验收。首次构建耗时取决于板卡和网络。
 
 完成后，在板上或同一局域网的电脑、手机打开：
 
@@ -107,9 +107,9 @@ bash deploy/orangepi/board.sh down
 bash deploy/orangepi/board.sh up
 ```
 
-已从 GitHub 克隆的干净工作目录可以先运行 `git pull --ff-only`；使用开发机本地改动时，先重新同步工作目录。`up` 会让网页服务随 API 更新重启，重新解析后端地址。
+已从 GitHub 克隆的干净工作目录可以先运行 `git pull --ff-only`；使用开发机本地改动时，先重新同步工作目录。API 更新后，Nginx 会通过 Docker 内部 DNS 自动重新连接。
 
-数据库保存在 `yunsync-orangepi_postgres-data`，缓存保存在 `yunsync-orangepi_redis-data`。备份数据库示例：
+数据库保存在 `yunsync-orangepi_postgres-data`。默认在内存中运行 Redis 缓存，重启后会重建缓存并重新计算限流窗口。需要保留缓存时，可以在 `.env` 设置 `YUNSYNC_BOARD_REDIS_APPENDONLY=yes` 并执行 `up`。现有 Redis 数据卷 `yunsync-orangepi_redis-data` 可继续使用。备份数据库示例：
 
 ```bash
 docker compose --project-name yunsync-orangepi \
@@ -120,6 +120,21 @@ docker compose --project-name yunsync-orangepi \
 同时单独备份 `.env`。已有数据库时不要重新生成或随意更改其中的数据库密码；PostgreSQL 初始化变量不会修改已有数据卷的密码。`stop` / `down` 保留数据；不要对需要保留的数据使用 `down -v`。
 
 可选天气服务或云端 MaaS 的配置见 `.env.example` 和 [后端说明](../backend/README.md)。修改 `.env` 后再次执行 `up`。默认配置用于局域网演示；公网发布使用原有 [M14 部署流程](../deploy/m14/README.md)。
+
+DEMO 种子文件是演示食谱和节庆包的完整清单。重新导入时，清单中省略的演示记录会被下架，已审批的正式内容仍可访问。食谱库更新后，推荐和详情会读取新版本的数据。
+
+### 恢复验收
+
+1. 在维护时段执行 `sudo reboot`。重新登录后进入 `~/YunSync` 并执行 `bash deploy/orangepi/board.sh smoke --wait-seconds 120`。确认输出 `"result": "pass"`，然后从同一局域网打开首页和任一推荐详情。
+2. 板上执行下面的命令，只重建 API 容器。重建期间验证 H5 首页仍可打开，再检查 API 是否自行恢复。命令前后的 Web 容器 ID 应一致。
+
+   ```bash
+   docker compose --env-file deploy/orangepi/.env -f deploy/orangepi/compose.yml ps -q web
+   docker compose --env-file deploy/orangepi/.env -f deploy/orangepi/compose.yml \
+     up -d --no-deps --force-recreate api
+   bash deploy/orangepi/board.sh smoke --wait-seconds 120
+   docker compose --env-file deploy/orangepi/.env -f deploy/orangepi/compose.yml ps -q web
+   ```
 
 ## 6. 排查
 
@@ -132,9 +147,12 @@ docker compose --project-name yunsync-orangepi \
 | `up` 等待超时 | 用 `status` 和 `logs api postgres redis` 检查迁移、密码、磁盘空间和服务状态。 |
 | 本机通过但局域网打不开 | 检查实际 IP、网段和 8080（或自定义端口）的防火墙规则。 |
 | 页面打开但 API 报错 | 查看 `logs web api`，检查 `/api/health`。H5 应请求同源 `/api`。 |
+| 代理网段与现有网络重叠 | 先执行 `down`，在 `.env` 修改 `YUNSYNC_BOARD_PROXY_SUBNET`、`YUNSYNC_BOARD_PROXY_DYNAMIC_RANGE` 和 `YUNSYNC_BOARD_PROXY_IP`，再执行 `up`。代理地址须位于代理网段内、动态地址池外。 |
 
 ## 实机记录
 
 2026-11-25 本地验证：后端 34 项测试通过；前端类型检查和 `/api` 配置的 H5 构建通过；ARM64 / Python 3.12 二进制依赖下载通过；五个基础镜像均确认提供 `linux/arm64`；Compose 文件通过官方规范 Schema 校验；密码初始化、重复执行保留配置和验收脚本的依赖故障检测通过。当前开发机没有 Docker 引擎，未执行容器构建和启动测试。
+
+2026-11-28 本地复测通过后端 38 项测试、H5 17 项浏览器测试、旧 SQLite 数据库升级和 Compose 配置校验。使用 Nginx 1.28.2 和本地模拟 API 验证了后端延迟启动和地址变化。H5 首页在 API 不可用期间仍能打开，API 恢复后板端验收脚本通过。整板重启和 Docker 网络恢复留待板卡实测。
 
 板卡型号已确认：香橙派 AIpro 20T。系统具体版本、板端构建结果、接口和浏览器验收、重启恢复及数据持久化结果，均须在拿到板卡后记录。本地检查不能替代这些结果。

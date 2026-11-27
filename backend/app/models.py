@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -13,6 +14,18 @@ def utc_now() -> datetime:
 
 class Base(DeclarativeBase):
     pass
+
+
+class CatalogueState(Base):
+    __tablename__ = "catalogue_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False)
+
+
+@event.listens_for(CatalogueState.__table__, "after_create")
+def initialize_catalogue_state(table, connection, **_kwargs) -> None:
+    connection.execute(table.insert().values(id=1, revision=uuid4().hex))
 
 
 class Recipe(Base):

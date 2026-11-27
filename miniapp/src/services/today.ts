@@ -136,6 +136,7 @@ export async function getTodayExperience({
           },
         }
       }
+      return { safety, message: '当前食谱库没有符合这些条件的推荐，可调整体感或到食材页尝试。' }
     } catch {
       // 云 API 不可用时继续执行本地确定性规则，保留离线演示能力。
     }

@@ -36,11 +36,15 @@ check_board() {
 }
 
 smoke() {
-  local mapping port
-  mapping="$(compose port web 80)"
-  port="${mapping##*:}"
-  [[ "$port" =~ ^[0-9]+$ ]] || { echo '未找到 H5 端口，请先启动服务。' >&2; exit 1; }
-  python3 "$board_dir/smoke.py" --base-url "http://127.0.0.1:$port"
+  local port
+  port="$(compose config --format json | python3 -c '
+import json
+import sys
+ports = json.load(sys.stdin)["services"]["web"]["ports"]
+print(next(port["published"] for port in ports if port["target"] == 80))
+')"
+  [[ "$port" =~ ^[0-9]+$ ]] || { echo '未找到 H5 端口，请检查部署配置。' >&2; exit 1; }
+  python3 "$board_dir/smoke.py" --base-url "http://127.0.0.1:$port" "$@"
   printf '局域网访问地址：http://<板卡IP>:%s/\n' "$port"
 }
 
@@ -64,11 +68,11 @@ case "${1:-help}" in
     require_env
     compose config --quiet
     compose up -d --build --wait --wait-timeout 240
-    smoke
+    smoke --wait-seconds 60
     ;;
   smoke)
     require_env
-    smoke
+    smoke "${@:2}"
     ;;
   status)
     require_env
@@ -89,6 +93,7 @@ case "${1:-help}" in
   help|-h|--help)
     echo '用法：bash deploy/orangepi/board.sh {init|check|up|smoke|status|logs [服务名]|stop|down}'
     echo '首次部署：init → up。up 构建并启动服务，随后验收页面与 API。'
+    echo '重启或重建 API 后：smoke --wait-seconds 120'
     echo 'stop/down 均保留数据库卷；更新代码后再次执行 up。'
     ;;
   *)

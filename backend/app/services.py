@@ -158,7 +158,7 @@ class YunSyncService:
         }
 
     def recipe(self, recipe_id: str) -> tuple[dict[str, Any] | None, str, bool]:
-        cache_key = self.cache.key(f"recipe:{RULE_VERSION}", recipe_id)
+        cache_key = self._catalogue_cache_key("recipe", recipe_id)
         cached = self.cache.get_json(cache_key)
         if cached.hit:
             if cached.value == MISSING_SENTINEL:
@@ -174,11 +174,16 @@ class YunSyncService:
         )
         return payload, "miss", cached.degraded or degraded
 
+    def _catalogue_cache_key(self, namespace: str, digest: str) -> str:
+        revision = self.repository.catalogue_revision()
+        visibility = "demo" if self.repository.allow_demo_content else "approved"
+        return self.cache.key(f"{namespace}:{RULE_VERSION}:{visibility}:{revision}", digest)
+
     def recommend_today(self, request: TodayRecommendationRequest) -> dict[str, Any]:
         date_value = request.date or date.today()
         raw_request = request.model_dump(mode="json")
         raw_request["date"] = date_value.isoformat()
-        cache_key = self.cache.key(f"recommendation:today:{RULE_VERSION}", _cache_digest(raw_request))
+        cache_key = self._catalogue_cache_key("recommendation:today", _cache_digest(raw_request))
         cached = self.cache.get_json(cache_key)
         if cached.hit:
             payload = dict(cached.value)
@@ -292,7 +297,7 @@ class YunSyncService:
 
     def recommend_pantry(self, request: PantryRecommendationRequest) -> dict[str, Any]:
         raw_request = request.model_dump(mode="json")
-        cache_key = self.cache.key(f"recommendation:pantry:{RULE_VERSION}", _cache_digest(raw_request))
+        cache_key = self._catalogue_cache_key("recommendation:pantry", _cache_digest(raw_request))
         cached = self.cache.get_json(cache_key)
         if cached.hit:
             payload = dict(cached.value)

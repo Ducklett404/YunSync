@@ -8,6 +8,17 @@ test.skip(process.env.VITE_YUNSYNC_API_BASE_URL !== 'http://127.0.0.1:5186/mock-
 const demoRecipe = demoContent.recipes.find(recipe => recipe.id === 'demo-yam-millet')!
 const cloudRecipe = { ...demoRecipe, id: 'board-only-recipe', version: 'board-v2', name: '板端家常粥' }
 
+test('板端确认没有推荐时不展示本机旧食谱', async ({ page }) => {
+  await page.route('**/mock-api/v1/recommendations/today', route => route.fulfill({ json: {
+    main: null, alternatives: [], degraded: [], reasons: [],
+    weather: { available: false, text: '天气暂不可用' },
+  } }))
+
+  await page.goto('/#/pages/today/index')
+  await expect(page.getByText(/当前食谱库没有符合这些条件的推荐/)).toBeVisible()
+  await expect(page.locator('.recipe-name')).toHaveCount(0)
+})
+
 test('旧食材响应在条件改动后无法写回或结束新请求', async ({ page }) => {
   const replies: Array<() => Promise<void>> = []
   await page.route('**/mock-api/v1/recommendations/pantry', async route => {

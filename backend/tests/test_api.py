@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.database import DatabaseUnavailable, seed_demo_content
 from app.main import create_app
@@ -88,10 +90,66 @@ def test_versioned_recipe_checks_current_catalogue_even_with_cached_detail(app_c
     response = client.get(path, params={"version": "m2-demo-3"})
     assert response.json()["recipe"]["version"] == "m2-demo-3"
     assert response.json()["cache"]["status"] == "bypass"
+    assert client.get(path).json()["recipe"]["version"] == "m2-demo-3"
 
     with app_client.state.database.session() as session:
         session.get(Recipe, "demo-yam-millet").review_status = "disabled"
     assert client.get(path, params={"version": "m2-demo-3"}).status_code == 404
+    assert client.get(path).status_code == 404
+
+
+def test_seed_update_replaces_warm_results_and_retires_omitted_demo_content(app_client, tmp_path):
+    client = TestClient(app_client)
+    db = app_client.state.database
+    seed = json.loads(app_client.state.settings.seed_path.read_text(encoding="utf-8"))
+    seed_path = tmp_path / "catalogue.json"
+
+    def import_seed() -> None:
+        seed_path.write_text(json.dumps(seed, ensure_ascii=False), encoding="utf-8")
+        seed_demo_content(db, seed_path)
+
+    approved = {
+        **seed["recipes"][0],
+        "id": "approved-test-recipe",
+        "isDemo": False,
+        "reviewStatus": "approved",
+    }
+    seed["recipes"].append(approved)
+    import_seed()
+
+    today_path = "/v1/recommendations/today"
+    first = client.post(today_path, json=TODAY_PAYLOAD).json()
+    selected_id = first["main"]["id"]
+    detail_path = f"/v1/recipes/{selected_id}"
+    assert client.get(detail_path).json()["recipe"]["version"] == first["main"]["version"]
+    assert client.post(today_path, json=TODAY_PAYLOAD).json()["cache"]["status"] == "hit"
+
+    pantry_path = "/v1/recommendations/pantry"
+    pantry_input = {
+        "ingredients": ["西红柿", "豆腐", "鸡蛋", "食用油"],
+        "tools": ["汤锅", "菜刀"],
+        "maxAdditionalIngredients": 0,
+    }
+    assert client.post(pantry_path, json=pantry_input).json()["matches"][0]["recipe"]["id"] == "demo-tomato-tofu"
+
+    selected = next(row for row in seed["recipes"] if row["id"] == selected_id)
+    selected["version"] = "demo-test-new-version"
+    seed["recipes"] = [row for row in seed["recipes"] if row["id"] not in {"demo-tomato-tofu", approved["id"]}]
+    import_seed()
+
+    updated = client.post(today_path, json=TODAY_PAYLOAD).json()
+    assert updated["cache"]["status"] == "miss"
+    assert updated["main"]["version"] == selected["version"]
+    assert client.get(detail_path, params={"version": selected["version"]}).status_code == 200
+    assert client.get("/v1/recipes/demo-tomato-tofu").status_code == 404
+    assert client.post(pantry_path, json=pantry_input).json()["matches"] == []
+    assert client.get(f"/v1/recipes/{approved['id']}").status_code == 200
+    with db.session() as session:
+        assert session.get(Recipe, "demo-tomato-tofu").review_status == "disabled"
+
+    seed["bundles"] = [row for row in seed["bundles"] if row["id"] != "m2-laba"]
+    import_seed()
+    assert client.post(today_path, json=TODAY_PAYLOAD).json()["seasonalContent"] is None
 
 
 def test_calendar_context_and_recommendations_cover_the_2027_boundary(app_client):
@@ -203,6 +261,23 @@ def test_rate_limit_falls_back_without_redis(tmp_path):
     assert app.state.cache.allow("client") == (True, "memory", True)
     assert app.state.cache.allow("client") == (True, "memory", True)
     assert app.state.cache.allow("client") == (False, "memory", True)
+
+
+def test_rate_limit_separates_forwarded_clients_and_ignores_untrusted_peer(tmp_path):
+    app = create_app(make_settings(tmp_path, rate_limit_requests=1))
+    proxy_ip = "172.30.84.2"
+    application = ProxyHeadersMiddleware(app, trusted_hosts=proxy_ip)
+    proxy = TestClient(application, client=(proxy_ip, 5555))
+    direct = TestClient(application, client=("172.30.84.40", 5555))
+    path = "/v1/recipes/does-not-exist"
+
+    with proxy:
+        assert proxy.get(path, headers={"X-Forwarded-For": "192.0.2.11"}).status_code == 404
+        assert proxy.get(path, headers={"X-Forwarded-For": "192.0.2.11"}).status_code == 429
+        assert proxy.get(path, headers={"X-Forwarded-For": "192.0.2.12"}).status_code == 404
+        assert direct.get(path, headers={"X-Forwarded-For": "192.0.2.21"}).status_code == 404
+        assert direct.get(path, headers={"X-Forwarded-For": "192.0.2.22"}).status_code == 429
+    app.state.database.engine.dispose()
 
 
 def test_recipe_negative_cache(app_client):
