@@ -5,12 +5,14 @@ function positiveNumber(value: string | undefined, fallback: number): number {
 
 const environment = import.meta.env || {}
 const dataMode = (environment.VITE_DATA_MODE || 'demo') as 'demo' | 'real'
+const cloudApiTimeoutMs = positiveNumber(environment.VITE_YUNSYNC_API_TIMEOUT_MS, 5000)
 
 export const runtimeConfig = {
   dataMode,
   showDemoBadge: dataMode !== 'real',
   cloudApiBaseUrl: (environment.VITE_YUNSYNC_API_BASE_URL || '').trim().replace(/\/$/, ''),
-  cloudApiTimeoutMs: positiveNumber(environment.VITE_YUNSYNC_API_TIMEOUT_MS, 5000),
+  cloudApiTimeoutMs,
+  cloudNaturalTimeoutMs: positiveNumber(environment.VITE_YUNSYNC_NATURAL_TIMEOUT_MS, cloudApiTimeoutMs),
   weatherEndpoint: (environment.VITE_YUNSYNC_WEATHER_ENDPOINT || '').trim(),
   weatherProvider: (environment.VITE_YUNSYNC_WEATHER_PROVIDER || '').trim(),
   weatherTimeoutMs: positiveNumber(environment.VITE_YUNSYNC_WEATHER_TIMEOUT_MS, 4000),

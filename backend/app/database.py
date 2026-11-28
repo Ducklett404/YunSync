@@ -108,6 +108,19 @@ def seed_demo_content(database: Database, seed_path: Path) -> dict[str, int]:
             )
             for row in session.scalars(omitted):
                 row.review_status = "disabled"
+
+        # Board restarts replay the demo manifest. A subsequently approved
+        # recipe or bundle may still have the ID it used during the trial.
+        def pending_import(model, items):
+            demo_ids = [item["id"] for item in items if item.get("isDemo", True)]
+            protected = set(session.scalars(select(model.id).where(
+                model.id.in_(demo_ids),
+                (model.is_demo.is_(False)) | (model.review_status == "approved"),
+            )))
+            return [item for item in items if item["id"] not in protected]
+
+        recipes = pending_import(Recipe, recipes)
+        bundles = pending_import(SeasonalContent, bundles)
         for item in recipes:
             session.merge(
                 Recipe(

@@ -1,1 +1,3 @@
 deploy/m14/*.sh text eol=lf
+deploy/orangepi/*.sh text eol=lf
+deploy/orangepi/.env.example text eol=lf

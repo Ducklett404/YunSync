@@ -10,7 +10,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.database import DatabaseUnavailable, seed_demo_content
 from app.main import create_app
-from app.models import Recipe, RecommendationAudit
+from app.models import Recipe, RecommendationAudit, SeasonalContent
 from app.schemas import PantryRecommendationRequest, TodayRecommendationRequest
 from conftest import make_settings
 
@@ -150,6 +150,23 @@ def test_seed_update_replaces_warm_results_and_retires_omitted_demo_content(app_
     seed["bundles"] = [row for row in seed["bundles"] if row["id"] != "m2-laba"]
     import_seed()
     assert client.post(today_path, json=TODAY_PAYLOAD).json()["seasonalContent"] is None
+
+
+def test_board_restart_preserves_content_promoted_from_demo_ids(app_client):
+    db = app_client.state.database
+    seed = json.loads(app_client.state.settings.seed_path.read_text(encoding="utf-8"))
+    for model, item in ((Recipe, seed["recipes"][0]), (SeasonalContent, seed["bundles"][0])):
+        with db.session() as session:
+            row = session.get(model, item["id"])
+            row.is_demo = False
+            row.review_status = "approved"
+            row.version = "signed-v1"
+    counts = seed_demo_content(db, app_client.state.settings.seed_path)
+    assert counts == {"recipes": len(seed["recipes"]) - 1, "seasonalContents": len(seed["bundles"]) - 1}
+    with db.session() as session:
+        for model, item in ((Recipe, seed["recipes"][0]), (SeasonalContent, seed["bundles"][0])):
+            row = session.get(model, item["id"])
+            assert (row.version, row.is_demo, row.review_status) == ("signed-v1", False, "approved")
 
 
 def test_calendar_context_and_recommendations_cover_the_2027_boundary(app_client):

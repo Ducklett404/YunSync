@@ -6,14 +6,14 @@ import argparse
 import json
 import re
 import sys
-from urllib.parse import urlencode, urlparse
+from urllib.parse import quote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 
-def fetch_json(url: str, payload: dict | None = None) -> dict:
+def fetch_json(url: str, payload: dict | None = None, *, timeout: int = 12) -> dict:
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8") if payload is not None else None
     request = Request(url, data=data, headers={"Content-Type": "application/json"} if data else {})
-    with urlopen(request, timeout=12) as response:
+    with urlopen(request, timeout=timeout) as response:
         if response.status != 200:
             raise RuntimeError(f"HTTP {response.status}")
         result = json.load(response)
@@ -31,7 +31,8 @@ def check_url(value: str, allow_local_http: bool) -> str:
     raise ValueError("public endpoints must use HTTPS")
 
 
-def smoke(api_base: str, h5_url: str | None, expected_sha: str | None, strict: bool) -> dict:
+def smoke(api_base: str, h5_url: str | None, expected_sha: str | None, strict: bool,
+          *, verify_recipe: bool = False) -> dict:
     if strict and (not h5_url or not expected_sha):
         raise ValueError("cloud acceptance requires an H5 URL and exact Git commit ID")
     checks: list[str] = []
@@ -59,6 +60,16 @@ def smoke(api_base: str, h5_url: str | None, expected_sha: str | None, strict: b
     if not today.get("main", {}).get("id"):
         raise RuntimeError("today recommendation is empty")
     checks.append("today_feeling")
+    if verify_recipe:
+        main = today["main"]
+        if not main.get("version"):
+            raise RuntimeError("recommended recipe has no version")
+        query = urlencode({"version": main["version"]})
+        path = quote(main["id"], safe="")
+        detail = fetch_json(f"{api_base}/v1/recipes/{path}?{query}").get("recipe", {})
+        if detail.get("id") != main["id"] or detail.get("version") != main["version"] or not detail.get("steps"):
+            raise RuntimeError("recommended recipe detail is missing or inconsistent")
+        checks.append("versioned_recipe")
 
     pantry = fetch_json(f"{api_base}/v1/recommendations/pantry", {
         "ingredients": ["西红柿", "豆腐", "鸡蛋", "食用油"], "tools": ["汤锅", "菜刀"],
@@ -70,7 +81,7 @@ def smoke(api_base: str, h5_url: str | None, expected_sha: str | None, strict: b
 
     natural = fetch_json(f"{api_base}/v1/recommendations/natural", {
         "text": "有点着凉，想喝粥", "city": "北京", "region": "华北", "date": "2026-01-26"
-    })
+    }, timeout=30)
     if not natural.get("main", {}).get("id"):
         raise RuntimeError("natural recommendation is empty")
     if strict and natural.get("ai", {}).get("status") != "assisted":

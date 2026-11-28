@@ -7,8 +7,10 @@ import importlib.util
 import json
 import sys
 import time
+from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
+from urllib.request import urlopen
 
 
 def load_api_smoke():
@@ -17,6 +19,39 @@ def load_api_smoke():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+class EntryAssets(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.scripts = []
+        self.styles = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "script" and attrs.get("type") == "module" and attrs.get("src"):
+            self.scripts.append(attrs["src"])
+        if tag == "link" and "stylesheet" in attrs.get("rel", "").split() and attrs.get("href"):
+            self.styles.append(attrs["href"])
+
+
+def check_h5(base_url):
+    assets = EntryAssets()
+    with urlopen(base_url, timeout=12) as entry:
+        if entry.headers.get_content_type() != "text/html":
+            raise RuntimeError("H5 entry is not HTML")
+        assets.feed(entry.read(250_000).decode("utf-8"))
+    if not assets.scripts or not assets.styles:
+        raise RuntimeError("H5 entry has no application script or stylesheet")
+    for paths, types in ((assets.scripts, {"application/javascript", "text/javascript"}),
+                         (assets.styles, {"text/css"})):
+        for path in paths:
+            url = urljoin(base_url + "/", path)
+            if urlparse(url)[:2] != urlparse(base_url)[:2]:
+                raise RuntimeError("H5 entry references an asset outside the board")
+            with urlopen(url, timeout=12) as asset:
+                if asset.headers.get_content_type() not in types or not asset.read(1):
+                    raise RuntimeError(f"invalid H5 asset: {path}")
 
 
 def check_board(base_url: str, wait_seconds: float = 0) -> dict:
@@ -42,8 +77,11 @@ def check_board(base_url: str, wait_seconds: float = 0) -> dict:
                 raise
             time.sleep(min(2, remaining))
 
-    result = api.smoke(f"{base_url}/api", base_url, None, strict=False)
-    result["checks"] = ["h5_entry" if name == "h5_https" else name for name in result["checks"]]
+    check_h5(base_url)
+    result = api.smoke(f"{base_url}/api", None, None, strict=False, verify_recipe=True)
+    if result["database"] != "ok" or result["cache"] != "ok":
+        raise RuntimeError("board dependencies degraded during acceptance")
+    result["checks"].extend(["h5_entry", "h5_assets"])
     return result
 
 

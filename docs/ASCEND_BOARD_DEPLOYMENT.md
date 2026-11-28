@@ -23,7 +23,7 @@ python3 --version
 
 - CPU 架构为 `aarch64` / `arm64`；Ubuntu 或 openEuler 系统须已安装并启动 Docker Engine。
 - 当前用户能执行 `docker info`，并安装 Docker Compose 插件 2.20 或更新版本（使用 `docker compose` 命令）。
-- 主机有 Bash 和 Python 3；应用使用容器内的 Python 3.12、Node.js 22，避免更改板端系统 Python 和昇腾软件环境。
+- 主机有 Bash 和 Python 3.7 或更新版本。应用使用容器内的 Python 3.12 和 Node.js 22。
 - 首次构建能访问 Docker Hub、npm 和 PyPI，并有足够磁盘空间保存构建缓存和数据。
 
 Ubuntu 可按 [Docker 官方安装说明](https://docs.docker.com/engine/install/ubuntu/)安装引擎，Compose 见 [官方插件说明](https://docs.docker.com/compose/install/linux/)。openEuler 使用对应发行版提供的 Docker 安装方式，再确认以上命令通过。不同系统的包安装命令不应混用。若需要重启后自动运行容器，确认 Docker 服务已启用：
@@ -34,24 +34,31 @@ sudo systemctl enable --now docker
 
 ## 2. 将代码放到板上
 
-如果适配文件已经提交到 GitHub，可以在板上克隆仓库：
+如果使用本次上板测试源码包，把 `YunSync-orangepi-boardtest-*.tar.gz` 复制到板上的用户主目录。在板端执行下面的命令，把示例文件名换为实际文件名。已有部署时使用原项目目录，以便继续读取原来的数据库配置。
+
+```bash
+mkdir -p ~/YunSync
+tar -xzf ~/YunSync-orangepi-boardtest-文件标识.tar.gz -C ~/YunSync
+cd ~/YunSync
+```
+
+首次从 GitHub 部署时，在板上克隆仓库：
 
 ```bash
 git clone https://github.com/Ducklett404/YunSync.git ~/YunSync
 cd ~/YunSync
 ```
 
-如果适配仍是开发机上的本地修改，先将完整工作目录同步到板上。在开发机仓库根目录运行下面的命令，替换 SSH 用户和 IP。同步保留板上的 `.env` 和已有文件，不传开发机依赖、密钥与本地数据库：
+测试开发机上的本地修改时，在仓库根目录用 Linux 或 WSL 的 rsync 同步部署所需文件。替换 SSH 用户和 IP。命令保留板上的 `.env` 与已有数据卷。
 
 ```bash
-rsync -az \
-  --exclude='.git/' --exclude='node_modules/' --exclude='.venv/' \
-  --exclude='dist/' --exclude='__pycache__/' --exclude='.DS_Store' \
-  --exclude='.site-packages/' --exclude='.m14-venv/' \
-  --exclude='test-results/' --exclude='playwright-report/' \
-  --include='.env.example' --exclude='.env*' \
-  --exclude='/backend/data/' --exclude='/deploy/m14/out/' \
-  ./ orangepi@192.168.1.100:~/YunSync/
+git ls-files -z --cached --others --exclude-standard -- \
+  .dockerignore backend/Dockerfile backend/requirements.txt backend/alembic.ini \
+  backend/alembic backend/app backend/scripts backend/seeds \
+  miniapp/package.json miniapp/package-lock.json miniapp/index.html miniapp/src \
+  miniapp/vite.config.ts miniapp/tsconfig.json miniapp/shims-uni.d.ts \
+  deploy/orangepi deploy/m14/smoke.py docs/ASCEND_BOARD_DEPLOYMENT.md |
+  rsync -az --from0 --files-from=- ./ orangepi@192.168.1.100:~/YunSync/
 ```
 
 ## 3. 构建并启动
@@ -60,12 +67,12 @@ rsync -az \
 
 ```bash
 cd ~/YunSync
-bash deploy/orangepi/board.sh check
 bash deploy/orangepi/board.sh init
+bash deploy/orangepi/board.sh check
 bash deploy/orangepi/board.sh up
 ```
 
-`init` 生成只允许当前用户读写的 `deploy/orangepi/.env`，包含随机数据库密码。重复运行不会覆盖该文件。默认网页端口是 8080；如被占用，先修改 `.env` 中的 `YUNSYNC_BOARD_HTTP_PORT`。
+`init` 生成权限为 0600 的 `deploy/orangepi/.env`，包含随机数据库密码，重复运行会保留原配置。`check` 检查 ARM64、Docker 引擎、Compose 版本及已初始化的端口和代理地址配置。默认网页端口是 8080。如端口已被占用，修改 `.env` 中的 `YUNSYNC_BOARD_HTTP_PORT` 后重跑 `check`。用 `ip -4 route` 确认代理子网与实际局域网、VPN 路由无重叠。
 
 `up` 在板上构建 ARM64 API 镜像和 H5/Nginx 镜像并启动服务。API 会等待数据库可以登录，再执行迁移并导入 12 道 DEMO 食谱。H5 可以独立提供页面，并在 API 恢复后重新连接。四个容器就绪后脚本会自动验收。首次构建耗时取决于板卡和网络。
 
@@ -85,7 +92,7 @@ bash deploy/orangepi/board.sh smoke
 curl -fsS http://127.0.0.1:8080/api/health
 ```
 
-验收经由 Nginx 的 `/api` 检查 PostgreSQL、Redis、节日上下文、今日推荐、食材匹配、自然语言推荐，并检查 H5 页面入口。通过时输出 `"result": "pass"`，数据库和缓存均为 `ok`。
+验收经由 Nginx 的 `/api` 检查 PostgreSQL、Redis、节日上下文、今日推荐、带版本号的食谱详情、食材匹配和自然语言推荐。脚本还会读取 H5 首页所引用的入口 JavaScript 和样式文件，检查响应类型和非空内容。通过时输出 `"result": "pass"`，数据库和缓存均为 `ok`。
 
 默认天气、MaaS 未配置，因此 `/api/health` 的总状态为 `degraded`，自然语言推荐的 `ai.status` 为 `rules_fallback`，属于预期。验收脚本不会将数据库或 Redis 故障视为正常降级。
 
@@ -117,7 +124,7 @@ docker compose --project-name yunsync-orangepi \
   exec -T postgres pg_dump -U yunsync_app -d yunsync > yunsync-backup.sql
 ```
 
-同时单独备份 `.env`。已有数据库时不要重新生成或随意更改其中的数据库密码；PostgreSQL 初始化变量不会修改已有数据卷的密码。`stop` / `down` 保留数据；不要对需要保留的数据使用 `down -v`。
+同时单独备份 `.env`。如果检测到已有 PostgreSQL 卷而配置文件丢失，`init` 会提示恢复原配置。可从备份恢复，或将 `.env.example` 复制为权限 0600 的 `.env` 后填入原密码。PostgreSQL 只在首次初始化数据卷时读取初始化密码。`stop` 和 `down` 都保留数据库卷。
 
 可选天气服务或云端 MaaS 的配置见 `.env.example` 和 [后端说明](../backend/README.md)。修改 `.env` 后再次执行 `up`。默认配置用于局域网演示；公网发布使用原有 [M14 部署流程](../deploy/m14/README.md)。
 
@@ -149,10 +156,21 @@ DEMO 种子文件是演示食谱和节庆包的完整清单。重新导入时，
 | 页面打开但 API 报错 | 查看 `logs web api`，检查 `/api/health`。H5 应请求同源 `/api`。 |
 | 代理网段与现有网络重叠 | 先执行 `down`，在 `.env` 修改 `YUNSYNC_BOARD_PROXY_SUBNET`、`YUNSYNC_BOARD_PROXY_DYNAMIC_RANGE` 和 `YUNSYNC_BOARD_PROXY_IP`，再执行 `up`。代理地址须位于代理网段内、动态地址池外。 |
 
-## 实机记录
+## 上板前验证记录
 
 2026-11-25 本地验证：后端 34 项测试通过；前端类型检查和 `/api` 配置的 H5 构建通过；ARM64 / Python 3.12 二进制依赖下载通过；五个基础镜像均确认提供 `linux/arm64`；Compose 文件通过官方规范 Schema 校验；密码初始化、重复执行保留配置和验收脚本的依赖故障检测通过。当前开发机没有 Docker 引擎，未执行容器构建和启动测试。
 
 2026-11-28 本地复测通过后端 38 项测试、H5 17 项浏览器测试、旧 SQLite 数据库升级和 Compose 配置校验。使用 Nginx 1.28.2 和本地模拟 API 验证了后端延迟启动和地址变化。H5 首页在 API 不可用期间仍能打开，API 恢复后板端验收脚本通过。整板重启和 Docker 网络恢复留待板卡实测。
+
+2026-11-28 本轮在 `76c3fa9` 基础上修复并复测：
+
+| 环境 | 检查结果 |
+| --- | --- |
+| Windows 工作区同步至 Linux Bash | 复现并修复 CRLF 导致的启动失败。首次初始化、0600 权限、重复初始化、旧卷缺少配置的保护，以及 Compose 版本和代理地址检查均已通过。 |
+| 本地真实服务 | PostgreSQL 17、Redis 7.4、Nginx 1.28 和 FastAPI 经同一网页端口联调通过。浏览器打开了推荐对应版本的详情。停止 API 后首页可用；重启 PostgreSQL 后审计记录保留；重新启动 API 后验收通过；停止 Redis 后验收报错。 |
+| 自动回归 | 后端 39 项、H5 浏览器 17 项、板端配置和页面资源回归 4 项通过。可在仓库根目录运行 `python3 -m unittest discover -s deploy/orangepi -p test_board.py` 复跑后四项。 |
+| ARM64 模拟运行 | 五个基础镜像均有 Linux ARM64 清单。在 QEMU 下使用 ARM64 Node 22、Rollup 和 esbuild 构建了 H5。使用 ARM64 Python 3.12 安装后端依赖、加载 psycopg 二进制驱动及 uvloop，并在临时 SQLite 库完成三次迁移，导入 12 道演示食谱和 8 个内容包。 |
+
+板端 API 按上海时区处理未传日期的请求。配置可选 MaaS 时，一句话推荐在 H5 上最多等待 35 秒，其他 API 请求沿用原超时。通过 `/api/docs` 打开的接口文档和 API 跳转均沿用板子的网页端口与 `/api` 前缀。
 
 板卡型号已确认：香橙派 AIpro 20T。系统具体版本、板端构建结果、接口和浏览器验收、重启恢复及数据持久化结果，均须在拿到板卡后记录。本地检查不能替代这些结果。

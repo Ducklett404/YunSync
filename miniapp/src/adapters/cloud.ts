@@ -63,14 +63,14 @@ export class CloudHttpError extends Error {
   }
 }
 
-function requestCloud<T>(path: string, data?: Record<string, unknown>): Promise<T> {
+function requestCloud<T>(path: string, data?: Record<string, unknown>, timeout = runtimeConfig.cloudApiTimeoutMs): Promise<T> {
   if (!runtimeConfig.cloudApiBaseUrl) return Promise.reject(new Error('云 API 未配置'))
   return new Promise((resolve, reject) => {
     uni.request({
       url: `${runtimeConfig.cloudApiBaseUrl}${path}`,
       method: data ? 'POST' : 'GET',
       data,
-      timeout: runtimeConfig.cloudApiTimeoutMs,
+      timeout,
       header: data ? { 'Content-Type': 'application/json' } : undefined,
       success: (response) => {
         if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -159,7 +159,7 @@ export async function requestCloudNatural(
     serviceScope: profile.serviceScope,
     hasMedicalConditions: profile.medicalConditions.length > 0,
     hasMedications: profile.medications.length > 0,
-  })
+  }, runtimeConfig.cloudNaturalTimeoutMs)
   assertTraceableRecipe(response.main)
   response.alternatives.forEach(assertTraceableRecipe)
   return { ...response, reasons: (response.reasons || []).map(reason => reasonLabels[reason] || reason) }

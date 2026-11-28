@@ -6,6 +6,7 @@ RUN npm ci --no-audit --no-fund
 COPY miniapp/ ./
 # Same-origin proxy: the build works with any board IP or hostname.
 ENV VITE_DATA_MODE=demo \
+    VITE_YUNSYNC_NATURAL_TIMEOUT_MS=35000 \
     VITE_YUNSYNC_API_BASE_URL=/api
 RUN npm run build:h5
 

@@ -53,11 +53,13 @@ services:
         python -m scripts.wait_for_database
         alembic upgrade head
         python -m scripts.seed_demo
-        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --root-path /api
     environment:
       FORWARDED_ALLOW_IPS: *proxy-address
+      TZ: Asia/Shanghai
       YUNSYNC_APP_ENV: development
-      YUNSYNC_DATABASE_URL: postgresql+psycopg://yunsync_app:${YUNSYNC_BOARD_DB_PASSWORD:?Initialize the board environment}@postgres:5432/yunsync?connect_timeout=3
+      PGPASSWORD: ${YUNSYNC_BOARD_DB_PASSWORD:?Initialize the board environment}
+      YUNSYNC_DATABASE_URL: postgresql+psycopg://yunsync_app@postgres:5432/yunsync?connect_timeout=3
       YUNSYNC_REDIS_URL: redis://redis:6379/0
       YUNSYNC_ALLOW_DEMO_CONTENT: "true"
       YUNSYNC_SEED_DEMO_CONTENT: "false"
@@ -80,7 +82,8 @@ services:
         - -c
         - >-
           import json, urllib.request;
-          h = json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4));
+          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}));
+          h = json.load(opener.open('http://127.0.0.1:8000/health', timeout=4));
           assert h['dependencies']['database']['status'] == 'ok';
           assert h['dependencies']['cache']['status'] == 'ok'
       interval: 10s
@@ -100,7 +103,7 @@ services:
       proxy:
         ipv4_address: *proxy-address
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      test: ["CMD", "wget", "-Y", "off", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
       interval: 10s
       timeout: 3s
       retries: 6

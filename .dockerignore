@@ -19,3 +19,7 @@ miniapp/playwright-report
 .local-backups
 .m14-venv
 deploy/m14/out
+frontend
+release
+**/.npm-cache*
+**/*.sql
